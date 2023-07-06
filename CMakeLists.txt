@@ -1,10 +1,20 @@
 cmake_minimum_required(VERSION 3.16)
 project(n64-emu)
 
-FIND_PACKAGE( Boost 1.40 COMPONENTS program_options REQUIRED )
-INCLUDE_DIRECTORIES( ${Boost_INCLUDE_DIR} )
+include_directories( ${Boost_INCLUDE_DIR} )
 
 add_executable(n64
     src/main.cpp
 )
-TARGET_LINK_LIBRARIES(n64 LINK_PUBLIC ${Boost_LIBRARIES} )
+
+find_package( Boost 1.40 COMPONENTS program_options REQUIRED )
+
+find_package(SDL2 REQUIRED CONFIG REQUIRED COMPONENTS SDL2)
+find_package(SDL2 REQUIRED CONFIG COMPONENTS SDL2main)
+
+if(TARGET SDL2::SDL2main)
+    target_link_libraries(n64 PRIVATE SDL2::SDL2main)
+endif()
+
+target_link_libraries(n64 LINK_PUBLIC ${Boost_LIBRARIES})
+target_link_libraries(n64 PRIVATE SDL2::SDL2)
