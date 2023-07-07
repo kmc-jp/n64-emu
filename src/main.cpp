@@ -1,6 +1,8 @@
 #include "cpu/cpu.h"
 #include "memory/memory.h"
 #include "memory/pif.h"
+#include "utils/logger.h"
+
 #include <cstdint>
 #include <iostream>
 
@@ -19,5 +21,7 @@ int main(int argc, char *argv[]) {
 
     N64::n64cpu.dump();
 
+    N64::gLogger.Debug("ddaaaa");
+    
     return 0;
 }
