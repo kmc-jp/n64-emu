@@ -44,7 +44,6 @@ enum LoggerLevel {
 class Logger {
 public:
     Logger(const std::string &fileName = "/dev/stderr");
-    virtual ~Logger() = default;
 
     void SetFilterLevel(LoggerLevel level);
     void Flush();
@@ -67,7 +66,7 @@ private:
     void Log(LoggerLevel level, const char *format, va_list ap);
 };
 
-extern Logger gLogger;
+//extern Logger gLogger;
 
 inline void Logger::Flush() {
     if (sink.get()) {

@@ -21,7 +21,8 @@ int main(int argc, char *argv[]) {
 
     N64::n64cpu.dump();
 
-    N64::gLogger.Debug("ddaaaa");
+    N64::Logger logger {};
+    logger.Debug("ddaaaa");
     
     return 0;
 }
