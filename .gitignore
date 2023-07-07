@@ -53,3 +53,8 @@ include/*
 lib/*
 bin/*
 test/test_runner
+
+## ROMs
+**/*.z64
+
+.vscode
