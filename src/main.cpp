@@ -1,9 +1,7 @@
 #include "cpu/cpu.h"
 #include "memory/memory.h"
 #include "memory/pif.h"
-#include "utils/logger.h"
-
-#include <cstdint>
+#include <spdlog/spdlog.h>
 #include <iostream>
 
 const std::string USAGE = "USAGE: n64 <ROM.z64>";
@@ -21,8 +19,7 @@ int main(int argc, char *argv[]) {
 
     N64::n64cpu.dump();
 
-    N64::Logger logger {};
-    logger.Debug("ddaaaa");
+    spdlog::info("Welcome to spdlog!");
     
     return 0;
 }
