@@ -25,7 +25,9 @@ int main(int argc, char *argv[]) {
 
     N64::pif_rom_execute();
 
-    N64::n64cpu.dump();
+    while(true) {
+        N64::n64cpu.step();
+    }
 
     return 0;
 }

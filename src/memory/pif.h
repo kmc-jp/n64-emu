@@ -2,6 +2,7 @@
 #define PIF_H
 
 #include "cpu/cpu.h"
+#include "rsp/rsp.h"
 
 namespace N64 {
 
@@ -25,9 +26,10 @@ static void pif_rom_execute() { // CPUのGPRの初期化
     n64cpu.cop0.prid = 0x00000B00;
     n64cpu.cop0.config = 0x0006E463;
 
-    // TODO: ROMの最初0x1000バイトをSP DMEMにコピー
+    // ROMの最初0x1000バイトをSP DMEMにコピー
     //   i.e. 0xB0000000 から 0xA4000000 に0x1000バイトをコピー
     // https://github.com/Dillonb/n64/blob/6502f7d2f163c3f14da5bff8cd6d5ccc47143156/src/mem/pif.c#L358
+    memcpy(n64rsp.sp_dmem, n64mem.rom.raw(), sizeof(uint8_t) * 0x1000);
 }
 
 } // namespace N64
