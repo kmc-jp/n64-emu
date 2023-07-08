@@ -8,6 +8,7 @@
 
 namespace N64 {
 
+// RDRAM with extension pack
 const int RDRAM_SIZE = 0x800000;
 
 class Memory {

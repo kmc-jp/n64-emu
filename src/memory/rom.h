@@ -67,10 +67,10 @@ class Rom {
         broken = false;
     }
 
-    bool is_broken() const { return broken; }
+    // bool is_broken() const { return broken; }
 
-    /* ROMの先頭からのオフセットのデータを1byte取得する */
-    uint8_t at(uint32_t offs) const { return rom.at(offs); }
+    // ROMの生データの先頭へのポインタを返す
+    uint8_t *raw() const { return (uint8_t *)rom.data(); }
 };
 
 } // namespace N64

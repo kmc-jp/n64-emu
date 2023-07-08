@@ -1,10 +1,11 @@
 ﻿#ifndef CPU_H
 #define CPU_H
 
-#include "cop0.h"
 #include <cstdint>
 #include <iostream>
 #include <spdlog/spdlog.h>
+#include "cop0.h"
+#include "../mmu/mmu.h"
 
 namespace N64 {
 
@@ -32,11 +33,17 @@ class Cpu {
     }
 
     void dump() {
+        spdlog::info("======= Core dump =======");
         spdlog::info("PC = 0x{:x}", pc);
         for (int i = 0; i < NUM_GPR; i++) {
             spdlog::info("GPR[{}] = 0x{:x}", i, gpr[i]);
         }
+        spdlog::info("=========================");
     }
+
+    // CPUの1ステップを実行する
+    // https://github.com/Dillonb/n64/blob/6502f7d2f163c3f14da5bff8cd6d5ccc47143156/src/cpu/r4300i.c#L758
+    void step();
 };
 
 extern Cpu n64cpu;
