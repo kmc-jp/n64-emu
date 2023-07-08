@@ -21,10 +21,10 @@ static void pif_rom_execute() { // CPUのGPRの初期化
 
     // CPUのCOP0レジスタの初期化
     // https://github.com/Dillonb/n64/blob/6502f7d2f163c3f14da5bff8cd6d5ccc47143156/src/mem/pif.c#L305
-    n64cpu.cop0.random = 0x0000001F;
-    n64cpu.cop0.status = 0x34000000;
-    n64cpu.cop0.prid = 0x00000B00;
-    n64cpu.cop0.config = 0x0006E463;
+    n64cpu.cop0.reg[Cop0Reg::RANDOM] = 0x0000001F;
+    n64cpu.cop0.reg[Cop0Reg::STATUS] = 0x34000000;
+    n64cpu.cop0.reg[Cop0Reg::PRID] = 0x00000B00;
+    n64cpu.cop0.reg[Cop0Reg::CONFIG] = 0x0006E463;
 
     // ROMの最初0x1000バイトをSP DMEMにコピー
     //   i.e. 0xB0000000 から 0xA4000000 に0x1000バイトをコピー

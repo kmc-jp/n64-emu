@@ -5,11 +5,22 @@
 
 namespace N64 {
 
+enum Cop0Reg {
+    INDEX = 0,
+    RANDOM = 1,
+    STATUS = 12,
+    PRID = 15,
+    CONFIG = 16,
+};
+
 class Cop0 {
   public:
     // COP0 registers
     // ref: https://n64.readthedocs.io/#cop0-registers
     // https://github.com/Dillonb/n64/blob/6502f7d2f163c3f14da5bff8cd6d5ccc47143156/src/cpu/r4300i.h#L484
+    uint64_t reg[32];
+
+    /* 一つずつレジスタを定義するとメンドイのでやめる
     uint32_t index;
     uint32_t random;
     uint64_t entry_lo0; // TODO: refine type?
@@ -42,6 +53,7 @@ class Cop0 {
     uint32_t tag_hi;
     uint64_t error_epc;
     // 31st regiser is unknwon
+    */
 
     Cop0() {}
 

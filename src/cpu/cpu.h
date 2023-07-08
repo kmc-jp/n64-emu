@@ -24,6 +24,7 @@ class Cpu {
 
     void init() {
         // レジスタの初期化
+        // FIXME: 必要ない?
         pc = 0;
         for (int i = 0; i < NUM_GPR; i++) {
             gpr[i] = 0;
