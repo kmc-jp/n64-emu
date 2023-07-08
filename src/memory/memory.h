@@ -7,6 +7,7 @@
 #include <spdlog/spdlog.h>
 
 namespace N64 {
+namespace Memory {
 
 // RDRAM with extension pack
 const int RDRAM_SIZE = 0x800000;
@@ -24,7 +25,9 @@ class Memory {
     }
 };
 
-extern Memory n64mem;
+} // namespace Memory
+
+extern Memory::Memory n64mem;
 
 } // namespace N64
 

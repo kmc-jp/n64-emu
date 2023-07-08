@@ -4,6 +4,7 @@
 #include "../utils/utils.h"
 
 namespace N64 {
+namespace Cpu {
 
 /*
 // rawはbig endianなので、逆順(opが最後)になる.
@@ -100,6 +101,7 @@ const uint8_t OPCODE_LUI = 0b001111;
 
 const uint8_t CP0_SUB_MT = 0b00100;
 
+} // namespace Cpu
 } // namespace N64
 
 #endif

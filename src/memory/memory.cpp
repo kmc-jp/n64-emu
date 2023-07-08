@@ -2,6 +2,6 @@
 
 namespace N64 {
 
-Memory n64mem{};
+Memory::Memory n64mem{};
 
-}
+} // namespace N64

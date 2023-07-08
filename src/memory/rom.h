@@ -10,6 +10,7 @@
 #include <vector>
 
 namespace N64 {
+namespace Memory {
 
 typedef struct RomHeader {
     uint8_t initial_values[4];
@@ -73,6 +74,7 @@ class Rom {
     uint8_t *raw() const { return (uint8_t *)rom.data(); }
 };
 
+} // namespace Memory
 } // namespace N64
 
 #endif

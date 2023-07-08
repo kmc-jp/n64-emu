@@ -22,6 +22,10 @@ class Rsp {
         spdlog::debug("initializing RSP");
         // TODO: what should be done?
     }
+
+    void step() {
+      // TODO: implement
+    }
 };
 
 extern Rsp n64rsp;

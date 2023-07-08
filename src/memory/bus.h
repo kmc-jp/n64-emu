@@ -5,9 +5,8 @@
 #include "memory.h"
 #include <spdlog/spdlog.h>
 
-
 namespace N64 {
-
+namespace Memory {
 // physical memory map
 // clang-format off
 // RDRAM with extension pack
@@ -19,8 +18,6 @@ const uint32_t PHYS_SPDMEM_END  = 0x04000FFF;
 
 // TODO: もっと追加
 // clang-format on
-
-namespace Bus {
 
 // 指定された物理アドレスから32bitを読み込む (big endian)
 // ref:
@@ -43,7 +40,7 @@ static uint32_t read_paddr32(uint32_t paddr) {
     }
 }
 
-} // namespace Bus
+} // namespace Memory
 } // namespace N64
 
 #endif
