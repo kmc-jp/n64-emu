@@ -5,8 +5,7 @@
 #include "rsp/rsp.h"
 
 namespace N64 {
-
-extern Cpu n64cpu;
+namespace Memory {
 
 /* ROMのブートコード(PIF ROM)の副作用をエミュレートする */
 // https://n64.readthedocs.io/#simulating-the-pif-rom
@@ -32,6 +31,7 @@ static void pif_rom_execute() { // CPUのGPRの初期化
     memcpy(n64rsp.sp_dmem, n64mem.rom.raw(), sizeof(uint8_t) * 0x1000);
 }
 
+} // namespace Memory
 } // namespace N64
 
 #endif

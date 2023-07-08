@@ -23,7 +23,7 @@ int main(int argc, char *argv[]) {
     N64::n64mem.init_with_rom(filepath);
     N64::n64rsp.init();
 
-    N64::pif_rom_execute();
+    N64::Memory::pif_rom_execute();
 
     while(true) {
         N64::n64cpu.step();

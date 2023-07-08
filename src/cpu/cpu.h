@@ -1,13 +1,14 @@
 ﻿#ifndef CPU_H
 #define CPU_H
 
+#include "../mmu/mmu.h"
+#include "cop0.h"
 #include <cstdint>
 #include <iostream>
 #include <spdlog/spdlog.h>
-#include "cop0.h"
-#include "../mmu/mmu.h"
 
 namespace N64 {
+namespace Cpu {
 
 const int NUM_GPR = 32;
 
@@ -47,7 +48,9 @@ class Cpu {
     void step();
 };
 
-extern Cpu n64cpu;
+} // namespace Cpu
+
+extern Cpu::Cpu n64cpu;
 
 } // namespace N64
 

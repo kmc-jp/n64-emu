@@ -4,13 +4,14 @@
 #include <cassert>
 
 namespace N64 {
+namespace Cpu {
 
 void Cpu::step() {
     // instruction fetch
     uint32_t paddr_of_pc = Mmu::resolve_vaddr(pc);
     // spdlog::debug("vaddr 0x{:x} -> paddr 0x{:x}", pc, paddr_of_pc);
 
-    Instruction inst = {Bus::read_paddr32(paddr_of_pc)};
+    Instruction inst = {Memory::read_paddr32(paddr_of_pc)};
     spdlog::debug("fetch inst = 0x{:x} from paddr = 0x{:x}", inst.raw,
                   paddr_of_pc);
     uint8_t op = inst.op;
@@ -48,6 +49,8 @@ void Cpu::step() {
     pc += 4;
 }
 
-Cpu n64cpu{};
+} // namespace Cpu
+
+Cpu::Cpu n64cpu{};
 
 } // namespace N64
