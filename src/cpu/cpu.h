@@ -1,10 +1,10 @@
-#ifndef CPU_H
+﻿#ifndef CPU_H
 #define CPU_H
 
+#include "cop0.h"
 #include <cstdint>
 #include <iostream>
 #include <spdlog/spdlog.h>
-#include "cop0.h"
 
 namespace N64 {
 

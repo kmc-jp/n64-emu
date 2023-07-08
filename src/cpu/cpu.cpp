@@ -1,7 +1,7 @@
-#include "cpu.h"
+﻿#include "cpu.h"
 
 namespace N64 {
 
-Cpu n64cpu {};
+Cpu n64cpu{};
 
 }

@@ -1,4 +1,4 @@
-#ifndef ROM_H
+﻿#ifndef ROM_H
 #define ROM_H
 
 #include <cstdint>

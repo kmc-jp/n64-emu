@@ -1,4 +1,4 @@
-#ifndef PIF_H
+﻿#ifndef PIF_H
 #define PIF_H
 
 #include "cpu/cpu.h"
@@ -10,8 +10,7 @@ extern Cpu n64cpu;
 /* ROMのブートコード(PIF ROM)の副作用をエミュレートする */
 // https://n64.readthedocs.io/#simulating-the-pif-rom
 // FIXME: カートリッジの種類(CIC?)によって、PIF ROMの副作用が異なるっぽい
-static void pif_rom_execute() {
-    // CPUのGPRの初期化
+static void pif_rom_execute() { // CPUのGPRの初期化
     n64cpu.gpr[11] = 0xFFFFFFFF'A4000040;
     n64cpu.gpr[20] = 0x00000000'00000001;
     n64cpu.gpr[22] = 0x00000000'0000003F;

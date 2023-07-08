@@ -1,4 +1,4 @@
-#ifndef CPU_COP0_H
+﻿#ifndef CPU_COP0_H
 #define CPU_COP0_H
 
 #include <spdlog/spdlog.h>
@@ -48,7 +48,6 @@ class Cop0 {
     void init() {
         // TODO: what should be done?
         spdlog::debug("initializing CPU COP0");
-
     }
 };
 

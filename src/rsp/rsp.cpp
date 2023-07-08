@@ -1,7 +1,7 @@
-#include "rsp.h"
+﻿#include "rsp.h"
 
 namespace N64 {
 
-Rsp n64rsp {};
+Rsp n64rsp{};
 
 }

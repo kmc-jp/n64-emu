@@ -1,3 +1,6 @@
+﻿#ifndef RSP_H
+#define RSP_H
+
 #include <cstdint>
 #include <spdlog/spdlog.h>
 
@@ -7,7 +10,7 @@ namespace N64 {
 #define SP_IMEM_SIZE 0x1000
 
 class Rsp {
-public:
+  public:
     // TODO: レジスタを追加
 
     uint8_t sp_dmem[SP_DMEM_SIZE];
@@ -24,3 +27,5 @@ public:
 extern Rsp n64rsp;
 
 } // namespace N64
+
+#endif
