@@ -5,6 +5,8 @@
 #include <cstdio>
 #include <cstdlib>
 #include <fstream>
+#include <iostream>
+#include <spdlog/spdlog.h>
 #include <vector>
 
 namespace N64 {
@@ -42,27 +44,26 @@ class Rom {
     Rom() : rom({}), broken(true) {}
 
     void init(std::string filepath) {
-        std::cout << "reading ROM" << std::endl;
+        spdlog::debug("reading ROM");
 
         std::ifstream file(filepath.c_str(), std::ios::in | std::ios::binary);
         if (!file.is_open()) {
-            std::cout << "Could not open ROM file" << std::endl;
+            spdlog::error("Could not open ROM file");
             return;
         }
         rom = {std::istreambuf_iterator<char>(file),
                std::istreambuf_iterator<char>()};
 
         if (rom.size() < sizeof(rom_header_t)) {
-            std::cout << "ROM is too small" << std::endl;
+            spdlog::error("ROM is too small");
             return;
         }
 
         // set header
         header = *((rom_header_t *)rom.data());
 
-        std::cout << "ROM size\t= " << rom.size() << std::endl;
-        std::cout << "ROM imageName\t= " << header.image_name << std::endl;
-        std::cout << "ROM imageName\t= " << header.image_name << std::endl;
+        spdlog::debug("ROM size\t= {}", rom.size());
+        spdlog::debug("imageName\t= \"{}\"", std::string(header.image_name));
         broken = false;
     }
 
