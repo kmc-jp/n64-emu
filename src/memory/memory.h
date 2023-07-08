@@ -1,9 +1,9 @@
-#ifndef MEMORY_H
+﻿#ifndef MEMORY_H
 #define MEMORY_H
 
-#include <iostream>
-#include <cstdint>
 #include "rom.h"
+#include <cstdint>
+#include <iostream>
 #include <spdlog/spdlog.h>
 
 namespace N64 {

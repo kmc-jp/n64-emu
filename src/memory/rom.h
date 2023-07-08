@@ -1,4 +1,4 @@
-#ifndef ROM_H
+﻿#ifndef ROM_H
 #define ROM_H
 
 #include <cstdint>
@@ -44,7 +44,7 @@ class Rom {
     Rom() : rom({}), broken(true) {}
 
     void init(std::string filepath) {
-        spdlog::debug("reading ROM");
+        spdlog::debug("reading from ROM");
 
         std::ifstream file(filepath.c_str(), std::ios::in | std::ios::binary);
         if (!file.is_open()) {

@@ -1,6 +1,7 @@
-#include "cpu/cpu.h"
+﻿#include "cpu/cpu.h"
 #include "memory/memory.h"
 #include "memory/pif.h"
+#include "rsp/rsp.h"
 #include <spdlog/spdlog.h>
 #include <iostream>
 
@@ -20,6 +21,7 @@ int main(int argc, char *argv[]) {
     
     N64::n64cpu.init();
     N64::n64mem.init_with_rom(filepath);
+    N64::n64rsp.init();
 
     N64::pif_rom_execute();
 
