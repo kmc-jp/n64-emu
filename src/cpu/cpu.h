@@ -14,7 +14,7 @@ const int NUM_GPR = 32;
 class Cpu {
   public:
     uint64_t pc;
-    uint64_t gprs[NUM_GPR];
+    uint64_t gpr[NUM_GPR];
 
     Cop0 cop0;
 
@@ -27,7 +27,7 @@ class Cpu {
         // FIXME: 必要ない?
         pc = 0;
         for (int i = 0; i < NUM_GPR; i++) {
-            gprs[i] = 0;
+            gpr[i] = 0;
         }
         // COP0の初期化
         cop0.init();
@@ -37,7 +37,7 @@ class Cpu {
         spdlog::info("======= Core dump =======");
         spdlog::info("PC = 0x{:x}", pc);
         for (int i = 0; i < NUM_GPR; i++) {
-            spdlog::info("GPR[{}] = 0x{:x}", i, gprs[i]);
+            spdlog::info("GPR[{}] = 0x{:x}", i, gpr[i]);
         }
         spdlog::info("=========================");
     }

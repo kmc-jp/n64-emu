@@ -20,7 +20,7 @@ void Cpu::step() {
         int32_t shifted = inst.imm << 16;
         int64_t sext = shifted; // sign extension
         spdlog::info("LUI: GPR[{}] <= 0x{:x}", inst.rd, (uint64_t)sext);
-        n64cpu.gprs[inst.rd] = sext;
+        n64cpu.gpr[inst.rd] = sext;
     } break;
     case OPCODE_COP0: {
         // CP0 instructions
@@ -29,7 +29,7 @@ void Cpu::step() {
         case CP0_SUB_MT: {
             // MTC0
             spdlog::info("MTC0: COP0.reg[{}] <= GPR[{}]", inst.rd, inst.rt);
-            n64cpu.cop0.regs[inst.rd] = n64cpu.gprs[inst.rt];
+            n64cpu.cop0.reg[inst.rd] = n64cpu.gpr[inst.rt];
         } break;
         default: {
             spdlog::critical("Unimpl CP0 inst. sub = 0b{:b}", inst.sub);

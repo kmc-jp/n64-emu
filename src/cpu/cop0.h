@@ -18,7 +18,7 @@ class Cop0 {
     // COP0 registers
     // ref: https://n64.readthedocs.io/#cop0-registers
     // https://github.com/Dillonb/n64/blob/6502f7d2f163c3f14da5bff8cd6d5ccc47143156/src/cpu/r4300i.h#L484
-    uint64_t regs[32];
+    uint64_t reg[32];
 
     /* 一つずつレジスタを定義するとメンドイのでやめる
     uint32_t index;
