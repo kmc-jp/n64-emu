@@ -11,15 +11,19 @@ int main(int argc, char *argv[]) {
         std::cout << USAGE << std::endl;
         return -1;
     }
+    // ロガーのレベルをdebugに設定
+    spdlog::set_level(spdlog::level::debug);
+    // タイムスタンプが邪魔なのでカスタムのパターンを用いる
+    spdlog::set_pattern("[%l] %v");
 
     std::string filepath = {argv[1]};
+    
+    N64::n64cpu.init();
     N64::n64mem.init_with_rom(filepath);
 
     N64::pif_rom_execute();
 
     N64::n64cpu.dump();
 
-    spdlog::info("Welcome to spdlog!");
-    
     return 0;
 }

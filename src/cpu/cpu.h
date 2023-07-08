@@ -3,6 +3,7 @@
 
 #include <cstdint>
 #include <iostream>
+#include <spdlog/spdlog.h>
 
 namespace N64 {
 
@@ -13,22 +14,26 @@ class Cpu {
     uint64_t pc;
     uint32_t gpr[NUM_GPR];
 
-    Cpu() : pc(0) {
+    Cpu() {}
+
+    void init() {
+        pc = 0;
         for (int i = 0; i < NUM_GPR; i++) {
             gpr[i] = 0;
         }
     }
 
     void dump() {
-        std::cout << "PC\t= 0x" << std::hex << pc << std::endl;
+        spdlog::info("PC = 0x{:x}", pc);
         for (int i = 0; i < NUM_GPR; i++) {
-            std::cout << "GPR[" << std::dec << i << "]\t= 0x" << std::hex
-                      << gpr[i] << std::endl;
+            spdlog::info("GPR[{}] = 0x{:x}", i, gpr[i]);
         }
     }
 };
 
-static Cpu n64cpu{};
+extern Cpu n64cpu;
+
+void foo();
 
 } // namespace N64
 

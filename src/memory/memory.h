@@ -1,8 +1,10 @@
 #ifndef MEMORY_H
 #define MEMORY_H
 
-#include "rom.h"
+#include <iostream>
 #include <cstdint>
+#include "rom.h"
+#include <spdlog/spdlog.h>
 
 namespace N64 {
 
@@ -16,12 +18,12 @@ class Memory {
     Memory() {}
 
     void init_with_rom(std::string rom_filepath) {
-        std::cout << "initializing RDRAM" << std::endl;
+        spdlog::debug("initializing RDRAM");
         rom.init(rom_filepath);
     }
 };
 
-static Memory n64mem;
+extern Memory n64mem;
 
 } // namespace N64
 
