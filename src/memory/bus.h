@@ -34,7 +34,6 @@ static uint32_t read_paddr32(uint32_t paddr) {
                (n64mem.rdram[offs + 2] << 8) + n64mem.rdram[offs + 3];
     } else if (PHYS_SPDMEM_BASE <= paddr && paddr <= PHYS_SPDMEM_END) {
         uint32_t offs = paddr - PHYS_SPDMEM_BASE;
-        spdlog::info("0x{:x}", offs);
         return (n64rsp.sp_dmem[offs + 0] << 24) +
                (n64rsp.sp_dmem[offs + 1] << 16) +
                (n64rsp.sp_dmem[offs + 2] << 8) + n64rsp.sp_dmem[offs + 3];
