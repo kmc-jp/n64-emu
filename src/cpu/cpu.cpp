@@ -2,8 +2,6 @@
 
 namespace N64 {
 
-Cpu n64cpu{};
-
-void foo() {}
+Cpu n64cpu {};
 
 }

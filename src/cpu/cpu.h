@@ -4,6 +4,7 @@
 #include <cstdint>
 #include <iostream>
 #include <spdlog/spdlog.h>
+#include "cop0.h"
 
 namespace N64 {
 
@@ -14,13 +15,20 @@ class Cpu {
     uint64_t pc;
     uint32_t gpr[NUM_GPR];
 
+    Cop0 cop0;
+
+    // TODO: COP1を追加
+
     Cpu() {}
 
     void init() {
+        // レジスタの初期化
         pc = 0;
         for (int i = 0; i < NUM_GPR; i++) {
             gpr[i] = 0;
         }
+        // COP0の初期化
+        cop0.init();
     }
 
     void dump() {
@@ -32,8 +40,6 @@ class Cpu {
 };
 
 extern Cpu n64cpu;
-
-void foo();
 
 } // namespace N64
 
