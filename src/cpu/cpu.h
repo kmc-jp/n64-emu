@@ -14,7 +14,7 @@ const int NUM_GPR = 32;
 class Cpu {
   public:
     uint64_t pc;
-    uint32_t gpr[NUM_GPR];
+    uint64_t gpr[NUM_GPR];
 
     Cop0 cop0;
 
