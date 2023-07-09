@@ -6,40 +6,55 @@
 namespace N64 {
 namespace Cpu {
 
-/*
 // rawはbig endianなので、逆順(opが最後)になる.
 // ref: Chap 3.1 https://hack64.net/docs/VR43XX.pdf
 typedef union {
     uint32_t raw;
 
-    PACK(struct {
-        uint16_t imm : 16;
-        uint8_t rt : 5;
-        uint8_t rs : 5;
-        uint8_t op : 6;
-    }) i_type;
+    struct {
+        unsigned : 26;
+        unsigned op : 6;
+    };
 
-    PACK(struct {
-        uint32_t target : 26;
-        uint8_t op : 6;
-    }) j_type;
+    struct {
+        unsigned imm : 16;
+        unsigned rt : 5;
+        unsigned rs : 5;
+        unsigned op : 6;
+    } i_type;
 
-    PACK(struct {
-        uint8_t funct : 6;
-        uint8_t sa : 5;
-        uint8_t rd : 5;
-        uint8_t rt : 5;
-        uint8_t rs : 5;
-        uint8_t op : 6;
-    }) r_type;
+    struct {
+        unsigned target : 26;
+        unsigned op : 6;
+    } j_type;
+
+    struct {
+        unsigned funct : 6;
+        unsigned sa : 5;
+        unsigned rd : 5;
+        unsigned rt : 5;
+        unsigned rs : 5;
+        unsigned op : 6;
+    } r_type;
+
+    struct {
+        unsigned should_be_zero : 6;
+        unsigned sa : 5;
+        unsigned rd : 5;
+        unsigned sub : 5;
+        unsigned op : 6;
+    } copz_a;
 } instruction_t;
-*/
 
 const uint8_t mask5 = 0b11'111;
 const uint8_t mask6 = 0b11'1111;
 const uint16_t mask11 = 0b111'1111'1111;
 const uint16_t mask16 = 0b1111'1111'1111'1111;
 const uint8_t mask26 = 0x3FFFFFF;
+
+// single instruction
+// フォーマットは以下のURLを参照
+// https://hack64.net/docs/VR43XX.pdf
 
 class Instruction {
   public:
@@ -95,6 +110,7 @@ class Instruction {
         // TODO: rest of COP instructions
     }
 };
+
 
 const uint8_t OPCODE_COP0 = 0b010000;
 const uint8_t OPCODE_LUI = 0b001111;
