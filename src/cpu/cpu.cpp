@@ -12,6 +12,9 @@ void Cpu::step() {
     spdlog::debug("");
     spdlog::debug("CPU cycle starts");
 
+    // TODO: delay slotの管理が必要
+    // https://github.com/SimoneN64/Kaizen/blob/dffd36fc31731a0391a9b90f88ac2e5ed5d3f9ec/src/backend/core/Interpreter.hpp#L13
+
     // Compare interrupt
     if (cop0.reg[Cop0Reg::COUNT] == cop0.reg[Cop0Reg::COMPARE]) {
         cop0.get_cause()->ip7 = true;

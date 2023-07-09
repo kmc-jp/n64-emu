@@ -47,9 +47,11 @@ class Cpu {
     uint64_t pc;
     Gpr gpr;
 
+    // TODO: add delay slots
+
     Cop0 cop0;
 
-    // TODO: COP1を追加
+    // TODO: add COP1?
 
     Cpu() {}
 
