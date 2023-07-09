@@ -9,6 +9,9 @@ namespace N64 {
 namespace Cpu {
 
 void Cpu::step() {
+    spdlog::debug("");
+    spdlog::debug("CPU cycle starts");
+
     // Compare interrupt
     if (cop0.reg[Cop0Reg::COUNT] == cop0.reg[Cop0Reg::COMPARE]) {
         cop0.get_cause()->ip7 = true;
@@ -42,8 +45,7 @@ void Cpu::step() {
     instruction_t inst;
     inst.raw = {Memory::read_paddr32(paddr_of_pc)};
     pc += 4;
-    spdlog::debug("fetch inst = 0x{:x} from paddr = 0x{:x}", inst.raw,
-                  paddr_of_pc);
+    spdlog::debug("fetched inst = 0x{:x} from pc = 0x{:x}", inst.raw, pc);
 
     execute_instruction(inst);
 
@@ -53,7 +55,6 @@ void Cpu::step() {
 
 void Cpu::execute_instruction(instruction_t inst) {
     uint8_t op = inst.op;
-
     switch (op) {
     case OPCODE_LUI: // LUI (I format)
     {
@@ -70,8 +71,7 @@ void Cpu::execute_instruction(instruction_t inst) {
                       (uint32_t)inst.i_type.rt, (uint32_t)inst.i_type.rs,
                       offset);
         uint64_t vaddr = gpr.read(inst.i_type.rs) + offset;
-        // spdlog::debug("{:x} {:x}", gpr.read(inst.i_type.rs), vaddr);
-        uint32_t paddr = Mmu::resolve_vaddr(vaddr); // TODO: cache?
+        uint32_t paddr = Mmu::resolve_vaddr(vaddr);
         uint32_t word = Memory::read_paddr32(paddr);
         gpr.write(inst.i_type.rt, word);
     } break;
@@ -104,8 +104,7 @@ void Cpu::execute_instruction(instruction_t inst) {
         }
     } break;
     default: {
-        spdlog::critical("Unimplemented opcode. opcode = 0x{:02x} (0b{:06b})",
-                         op, op);
+        spdlog::critical("Unimplemented opcode = 0x{:02x} (0b{:06b})", op, op);
         dump();
         exit(-1);
     }

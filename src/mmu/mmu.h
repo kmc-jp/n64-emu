@@ -27,17 +27,20 @@ const uint32_t KSEG3_END  = 0xFFFFFFFF;
 // TODO: manage cache?
 static uint32_t resolve_vaddr(uint32_t vaddr) {
     // FIXME: CPUモードによってアドレスが32bit長から64bit長になる
-
+    uint32_t paddr;
     if (KSEG0_BASE <= vaddr && vaddr <= KSEG0_END) {
         // KSEG0はdirect mapped. baseを引くだけでよい
-        return vaddr - KSEG0_BASE;
+        paddr = vaddr - KSEG0_BASE;
     } else if (KSEG1_BASE <= vaddr && vaddr <= KSEG1_END) {
         // KSEG1はdirect mapped. baseを引くだけでよい
-        return vaddr - KSEG1_BASE;
+        paddr = vaddr - KSEG1_BASE;
     } else {
         spdlog::debug("Unimplemented: address translation 0x{:x}", vaddr);
         exit(-1);
     }
+    spdlog::trace("address translation vaddr 0x{:x} => paddr 0x{:x}", vaddr,
+                  paddr);
+    return paddr;
 }
 
 } // namespace Mmu

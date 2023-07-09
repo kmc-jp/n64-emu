@@ -1,6 +1,7 @@
 ﻿#include "cpu/cpu.h"
 #include "memory/memory.h"
 #include "memory/pif.h"
+#include "mmio/RI.h"
 #include "rsp/rsp.h"
 #include <spdlog/spdlog.h>
 
@@ -11,9 +12,9 @@ int main(int argc, char *argv[]) {
         std::cout << USAGE << std::endl;
         return -1;
     }
-    // ロガーのレベルをdebugに設定
-    spdlog::set_level(spdlog::level::debug);
-    // タイムスタンプが邪魔なのでカスタムのパターンを用いる
+    // set logger level
+    spdlog::set_level(spdlog::level::trace);
+    // use custom logging pattern
     spdlog::set_pattern("[%l] %v");
 
     std::string filepath = {argv[1]};
@@ -21,6 +22,7 @@ int main(int argc, char *argv[]) {
     N64::n64cpu.init();
     N64::n64mem.init_with_rom(filepath);
     N64::n64rsp.init();
+    N64::n64ri.init();
 
     N64::Memory::pif_rom_execute();
 
