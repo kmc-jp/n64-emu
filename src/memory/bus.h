@@ -1,6 +1,7 @@
 ﻿#ifndef BUS_H
 #define BUS_H
 
+#include "../cpu/cpu.h"
 #include "../rsp/rsp.h"
 #include "../utils/utils.h"
 #include "memory.h"
@@ -16,6 +17,9 @@ const uint32_t PHYS_RDRAM_BASE  = 0x00000000;
 const uint32_t PHYS_RDRAM_END   = 0x007FFFFF;
 const uint32_t PHYS_SPDMEM_BASE = 0x04000000;
 const uint32_t PHYS_SPDMEM_END  = 0x04000FFF;
+
+const uint32_t PHYS_RI_BASE     = 0x04700000;
+const uint32_t PHYS_RI_END      = 0x047FFFFF;
 // TODO: もっと追加
 // clang-format on
 
@@ -31,8 +35,13 @@ static uint32_t read_paddr32(uint32_t paddr) {
     } else if (PHYS_SPDMEM_BASE <= paddr && paddr <= PHYS_SPDMEM_END) {
         uint32_t offs = paddr - PHYS_SPDMEM_BASE;
         return Utils::read_from_byte_array32(&n64rsp.sp_dmem[offs + 0]);
+    } else if (PHYS_RI_BASE <= paddr && paddr <= PHYS_RI_END) {
+        spdlog::critical("Unimplemented. read from RI 0x{:x}", paddr);
+        n64cpu.dump();
+        exit(-1);
     } else {
         spdlog::critical("Unimplemented. read from paddr = 0x{:x}", paddr);
+        n64cpu.dump();
         exit(-1);
     }
 }

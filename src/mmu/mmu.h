@@ -24,6 +24,7 @@ const uint32_t KSEG3_END  = 0xFFFFFFFF;
 /* virtual addressをphisical addressに変換する */
 // ref: https://n64.readthedocs.io/#virtual-to-physical-address-translation
 // https://github.com/Dillonb/n64/blob/6502f7d2f163c3f14da5bff8cd6d5ccc47143156/src/mem/n64bus.h#L23
+// TODO: manage cache?
 static uint32_t resolve_vaddr(uint32_t vaddr) {
     // FIXME: CPUモードによってアドレスが32bit長から64bit長になる
 

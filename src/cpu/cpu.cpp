@@ -56,10 +56,31 @@ void Cpu::execute_instruction(instruction_t inst) {
     switch (op) {
     case OPCODE_LUI: // LUI (I format)
     {
-        int32_t shifted = inst.i_type.imm << 16;
-        int64_t sext = shifted; // sign extension
-        spdlog::debug("LUI: GPR[{}] <= 0x{:x}", (uint32_t)inst.i_type.rt, (uint64_t)sext);
-        gpr.write(inst.i_type.rt, sext);
+        assert(inst.i_type.rs == 0);
+        int64_t shifted = inst.i_type.imm << 16; // sext
+        spdlog::debug("LUI: GPR[{}] <= 0x{:x}", (uint32_t)inst.i_type.rt,
+                      (uint64_t)shifted);
+        gpr.write(inst.i_type.rt, shifted);
+    } break;
+    case OPCODE_LW: // LW (I format)
+    {
+        int64_t offset = inst.i_type.imm; // sext
+        spdlog::debug("LW: GPR[{}] <= *(GPR[{}] + 0x{:x})",
+                      (uint32_t)inst.i_type.rt, (uint32_t)inst.i_type.rs,
+                      offset);
+        uint64_t vaddr = gpr.read(inst.i_type.rs) + offset;
+        //spdlog::debug("{:x} {:x}", gpr.read(inst.i_type.rs), vaddr);
+        uint32_t paddr = Mmu::resolve_vaddr(vaddr); // TODO: cache?
+        uint32_t word = Memory::read_paddr32(paddr);
+        gpr.write(inst.i_type.rt, word);
+    } break;
+    case OPCODE_ADDIU: // ADDIU (I format)
+    {
+        int64_t imm = inst.i_type.imm; // sext
+        int64_t tmp = gpr.read(inst.i_type.rs) + imm;
+        spdlog::debug("ADDIU: GPR[{}] <= GPR[{}] + 0x{:x}",
+                      (uint32_t)inst.i_type.rt, (uint32_t)inst.i_type.rs, imm);
+        gpr.write(inst.i_type.rt, tmp);
     } break;
     case OPCODE_COP0: // CP0 instructions
     {
@@ -68,13 +89,14 @@ void Cpu::execute_instruction(instruction_t inst) {
         case CP0_SUB_MT: // MTC0 (COPZ format)
         {
             spdlog::debug("MTC0: COP0.reg[{}] <= GPR[{}]",
-                          (uint32_t)inst.copz_type1.rd, (uint32_t)inst.copz_type1.rt);
+                          (uint32_t)inst.copz_type1.rd,
+                          (uint32_t)inst.copz_type1.rt);
             uint64_t tmp = gpr.read(inst.copz_type1.rt);
             cop0.reg[inst.copz_type1.rd] = tmp;
         } break;
         default: {
             spdlog::critical("Unimplemented CP0 inst. sub = 0b{:b}",
-                            (uint32_t) inst.copz_type1.sub);
+                             (uint32_t)inst.copz_type1.sub);
             dump();
             exit(-1);
         }

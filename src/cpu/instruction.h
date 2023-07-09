@@ -111,6 +111,8 @@ class Instruction {
 */
 
 const uint8_t OPCODE_COP0 = 0b010000;
+const uint8_t OPCODE_ADDIU = 0b001001;
+const uint8_t OPCODE_LW = 0b100011;
 const uint8_t OPCODE_LUI = 0b001111;
 
 const uint8_t CP0_SUB_MT = 0b00100;
