@@ -83,6 +83,21 @@ void Cpu::execute_instruction(instruction_t inst) {
                       (uint32_t)inst.i_type.rt, (uint32_t)inst.i_type.rs, imm);
         gpr.write(inst.i_type.rt, tmp);
     } break;
+    case OPCODE_BNE: // BNE (I format)
+    {
+        // FIXME: delay slotのエミュレーションが必要
+        // https://github.com/SimoneN64/Kaizen/blob/dffd36fc31731a0391a9b90f88ac2e5ed5d3f9ec/src/backend/core/interpreter/instructions.cpp#L155
+        // FIXME: 飛び先は今の命令+4+offsetであってる?
+        int64_t offset = inst.i_type.imm << 2; // sext
+        spdlog::debug("BNE: GPR[{}], GPR[{}], pc+{}", (uint32_t)inst.i_type.rs,
+                      (uint32_t)inst.i_type.rt, (int64_t)offset);
+        if (gpr.read(inst.i_type.rs) != gpr.read(inst.i_type.rt)) {
+            spdlog::debug("branch taken");
+            pc += offset;
+        } else {
+            spdlog::debug("branch not taken");
+        }
+    } break;
     case OPCODE_COP0: // CP0 instructions
     {
         assert(inst.copz_type1.should_be_zero == 0);
