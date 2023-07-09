@@ -1,7 +1,8 @@
 ﻿#include "cpu.h"
-#include "../memory/bus.h"
 #include "cop0.h"
 #include "instruction.h"
+#include "memory/bus.h"
+#include "mmu/mmu.h"
 #include <cassert>
 
 namespace N64 {
@@ -69,7 +70,7 @@ void Cpu::execute_instruction(instruction_t inst) {
                       (uint32_t)inst.i_type.rt, (uint32_t)inst.i_type.rs,
                       offset);
         uint64_t vaddr = gpr.read(inst.i_type.rs) + offset;
-        //spdlog::debug("{:x} {:x}", gpr.read(inst.i_type.rs), vaddr);
+        // spdlog::debug("{:x} {:x}", gpr.read(inst.i_type.rs), vaddr);
         uint32_t paddr = Mmu::resolve_vaddr(vaddr); // TODO: cache?
         uint32_t word = Memory::read_paddr32(paddr);
         gpr.write(inst.i_type.rt, word);

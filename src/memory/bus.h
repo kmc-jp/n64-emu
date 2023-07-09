@@ -1,10 +1,10 @@
 ﻿#ifndef BUS_H
 #define BUS_H
 
-#include "../cpu/cpu.h"
-#include "../rsp/rsp.h"
-#include "../utils/utils.h"
+#include "cpu/cpu.h"
 #include "memory.h"
+#include "rsp/rsp.h"
+#include "utils/utils.h"
 #include <spdlog/spdlog.h>
 
 namespace N64 {

@@ -14,8 +14,8 @@
 namespace Utils {
 
 /* 指定されたポインタから4byte分を読み込む (big endian) */
-uint32_t read_from_byte_array32(uint8_t* ptr);
+uint32_t read_from_byte_array32(uint8_t *ptr);
 
-}
+} // namespace Utils
 
 #endif

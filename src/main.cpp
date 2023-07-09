@@ -2,7 +2,6 @@
 #include "memory/memory.h"
 #include "memory/pif.h"
 #include "rsp/rsp.h"
-#include <iostream>
 #include <spdlog/spdlog.h>
 
 const std::string USAGE = "USAGE: n64 <ROM.z64>";

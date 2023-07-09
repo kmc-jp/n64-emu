@@ -1,7 +1,6 @@
 ﻿#ifndef CPU_H
 #define CPU_H
 
-#include "../mmu/mmu.h"
 #include "cop0.h"
 #include "instruction.h"
 #include <cassert>

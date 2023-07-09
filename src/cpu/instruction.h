@@ -1,7 +1,7 @@
 ﻿#ifndef INSTRUCTION_H
 #define INSTRUCTION_H
 
-#include "../utils/utils.h"
+#include "utils/utils.h"
 
 namespace N64 {
 namespace Cpu {
