@@ -38,7 +38,8 @@ void Cpu::step() {
     // instruction fetch
     uint32_t paddr_of_pc = Mmu::resolve_vaddr(pc);
     // spdlog::debug("vaddr 0x{:x} -> paddr 0x{:x}", pc, paddr_of_pc);
-    Instruction inst = {Memory::read_paddr32(paddr_of_pc)};
+    instruction_t inst;
+    inst.raw = {Memory::read_paddr32(paddr_of_pc)};
     pc += 4;
     spdlog::debug("fetch inst = 0x{:x} from paddr = 0x{:x}", inst.raw,
                   paddr_of_pc);
@@ -49,29 +50,31 @@ void Cpu::step() {
     cop0.reg[Cop0Reg::COUNT] &= 0x1FFFFFFFF;
 }
 
-void Cpu::execute_instruction(Instruction inst) {
+void Cpu::execute_instruction(instruction_t inst) {
     uint8_t op = inst.op;
 
     switch (op) {
-    case OPCODE_LUI: // LUI
+    case OPCODE_LUI: // LUI (I format)
     {
-        int32_t shifted = inst.imm << 16;
+        int32_t shifted = inst.i_type.imm << 16;
         int64_t sext = shifted; // sign extension
-        spdlog::debug("LUI: GPR[{}] <= 0x{:x}", inst.rd, (uint64_t)sext);
-        gpr.write(inst.rd, sext);
+        spdlog::debug("LUI: GPR[{}] <= 0x{:x}", (uint32_t)inst.i_type.rt, (uint64_t)sext);
+        gpr.write(inst.i_type.rt, sext);
     } break;
     case OPCODE_COP0: // CP0 instructions
     {
-        assert(inst.should_be_zero == 0);
-        switch (inst.sub) {
-        case CP0_SUB_MT: // MTC0
+        assert(inst.copz_type1.should_be_zero == 0);
+        switch (inst.copz_type1.sub) {
+        case CP0_SUB_MT: // MTC0 (COPZ format)
         {
-            spdlog::debug("MTC0: COP0.reg[{}] <= GPR[{}]", inst.rd, inst.rt);
-            uint64_t tmp = gpr.read(inst.rt);
-            cop0.reg[inst.rd] = tmp;
+            spdlog::debug("MTC0: COP0.reg[{}] <= GPR[{}]",
+                          (uint32_t)inst.copz_type1.rd, (uint32_t)inst.copz_type1.rt);
+            uint64_t tmp = gpr.read(inst.copz_type1.rt);
+            cop0.reg[inst.copz_type1.rd] = tmp;
         } break;
         default: {
-            spdlog::critical("Unimplemented CP0 inst. sub = 0b{:b}", inst.sub);
+            spdlog::critical("Unimplemented CP0 inst. sub = 0b{:b}",
+                            (uint32_t) inst.copz_type1.sub);
             dump();
             exit(-1);
         }

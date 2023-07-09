@@ -74,7 +74,7 @@ class Cpu {
     // https://github.com/Dillonb/n64/blob/6502f7d2f163c3f14da5bff8cd6d5ccc47143156/src/cpu/r4300i.c#L758
     void step();
 
-    void execute_instruction(Instruction inst);
+    void execute_instruction(instruction_t inst);
 };
 
 } // namespace Cpu
