@@ -1,3 +1,6 @@
+﻿#ifndef UTILS_H
+#define UTILS_H
+
 // PACK
 #ifdef __GNUC__
 #define PACK(__Declaration__) __Declaration__ __attribute__((__packed__))
@@ -8,5 +11,11 @@
     __pragma(pack(push, 1)) __Declaration__ __pragma(pack(pop))
 #endif
 
-// Sign extension
-#define SEXT32_64(x) (int64_t)((int32_t)(x))
+namespace Utils {
+
+/* 指定されたポインタから4byte分を読み込む (big endian) */
+uint32_t read_from_byte_array32(uint8_t* ptr);
+
+}
+
+#endif

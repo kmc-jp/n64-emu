@@ -6,6 +6,7 @@ set(SRC_FILES
     src/cpu/cpu.cpp
     src/memory/memory.cpp
     src/rsp/rsp.cpp
+    src/utils/utils.cpp
 )
 
 add_executable(n64 ${SRC_FILES})
