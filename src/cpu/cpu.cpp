@@ -62,16 +62,39 @@ void Cpu::step() {
 void Cpu::execute_instruction(instruction_t inst) {
     uint8_t op = inst.op;
     switch (op) {
-    case OPCODE_SLTU: // SLTU (R format)
+    case OPCODE_SPECIAL: // various operations (R format)
     {
-        uint64_t rs = gpr.read(inst.r_type.rs); // unsigned
-        uint64_t rt = gpr.read(inst.r_type.rt); // unsigned
-        spdlog::debug("SLTU GPR[{}] GPR[{}] GPR[{}]", (uint32_t)inst.r_type.rs,
-                      (uint32_t)inst.r_type.rt, (uint32_t)inst.r_type.rd);
-        if (rs < rt) {
-            gpr.write(inst.r_type.rd, 1);
-        } else {
-            gpr.write(inst.r_type.rd, 0);
+        switch (inst.r_type.funct) {
+        case SPECIAL_FUNCT_SLL: // SLL
+        {
+            assert(inst.r_type.rs == 0);
+            uint64_t rt = gpr.read(inst.r_type.rt);
+            uint8_t sa = inst.r_type.sa;
+            spdlog::debug("SLL: GPR[{}] <= GPR[{}] << {}",
+                          (uint32_t)inst.r_type.rd, (uint32_t)inst.r_type.rt,
+                          (uint32_t)inst.r_type.sa);
+            gpr.write(inst.r_type.rd, rt << sa);
+        } break;
+        case SPECIAL_FUNCT_SLTU: // SLTU
+        {
+            assert(inst.r_type.sa == 0);
+            uint64_t rs = gpr.read(inst.r_type.rs); // unsigned
+            uint64_t rt = gpr.read(inst.r_type.rt); // unsigned
+            spdlog::debug("SLTU GPR[{}] GPR[{}] GPR[{}]",
+                          (uint32_t)inst.r_type.rs, (uint32_t)inst.r_type.rt,
+                          (uint32_t)inst.r_type.rd);
+            if (rs < rt) {
+                gpr.write(inst.r_type.rd, 1);
+            } else {
+                gpr.write(inst.r_type.rd, 0);
+            }
+        } break;
+        default: {
+            spdlog::critical("Unimplemented funct = 0b{:b} for opcode(0x{:x}).",
+                             (uint32_t)inst.r_type.funct, op);
+            Utils::core_dump();
+            exit(-1);
+        } break;
         }
     } break;
     case OPCODE_LUI: // LUI (I format)
