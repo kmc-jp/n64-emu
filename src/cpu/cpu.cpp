@@ -60,6 +60,18 @@ void Cpu::step() {
 void Cpu::execute_instruction(instruction_t inst) {
     uint8_t op = inst.op;
     switch (op) {
+    case OPCODE_SLTU: // SLTU (R format)
+    {
+        uint64_t rs = gpr.read(inst.r_type.rs); // unsigned
+        uint64_t rt = gpr.read(inst.r_type.rt); // unsigned
+        spdlog::debug("SLTU GPR[{}] GPR[{}] GPR[{}]", (uint32_t)inst.r_type.rs,
+                      (uint32_t)inst.r_type.rt, (uint32_t)inst.r_type.rd);
+        if (rs < rt) {
+            gpr.write(inst.r_type.rd, 1);
+        } else {
+            gpr.write(inst.r_type.rd, 0);
+        }
+    } break;
     case OPCODE_LUI: // LUI (I format)
     {
         assert(inst.i_type.rs == 0);
@@ -91,8 +103,9 @@ void Cpu::execute_instruction(instruction_t inst) {
     {
         // FIXME: 飛び先は今の命令+4+offsetであってる?
         int64_t offset = inst.i_type.imm << 2; // sext
-        spdlog::debug("BNE: GPR[{}], GPR[{}], pc+{}", (uint32_t)inst.i_type.rs,
-                      (uint32_t)inst.i_type.rt, (int64_t)offset);
+        spdlog::debug("BNE: GPR[{}] != GPR[{}], pc+{}",
+                      (uint32_t)inst.i_type.rs, (uint32_t)inst.i_type.rt,
+                      (int64_t)offset);
         branch(gpr.read(inst.i_type.rs) != gpr.read(inst.i_type.rt),
                pc + offset);
     } break;

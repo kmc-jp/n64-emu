@@ -111,10 +111,8 @@ class Instruction {
 };
 */
 
-// TODO: special instruction? not MIPS instruction.
-// https://github.com/SimoneN64/Kaizen/blob/dffd36fc31731a0391a9b90f88ac2e5ed5d3f9ec/src/backend/core/interpreter/decode.cpp#L114
-const uint8_t OPCODE_SPECIAL = 0b000000;
 // MIPS instructions
+const uint8_t OPCODE_SLTU = 0b000000;
 const uint8_t OPCODE_COP0 = 0b010000;
 const uint8_t OPCODE_ADDIU = 0b001001;
 const uint8_t OPCODE_LW = 0b100011;
