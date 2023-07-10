@@ -109,6 +109,14 @@ void Cpu::execute_instruction(instruction_t inst) {
                           (uint32_t)inst.r_type.rt);
             gpr.write(inst.r_type.rd, rs & rt);
         } break;
+        case SPECIAL_FUNCT_JR: // JR
+        {
+            assert(inst.r_type.rt == 0 && inst.r_type.rd == 0 &&
+                   inst.r_type.sa == 0);
+            uint64_t rs = gpr.read(inst.r_type.rs);
+            spdlog::debug("JR: GPR[{}]", (uint32_t)inst.r_type.rs);
+            branch(true, rs);
+        } break;
         default: {
             spdlog::critical("Unimplemented funct = 0b{:b} for opcode(0x{:x}).",
                              (uint32_t)inst.r_type.funct, op);

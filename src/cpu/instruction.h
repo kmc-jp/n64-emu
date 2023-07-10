@@ -125,6 +125,7 @@ const uint8_t SPECIAL_FUNCT_SLL = 0b000000;  // SLL
 const uint8_t SPECIAL_FUNCT_SLTU = 0b101011; // SLTU
 const uint8_t SPECIAL_FUNCT_AND = 0b100100;  // AND
 const uint8_t SPECIAL_FUNCT_OR = 0b100101;   // OR
+const uint8_t SPECIAL_FUNCT_JR = 0b001000;   // JR
 
 const uint8_t CP0_SUB_MT = 0b00100; // MTC0
 
