@@ -11,7 +11,8 @@ namespace Cpu {
 // https://hack64.net/docs/VR43XX.pdf
 typedef union {
     uint32_t raw;
-    // 1.4.3 CPU Instruction Set Overview ttps://hack64.net/docs/VR43XX.pdf
+    // 1.4.3 CPU Instruction Set Overview
+    // https://hack64.net/docs/VR43XX.pdf
     struct {
         unsigned : 26;
         unsigned op : 6;

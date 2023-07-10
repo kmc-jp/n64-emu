@@ -15,7 +15,8 @@ int main(int argc, char *argv[]) {
     // set logger level
     spdlog::set_level(spdlog::level::trace);
     // use custom logging pattern
-    spdlog::set_pattern("[%l] %v");
+    // https://github.com/gabime/spdlog/issues/2073
+    spdlog::set_pattern("[%^%l%$] %v");
 
     std::string filepath = {argv[1]};
 
