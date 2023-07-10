@@ -89,25 +89,32 @@ void Cpu::execute_instruction(instruction_t inst) {
                 gpr.write(inst.r_type.rd, 0);
             }
         } break;
-        case SPECIAL_FUNCT_OR: // OR
-        {
-            assert(inst.r_type.sa == 0);
-            uint64_t rs = gpr.read(inst.r_type.rs);
-            uint64_t rt = gpr.read(inst.r_type.rt);
-            spdlog::debug("OR: GPR[{}] <= GPR[{}] | GPR[{}]",
-                          (uint32_t)inst.r_type.rd, (uint32_t)inst.r_type.rs,
-                          (uint32_t)inst.r_type.rt);
-            gpr.write(inst.r_type.rd, rs | rt);
-        } break;
         case SPECIAL_FUNCT_AND: // ADD
         {
             assert(inst.r_type.sa == 0);
-            uint64_t rs = gpr.read(inst.r_type.rs);
-            uint64_t rt = gpr.read(inst.r_type.rt);
             spdlog::debug("AND: GPR[{}] <= GPR[{}] & GPR[{}]",
                           (uint32_t)inst.r_type.rd, (uint32_t)inst.r_type.rs,
                           (uint32_t)inst.r_type.rt);
-            gpr.write(inst.r_type.rd, rs & rt);
+            gpr.write(inst.r_type.rd,
+                      gpr.read(inst.r_type.rs) & gpr.read(inst.r_type.rt));
+        } break;
+        case SPECIAL_FUNCT_OR: // OR
+        {
+            assert(inst.r_type.sa == 0);
+            spdlog::debug("OR: GPR[{}] <= GPR[{}] | GPR[{}]",
+                          (uint32_t)inst.r_type.rd, (uint32_t)inst.r_type.rs,
+                          (uint32_t)inst.r_type.rt);
+            gpr.write(inst.r_type.rd,
+                      gpr.read(inst.r_type.rs) | gpr.read(inst.r_type.rt));
+        } break;
+        case SPECIAL_FUNCT_XOR: // XOR
+        {
+            assert(inst.r_type.sa == 0);
+            spdlog::debug("XOR: GPR[{}] <= GPR[{}] ^ GPR[{}]",
+                          (uint32_t)inst.r_type.rd, (uint32_t)inst.r_type.rs,
+                          (uint32_t)inst.r_type.rt);
+            gpr.write(inst.r_type.rd,
+                      gpr.read(inst.r_type.rs) ^ gpr.read(inst.r_type.rt));
         } break;
         case SPECIAL_FUNCT_JR: // JR
         {
