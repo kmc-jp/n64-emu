@@ -12,13 +12,14 @@ void Cpu::step() {
     spdlog::debug("");
     spdlog::debug("CPU cycle starts");
 
-    // TODO: delay slotの管理が必要
-    // https://github.com/SimoneN64/Kaizen/blob/dffd36fc31731a0391a9b90f88ac2e5ed5d3f9ec/src/backend/core/Interpreter.hpp#L13
-
     // Compare interrupt
     if (cop0.reg[Cop0Reg::COUNT] == cop0.reg[Cop0Reg::COMPARE]) {
         cop0.get_cause()->ip7 = true;
     }
+
+    // updates delay slot
+    prev_delay_slot = delay_slot;
+    delay_slot = false;
 
     // check for interrupt/exception
     // TODO: implement MI_INTR_MASK_REG?
@@ -88,18 +89,12 @@ void Cpu::execute_instruction(instruction_t inst) {
     } break;
     case OPCODE_BNE: // BNE (I format)
     {
-        // FIXME: delay slotのエミュレーションが必要
-        // https://github.com/SimoneN64/Kaizen/blob/dffd36fc31731a0391a9b90f88ac2e5ed5d3f9ec/src/backend/core/interpreter/instructions.cpp#L155
         // FIXME: 飛び先は今の命令+4+offsetであってる?
         int64_t offset = inst.i_type.imm << 2; // sext
         spdlog::debug("BNE: GPR[{}], GPR[{}], pc+{}", (uint32_t)inst.i_type.rs,
                       (uint32_t)inst.i_type.rt, (int64_t)offset);
-        if (gpr.read(inst.i_type.rs) != gpr.read(inst.i_type.rt)) {
-            spdlog::debug("branch taken");
-            pc += offset;
-        } else {
-            spdlog::debug("branch not taken");
-        }
+        branch(gpr.read(inst.i_type.rs) != gpr.read(inst.i_type.rt),
+               pc + offset);
     } break;
     case OPCODE_COP0: // CP0 instructions
     {
@@ -126,6 +121,16 @@ void Cpu::execute_instruction(instruction_t inst) {
         dump();
         exit(-1);
     }
+    }
+}
+
+void Cpu::branch(bool cond, uint64_t addr) {
+    delay_slot = true;
+    if (cond) {
+        spdlog::debug("branch taken");
+        pc = addr;
+    } else {
+        spdlog::debug("branch not taken");
     }
 }
 

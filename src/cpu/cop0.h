@@ -27,7 +27,11 @@ enum Cop0Reg {
     WATCH_LO = 18,
     WATCH_HI = 19,
     X_CONTEXT = 20,
-    // TODO: add more
+    PARITY_ERROR = 26,
+    CACHE_ERROR = 27,
+    TAG_LO = 28,
+    TAG_HI = 29,
+    ERROR_EPC = 30,
 };
 
 // FIXME: packedいる?
@@ -96,7 +100,7 @@ typedef union cp0_status {
 class Cop0 {
   public:
     // COP0 registers
-    // ref: https://n64.readthedocs.io/#cop0-registers
+    // https://n64.readthedocs.io/#cop0-registers
     // https://github.com/Dillonb/n64/blob/6502f7d2f163c3f14da5bff8cd6d5ccc47143156/src/cpu/r4300i.h#L484
     uint64_t reg[32];
 
@@ -138,8 +142,20 @@ class Cop0 {
     Cop0() {}
 
     void init() {
-        // TODO: what should be done?
         spdlog::debug("initializing CPU COP0");
+        // https://github.com/SimoneN64/Kaizen/blob/dffd36fc31731a0391a9b90f88ac2e5ed5d3f9ec/src/backend/core/registers/Cop0.cpp#L11
+        reg[Cop0Reg::CAUSE] = 0xB000007C;
+        reg[Cop0Reg::STATUS] = 0;
+        get_status()->cu0 = 1;
+        get_status()->cu1 = 1;
+        get_status()->fr = 1;
+        reg[Cop0Reg::PRID] = 0x00000B22;
+        reg[Cop0Reg::CONFIG] = 0x7006E463;
+        reg[Cop0Reg::EPC] = 0xFFFFFFFFFFFFFFFFll;
+        reg[Cop0Reg::ERROR_EPC] = 0xFFFFFFFFFFFFFFFFll;
+        reg[Cop0Reg::WIRED] = 0;
+        reg[Cop0Reg::INDEX] = 63;
+        reg[Cop0Reg::BAD_VADDR] = 0xFFFFFFFFFFFFFFFF;
     }
 
     void dump() {

@@ -46,14 +46,15 @@ class Cpu {
   public:
     uint64_t pc;
     Gpr gpr;
-
-    // TODO: add delay slots
+    // branch delay slot?
+    bool delay_slot;
+    bool prev_delay_slot;
 
     Cop0 cop0;
 
     // TODO: add COP1?
 
-    Cpu() {}
+    Cpu() : delay_slot(false), prev_delay_slot(false) {}
 
     void init() {
         // レジスタの初期化
@@ -76,6 +77,8 @@ class Cpu {
     void step();
 
     void execute_instruction(instruction_t inst);
+
+    void branch(bool cond, uint64_t addr);
 };
 
 } // namespace Cpu
