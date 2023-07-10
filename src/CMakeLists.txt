@@ -2,6 +2,7 @@ include_directories(
     .
     cpu
     memory
+    mmio
     mmu
     rsp
     utils
@@ -26,13 +27,14 @@ include_directories("${CMAKE_SOURCE_DIR}/third_party/spdlog/include")
 
 add_subdirectory(cpu)
 add_subdirectory(memory)
+add_subdirectory(mmio)
 add_subdirectory(mmu)
 add_subdirectory(rsp)
 add_subdirectory(utils)
 
 add_executable(n64 main.cpp)
 target_link_libraries(n64 PUBLIC
-    cpu memory mmu rsp utils
+    cpu memory mmio mmu rsp utils
     ${Boost_LIBRARIES})
 
 # target_link_libraries(n64 PRIVATE SDL2::SDL2)
