@@ -32,12 +32,12 @@ void Cpu::step() {
                 "Unimplemented. interruption IP = 0b{:07b} mask = 0b{:07b}",
                 (uint32_t)cop0.get_cause()->interrupt_pending,
                 (uint32_t)cop0.get_status()->im);
-            dump();
+            Utils::core_dump();
             exit(-1);
         } break;
         default: {
             spdlog::critical("Unimplemented. exception code = {}", exc_code);
-            dump();
+            Utils::core_dump();
             exit(-1);
         } break;
         }
@@ -119,14 +119,14 @@ void Cpu::execute_instruction(instruction_t inst) {
         default: {
             spdlog::critical("Unimplemented CP0 inst. sub = 0b{:b}",
                              (uint32_t)inst.copz_type1.sub);
-            dump();
+            Utils::core_dump();
             exit(-1);
         }
         }
     } break;
     default: {
         spdlog::critical("Unimplemented opcode = 0x{:02x} (0b{:06b})", op, op);
-        dump();
+        Utils::core_dump();
         exit(-1);
     }
     }

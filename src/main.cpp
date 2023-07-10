@@ -1,7 +1,6 @@
 ﻿#include "cpu/cpu.h"
 #include "memory/memory.h"
 #include "memory/pif.h"
-#include "mmio/RI.h"
 #include "rsp/rsp.h"
 #include <spdlog/spdlog.h>
 
@@ -21,9 +20,9 @@ int main(int argc, char *argv[]) {
     std::string filepath = {argv[1]};
 
     N64::n64cpu.reset();
-    N64::n64mem.init_with_rom(filepath);
+    N64::n64mem.load_rom(filepath);
+    N64::n64mem.reset();
     N64::n64rsp.reset();
-    N64::n64ri.reset();
 
     N64::Memory::pif_rom_execute();
 

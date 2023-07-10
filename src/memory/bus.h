@@ -1,9 +1,7 @@
 ﻿#ifndef BUS_H
 #define BUS_H
 
-#include "cpu/cpu.h"
 #include "memory.h"
-#include "mmio/RI.h"
 #include "rsp/rsp.h"
 #include "utils/utils.h"
 #include <spdlog/spdlog.h>
@@ -37,10 +35,10 @@ static uint32_t read_paddr32(uint32_t paddr) {
         uint32_t offs = paddr - PHYS_SPDMEM_BASE;
         return Utils::read_from_byte_array32(&n64rsp.sp_dmem[offs]);
     } else if (PHYS_RI_BASE <= paddr && paddr <= PHYS_RI_END) {
-        return n64ri.read_paddr32(paddr);
+        return n64mem.ri.read_paddr32(paddr);
     } else {
         spdlog::critical("Unimplemented. read from paddr = 0x{:x}", paddr);
-        n64cpu.dump();
+        Utils::core_dump();
         exit(-1);
     }
 }

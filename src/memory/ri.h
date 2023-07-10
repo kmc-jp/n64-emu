@@ -1,11 +1,12 @@
-#ifndef RI_H
-#define RI_H
+#ifndef ri_H
+#define ri_H
 
-#include "cpu/cpu.h"
 #include <cstdint>
+#include <spdlog/spdlog.h>
+#include "utils/utils.h"
 
 namespace N64 {
-namespace Mmio {
+namespace Memory {
 
 // RDRAM Interface
 // https://n64brew.dev/wiki/RDRAM_Interface
@@ -46,7 +47,7 @@ class RI {
         default: {
             spdlog::critical("Unimplemented. Read from RI paddr = 0x{:x}",
                              (uint32_t)paddr);
-            n64cpu.dump();
+            Utils::core_dump();
             exit(-1);
         } break;
         }
@@ -67,17 +68,14 @@ class RI {
         default: {
             spdlog::critical("Unimplemented. Write to RI paddr = 0x{:x}",
                              (uint32_t)paddr);
-            n64cpu.dump();
+            Utils::core_dump();
             exit(-1);
         } break;
         }
     }
 };
 
-} // namespace Mmio
-
-extern Mmio::RI n64ri;
-
+} // namespace Memory
 } // namespace N64
 
 #endif

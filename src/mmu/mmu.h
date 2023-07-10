@@ -1,6 +1,7 @@
 ﻿#ifndef MMU_H
 #define MMU_H
 
+#include "utils/utils.h"
 #include <spdlog/spdlog.h>
 
 namespace N64 {
@@ -36,6 +37,7 @@ static uint32_t resolve_vaddr(uint32_t vaddr) {
         paddr = vaddr - KSEG1_BASE;
     } else {
         spdlog::debug("Unimplemented: address translation 0x{:x}", vaddr);
+        Utils::core_dump();
         exit(-1);
     }
     spdlog::trace("address translation vaddr 0x{:x} => paddr 0x{:x}", vaddr,

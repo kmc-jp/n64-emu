@@ -1,6 +1,8 @@
 ﻿#ifndef UTILS_H
 #define UTILS_H
 
+#include <cstdint>
+
 // PACK
 #ifdef __GNUC__
 #define PACK(__Declaration__) __Declaration__ __attribute__((__packed__))
@@ -15,6 +17,8 @@ namespace Utils {
 
 /* 指定されたポインタから4byte分を読み込む (big endian) */
 uint32_t read_from_byte_array32(uint8_t *ptr);
+
+void core_dump();
 
 } // namespace Utils
 
