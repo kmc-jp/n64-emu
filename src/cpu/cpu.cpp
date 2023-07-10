@@ -164,6 +164,27 @@ void Cpu::execute_instruction(instruction_t inst) {
                       (uint32_t)inst.i_type.rt, (uint32_t)inst.i_type.rs, imm);
         gpr.write(inst.i_type.rt, tmp);
     } break;
+    case OPCODE_ANDI: // ANDI (I format)
+    {
+        uint64_t imm = inst.i_type.imm; // zext
+        spdlog::debug("ANDI: GPR[{}] <= GPR[{}] & 0x{:x}",
+                      (uint32_t)inst.i_type.rt, (uint32_t)inst.i_type.rs, imm);
+        gpr.write(inst.i_type.rt, gpr.read(inst.i_type.rs) & imm);
+    } break;
+    case OPCODE_ORI: // ORI (I format)
+    {
+        uint64_t imm = inst.i_type.imm; // zext
+        spdlog::debug("ORI: GPR[{}] <= GPR[{}] | 0x{:x}",
+                      (uint32_t)inst.i_type.rt, (uint32_t)inst.i_type.rs, imm);
+        gpr.write(inst.i_type.rt, gpr.read(inst.i_type.rs) | imm);
+    } break;
+    case OPCODE_XORI: // XORI (I format)
+    {
+        uint64_t imm = inst.i_type.imm; // zext
+        spdlog::debug("XORI: GPR[{}] <= GPR[{}] ^ 0x{:x}",
+                      (uint32_t)inst.i_type.rt, (uint32_t)inst.i_type.rs, imm);
+        gpr.write(inst.i_type.rt, gpr.read(inst.i_type.rs) ^ imm);
+    } break;
     case OPCODE_BNE: // BNE (I format)
     {
         // FIXME: 飛び先は今の命令+4+offsetであってる?

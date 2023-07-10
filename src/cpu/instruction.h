@@ -120,6 +120,9 @@ const uint8_t OPCODE_SW = 0b101011;
 const uint8_t OPCODE_LUI = 0b001111;
 const uint8_t OPCODE_BNE = 0b000101; // 2cycles?
 const uint8_t OPCODE_CACHE = 0b101111;
+const uint8_t OPCODE_ANDI = 0b001100;
+const uint8_t OPCODE_ORI = 0b001101;
+const uint8_t OPCODE_XORI = 0b001110;
 
 const uint8_t SPECIAL_FUNCT_SLL = 0b000000;  // SLL
 const uint8_t SPECIAL_FUNCT_SLTU = 0b101011; // SLTU
