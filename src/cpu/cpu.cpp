@@ -96,6 +96,14 @@ void Cpu::execute_instruction(instruction_t inst) {
         branch(gpr.read(inst.i_type.rs) != gpr.read(inst.i_type.rt),
                pc + offset);
     } break;
+    case OPCODE_CACHE: // CACHE
+    {
+        // B.1.1 CACHE Instruction
+        // https://hack64.net/docs/VR43XX.pdf
+        // no need for emulation?
+        spdlog::debug("CACHE: no effect");
+
+    } break;
     case OPCODE_COP0: // CP0 instructions
     {
         assert(inst.copz_type1.should_be_zero == 0);
