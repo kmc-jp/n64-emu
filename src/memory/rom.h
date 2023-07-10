@@ -54,6 +54,8 @@ class Rom {
         }
         rom = {std::istreambuf_iterator<char>(file),
                std::istreambuf_iterator<char>()};
+        // size of phisical memory region mapped to memory
+        rom.resize(0xFC00000);
 
         if (rom.size() < sizeof(rom_header_t)) {
             spdlog::error("ROM is too small");

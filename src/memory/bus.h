@@ -19,18 +19,23 @@ const uint32_t PHYS_SPDMEM_END  = 0x04000FFF;
 
 const uint32_t PHYS_RI_BASE     = 0x04700000;
 const uint32_t PHYS_RI_END      = 0x047FFFFF;
+
+const uint32_t PHYS_ROM_BASE    = 0x10000000;
+const uint32_t PHYS_ROM_END     = 0x1FBFFFFF;
 // TODO: もっと追加
 // clang-format on
 
-static uint8_t* get_pointer_to_paddr32(uint32_t paddr) {
+static uint8_t *get_pointer_to_paddr32(uint32_t paddr) {
     if (PHYS_RDRAM_BASE <= paddr && paddr <= PHYS_RDRAM_END) {
         uint32_t offs = paddr - PHYS_RDRAM_BASE;
-        return (uint8_t*)&n64mem.rdram[offs];
+        return (uint8_t *)&n64mem.rdram[offs];
     } else if (PHYS_SPDMEM_BASE <= paddr && paddr <= PHYS_SPDMEM_END) {
         uint32_t offs = paddr - PHYS_SPDMEM_BASE;
-        return (uint8_t*) &n64rsp.sp_dmem[offs];
+        return (uint8_t *)&n64rsp.sp_dmem[offs];
     } else if (PHYS_RI_BASE <= paddr && paddr <= PHYS_RI_END) {
         return n64mem.ri.get_pointer_to_paddr32(paddr);
+    } else if (PHYS_ROM_BASE <= paddr && paddr <= PHYS_ROM_END) {
+        return (uint8_t *)&n64mem.rom.raw()[paddr - PHYS_ROM_BASE];
     } else {
         spdlog::critical("Unimplemented. access to paddr = 0x{:x}", paddr);
         Utils::core_dump();
