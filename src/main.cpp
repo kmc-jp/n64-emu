@@ -19,10 +19,10 @@ int main(int argc, char *argv[]) {
 
     std::string filepath = {argv[1]};
 
-    N64::n64cpu.init();
+    N64::n64cpu.reset();
     N64::n64mem.init_with_rom(filepath);
-    N64::n64rsp.init();
-    N64::n64ri.init();
+    N64::n64rsp.reset();
+    N64::n64ri.reset();
 
     N64::Memory::pif_rom_execute();
 

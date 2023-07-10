@@ -21,7 +21,7 @@ class Memory {
 
     void init_with_rom(std::string rom_filepath) {
         spdlog::debug("initializing RDRAM");
-        rom.init(rom_filepath);
+        rom.read_from(rom_filepath);
     }
 };
 

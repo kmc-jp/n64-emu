@@ -141,7 +141,7 @@ class Cop0 {
 
     Cop0() {}
 
-    void init() {
+    void reset() {
         spdlog::debug("initializing CPU COP0");
         // https://github.com/SimoneN64/Kaizen/blob/dffd36fc31731a0391a9b90f88ac2e5ed5d3f9ec/src/backend/core/registers/Cop0.cpp#L11
         reg[Cop0Reg::CAUSE] = 0xB000007C;

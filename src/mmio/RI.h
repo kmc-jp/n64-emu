@@ -11,30 +11,40 @@ namespace Mmio {
 // https://n64brew.dev/wiki/RDRAM_Interface
 class RI {
   private:
-    uint32_t regs[6];
+    enum Reg {
+        MODE = 0,
+        CONFIG = 1,
+        SELECT = 3,
+        REFLESH = 4,
+    };
+
+    uint32_t reg[6];
 
   public:
     RI() {}
 
-    void init() {
-        // TODO: what should be done?
+    void reset() {
+        // https://github.com/SimoneN64/Kaizen/blob/dffd36fc31731a0391a9b90f88ac2e5ed5d3f9ec/src/backend/core/mmio/RI.cpp#L9
+        reg[Reg::MODE] = 0xE;
+        reg[Reg::CONFIG] = 040;
+        reg[Reg::SELECT] = 0x14;
+        reg[Reg::REFLESH] = 0x63634;
     }
 
     uint32_t read_paddr32(uint32_t paddr) {
         switch (paddr) {
         case 0x0470'0000: // mode
         case 0x0470'0004: // config
-        case 0x0470'0008: // current_load
         case 0x0470'000C: // select
         case 0x0470'0010: // reflesh
-        case 0x0470'0014: // latency
         {
             uint32_t reg_num = (paddr - 0x0470'0000) / 4;
-            return regs[reg_num];
+            return reg[reg_num];
         } break;
+        case 0x0470'0008: // current_load
+        case 0x0470'0014: // latency
         default: {
-            // correct?
-            spdlog::critical("Illegal?. Read from RI paddr = 0x{:x}",
+            spdlog::critical("Unimplemented. Read from RI paddr = 0x{:x}",
                              (uint32_t)paddr);
             n64cpu.dump();
             exit(-1);
@@ -46,17 +56,16 @@ class RI {
         switch (paddr) {
         case 0x0470'0000: // mode
         case 0x0470'0004: // config
-        case 0x0470'0008: // current_load
         case 0x0470'000C: // select
         case 0x0470'0010: // reflesh
-        case 0x0470'0014: // latency
         {
             uint32_t reg_num = (paddr - 0x0470'0000) / 4;
-            regs[reg_num] = value;
+            reg[reg_num] = value;
         } break;
+        case 0x0470'0008: // current_load
+        case 0x0470'0014: // latency
         default: {
-            // correct?
-            spdlog::critical("Illegal?. Write to RI paddr = 0x{:x}",
+            spdlog::critical("Unimplemented. Write to RI paddr = 0x{:x}",
                              (uint32_t)paddr);
             n64cpu.dump();
             exit(-1);

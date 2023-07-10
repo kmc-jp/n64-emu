@@ -56,11 +56,9 @@ class Cpu {
 
     Cpu() : delay_slot(false), prev_delay_slot(false) {}
 
-    void init() {
-        // レジスタの初期化
-        // FIXME: 必要ない?
-        // COP0の初期化
-        cop0.init();
+    void reset() {
+        // TODO: reset GPR?
+        cop0.reset();
     }
 
     void dump() {

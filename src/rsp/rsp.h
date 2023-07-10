@@ -18,7 +18,7 @@ class Rsp {
 
     Rsp() {}
 
-    void init() {
+    void reset() {
         spdlog::debug("initializing RSP");
         // TODO: what should be done?
     }

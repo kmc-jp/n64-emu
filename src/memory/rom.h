@@ -44,7 +44,7 @@ class Rom {
   public:
     Rom() : rom({}), broken(true) {}
 
-    void init(std::string filepath) {
+    void read_from(std::string filepath) {
         spdlog::debug("reading from ROM");
 
         std::ifstream file(filepath.c_str(), std::ios::in | std::ios::binary);
