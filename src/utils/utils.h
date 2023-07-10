@@ -18,6 +18,9 @@ namespace Utils {
 /* 指定されたポインタから4byte分を読み込む (big endian) */
 uint32_t read_from_byte_array32(uint8_t *ptr);
 
+/* 指定されたポインタに4byte分を書き込む (big endian) */
+void write_to_byte_array32(uint8_t *ptr, uint32_t value);
+
 void core_dump();
 
 } // namespace Utils

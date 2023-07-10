@@ -116,12 +116,15 @@ const uint8_t OPCODE_SPECIAL = 0b000000;
 const uint8_t OPCODE_COP0 = 0b010000;
 const uint8_t OPCODE_ADDIU = 0b001001;
 const uint8_t OPCODE_LW = 0b100011;
+const uint8_t OPCODE_SW = 0b101011;
 const uint8_t OPCODE_LUI = 0b001111;
 const uint8_t OPCODE_BNE = 0b000101; // 2cycles?
 const uint8_t OPCODE_CACHE = 0b101111;
 
 const uint8_t SPECIAL_FUNCT_SLL = 0b000000;  // SLL
 const uint8_t SPECIAL_FUNCT_SLTU = 0b101011; // SLTU
+const uint8_t SPECIAL_FUNCT_AND = 0b100100;  // AND
+const uint8_t SPECIAL_FUNCT_OR = 0b100101;   // OR
 
 const uint8_t CP0_SUB_MT = 0b00100; // MTC0
 

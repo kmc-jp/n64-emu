@@ -1,9 +1,9 @@
 #ifndef ri_H
 #define ri_H
 
+#include "utils/utils.h"
 #include <cstdint>
 #include <spdlog/spdlog.h>
-#include "utils/utils.h"
 
 namespace N64 {
 namespace Memory {
@@ -32,7 +32,7 @@ class RI {
         reg[Reg::REFLESH] = 0x63634;
     }
 
-    uint32_t read_paddr32(uint32_t paddr) {
+    uint8_t *get_pointer_to_paddr32(uint32_t paddr) {
         switch (paddr) {
         case 0x0470'0000: // mode
         case 0x0470'0004: // config
@@ -40,33 +40,12 @@ class RI {
         case 0x0470'0010: // reflesh
         {
             uint32_t reg_num = (paddr - 0x0470'0000) / 4;
-            return reg[reg_num];
+            return (uint8_t *)&reg[reg_num];
         } break;
         case 0x0470'0008: // current_load
         case 0x0470'0014: // latency
         default: {
             spdlog::critical("Unimplemented. Read from RI paddr = 0x{:x}",
-                             (uint32_t)paddr);
-            Utils::core_dump();
-            exit(-1);
-        } break;
-        }
-    }
-
-    void write_paddr32(uint32_t paddr, uint32_t value) {
-        switch (paddr) {
-        case 0x0470'0000: // mode
-        case 0x0470'0004: // config
-        case 0x0470'000C: // select
-        case 0x0470'0010: // reflesh
-        {
-            uint32_t reg_num = (paddr - 0x0470'0000) / 4;
-            reg[reg_num] = value;
-        } break;
-        case 0x0470'0008: // current_load
-        case 0x0470'0014: // latency
-        default: {
-            spdlog::critical("Unimplemented. Write to RI paddr = 0x{:x}",
                              (uint32_t)paddr);
             Utils::core_dump();
             exit(-1);
