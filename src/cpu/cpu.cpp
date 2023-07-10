@@ -89,6 +89,26 @@ void Cpu::execute_instruction(instruction_t inst) {
                 gpr.write(inst.r_type.rd, 0);
             }
         } break;
+        case SPECIAL_FUNCT_OR: // OR
+        {
+            assert(inst.r_type.sa == 0);
+            uint64_t rs = gpr.read(inst.r_type.rs);
+            uint64_t rt = gpr.read(inst.r_type.rt);
+            spdlog::debug("OR: GPR[{}] <= GPR[{}] | GPR[{}]",
+                          (uint32_t)inst.r_type.rd, (uint32_t)inst.r_type.rs,
+                          (uint32_t)inst.r_type.rt);
+            gpr.write(inst.r_type.rd, rs | rt);
+        } break;
+        case SPECIAL_FUNCT_AND: // ADD
+        {
+            assert(inst.r_type.sa == 0);
+            uint64_t rs = gpr.read(inst.r_type.rs);
+            uint64_t rt = gpr.read(inst.r_type.rt);
+            spdlog::debug("AND: GPR[{}] <= GPR[{}] & GPR[{}]",
+                          (uint32_t)inst.r_type.rd, (uint32_t)inst.r_type.rs,
+                          (uint32_t)inst.r_type.rt);
+            gpr.write(inst.r_type.rd, rs & rt);
+        } break;
         default: {
             spdlog::critical("Unimplemented funct = 0b{:b} for opcode(0x{:x}).",
                              (uint32_t)inst.r_type.funct, op);
@@ -110,12 +130,23 @@ void Cpu::execute_instruction(instruction_t inst) {
     {
         int64_t offset = (int16_t)inst.i_type.imm; // sext
         spdlog::debug("LW: GPR[{}] <= *(GPR[{}] + 0x{:x})",
-                      (uint32_t)inst.i_type.rt, (uint32_t)inst.i_type.rs,
+                      (uint32_t)inst.i_type.rt, (uint64_t)inst.i_type.rs,
                       offset);
         uint64_t vaddr = gpr.read(inst.i_type.rs) + offset;
         uint32_t paddr = Mmu::resolve_vaddr(vaddr);
         uint32_t word = Memory::read_paddr32(paddr);
         gpr.write(inst.i_type.rt, word);
+    } break;
+    case OPCODE_SW: // SW (I format)
+    {
+        int64_t offset = (int16_t)inst.i_type.imm; // sext
+        spdlog::debug("SW: *(GPR[{}] + 0x{:x}) <= GPR[{}]",
+                      (uint32_t)inst.i_type.rs, offset,
+                      (uint32_t)inst.r_type.rt);
+        uint64_t vaddr = gpr.read(inst.i_type.rs) + offset;
+        uint32_t paddr = Mmu::resolve_vaddr(vaddr);
+        uint32_t word = gpr.read(inst.r_type.rt);
+        Memory::write_paddr32(paddr, word);
     } break;
     case OPCODE_ADDIU: // ADDIU (I format)
     {
