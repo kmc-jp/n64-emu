@@ -43,8 +43,9 @@ class Cpu {
         }
     };
 
-  public:
     uint64_t pc;
+    uint64_t next_pc;
+  public:
     Gpr gpr;
     // branch delay slot?
     bool delay_slot;
@@ -68,6 +69,11 @@ class Cpu {
         spdlog::info("");
         cop0.dump();
         spdlog::info("=========================");
+    }
+
+    void set_pc64(uint64_t value) {
+        pc = value;
+        next_pc = value + 4;
     }
 
     // CPUの1ステップを実行する

@@ -48,8 +48,10 @@ void Cpu::step() {
     // spdlog::debug("vaddr 0x{:x} -> paddr 0x{:x}", pc, paddr_of_pc);
     instruction_t inst;
     inst.raw = {Memory::read_paddr32(paddr_of_pc)};
-    pc += 4;
     spdlog::debug("fetched inst = 0x{:x} from pc = 0x{:x}", inst.raw, pc);
+
+    pc = next_pc;
+    next_pc += 4;
 
     execute_instruction(inst);
 
@@ -75,14 +77,15 @@ void Cpu::execute_instruction(instruction_t inst) {
     case OPCODE_LUI: // LUI (I format)
     {
         assert(inst.i_type.rs == 0);
-        int64_t shifted = inst.i_type.imm << 16; // sext
+        int64_t simm = (int16_t)inst.i_type.imm; // sext
+        simm <<= 16;
         spdlog::debug("LUI: GPR[{}] <= 0x{:x}", (uint32_t)inst.i_type.rt,
-                      (uint64_t)shifted);
-        gpr.write(inst.i_type.rt, shifted);
+                      (uint64_t)simm);
+        gpr.write(inst.i_type.rt, simm);
     } break;
     case OPCODE_LW: // LW (I format)
     {
-        int64_t offset = inst.i_type.imm; // sext
+        int64_t offset = (int16_t)inst.i_type.imm; // sext
         spdlog::debug("LW: GPR[{}] <= *(GPR[{}] + 0x{:x})",
                       (uint32_t)inst.i_type.rt, (uint32_t)inst.i_type.rs,
                       offset);
@@ -93,7 +96,7 @@ void Cpu::execute_instruction(instruction_t inst) {
     } break;
     case OPCODE_ADDIU: // ADDIU (I format)
     {
-        int64_t imm = inst.i_type.imm; // sext
+        int64_t imm = (int16_t)inst.i_type.imm; // sext
         int64_t tmp = gpr.read(inst.i_type.rs) + imm;
         spdlog::debug("ADDIU: GPR[{}] <= GPR[{}] + 0x{:x}",
                       (uint32_t)inst.i_type.rt, (uint32_t)inst.i_type.rs, imm);
@@ -102,8 +105,9 @@ void Cpu::execute_instruction(instruction_t inst) {
     case OPCODE_BNE: // BNE (I format)
     {
         // FIXME: 飛び先は今の命令+4+offsetであってる?
-        int64_t offset = inst.i_type.imm << 2; // sext
-        spdlog::debug("BNE: GPR[{}] != GPR[{}], pc+{}",
+        int64_t offset = (int16_t)inst.i_type.imm; // sext
+        offset <<= 2;
+        spdlog::debug("BNE: GPR[{}] != GPR[{}], pc+0x{:x}",
                       (uint32_t)inst.i_type.rs, (uint32_t)inst.i_type.rt,
                       (int64_t)offset);
         branch(gpr.read(inst.i_type.rs) != gpr.read(inst.i_type.rt),
@@ -149,7 +153,7 @@ void Cpu::branch(bool cond, uint64_t addr) {
     delay_slot = true;
     if (cond) {
         spdlog::debug("branch taken");
-        pc = addr;
+        next_pc = addr;
     } else {
         spdlog::debug("branch not taken");
     }

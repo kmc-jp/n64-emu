@@ -16,7 +16,7 @@ static void pif_rom_execute() { // CPUのGPRの初期化
     n64cpu.gpr.write(22, 0x00000000'0000003F);
     n64cpu.gpr.write(29, 0xFFFFFFFF'A4001FF0);
     // PCの初期化
-    n64cpu.pc = 0xA4000040;
+    n64cpu.set_pc64(0xA4000040);
 
     // CPUのCOP0レジスタの初期化
     // https://github.com/Dillonb/n64/blob/6502f7d2f163c3f14da5bff8cd6d5ccc47143156/src/mem/pif.c#L305
