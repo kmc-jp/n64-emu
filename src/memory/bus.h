@@ -2,6 +2,7 @@
 #define BUS_H
 
 #include "memory.h"
+#include "mmio/pi.h"
 #include "rsp/rsp.h"
 #include "utils/utils.h"
 #include <spdlog/spdlog.h>
@@ -17,6 +18,8 @@ const uint32_t PHYS_RDRAM_END   = 0x007FFFFF;
 const uint32_t PHYS_SPDMEM_BASE = 0x04000000;
 const uint32_t PHYS_SPDMEM_END  = 0x04000FFF;
 
+const uint32_t PHYS_PI_BASE     = 0x04600000;
+const uint32_t PHYS_PI_END      = 0x046FFFFF;
 const uint32_t PHYS_RI_BASE     = 0x04700000;
 const uint32_t PHYS_RI_END      = 0x047FFFFF;
 
@@ -32,6 +35,8 @@ static uint8_t *get_pointer_to_paddr32(uint32_t paddr) {
     } else if (PHYS_SPDMEM_BASE <= paddr && paddr <= PHYS_SPDMEM_END) {
         uint32_t offs = paddr - PHYS_SPDMEM_BASE;
         return (uint8_t *)&n64rsp.sp_dmem[offs];
+    } else if (PHYS_PI_BASE <= paddr && paddr <= PHYS_PI_END) {
+        return n64pi.get_pointer_to_paddr32(paddr);
     } else if (PHYS_RI_BASE <= paddr && paddr <= PHYS_RI_END) {
         return n64mem.ri.get_pointer_to_paddr32(paddr);
     } else if (PHYS_ROM_BASE <= paddr && paddr <= PHYS_ROM_END) {
