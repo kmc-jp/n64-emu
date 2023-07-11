@@ -36,11 +36,11 @@ static uint32_t resolve_vaddr(uint32_t vaddr) {
         // KSEG1はdirect mapped. baseを引くだけでよい
         paddr = vaddr - KSEG1_BASE;
     } else {
-        spdlog::debug("Unimplemented: address translation 0x{:x}", vaddr);
+        spdlog::debug("Unimplemented: address translation {:#08x}", vaddr);
         Utils::core_dump();
         exit(-1);
     }
-    spdlog::trace("address translation vaddr 0x{:x} => paddr 0x{:x}", vaddr,
+    spdlog::trace("address translation vaddr {:#08x} => paddr {:#08x}", vaddr,
                   paddr);
     return paddr;
 }

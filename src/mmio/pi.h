@@ -33,11 +33,11 @@ class PI {
         case PADDR_WR_LEN:
         case PADDR_PI_STATUS: {
             uint32_t reg_num = (paddr - 0x0460'0000) / 4;
-            return (uint8_t *)&reg[reg_num];
+            return reinterpret_cast<uint8_t *>(&reg[reg_num]);
         } break;
         default: {
-            spdlog::critical("Unimplemented. Access to PI paddr = 0x{:x}",
-                             (uint32_t)paddr);
+            spdlog::critical("Unimplemented. Access to PI paddr = {:#08x}",
+                             paddr);
             Utils::core_dump();
             exit(-1);
         } break;

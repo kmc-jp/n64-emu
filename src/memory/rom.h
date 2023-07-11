@@ -73,7 +73,7 @@ class Rom {
     // bool is_broken() const { return broken; }
 
     // ROMの生データの先頭へのポインタを返す
-    uint8_t *raw() const { return (uint8_t *)rom.data(); }
+    uint8_t *raw() { return reinterpret_cast<uint8_t *>(&rom[0]); }
 };
 
 } // namespace Memory

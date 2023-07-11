@@ -40,13 +40,13 @@ class RI {
         case 0x0470'0010: // reflesh
         {
             uint32_t reg_num = (paddr - 0x0470'0000) / 4;
-            return (uint8_t *)&reg[reg_num];
+            return reinterpret_cast<uint8_t *>(&reg[reg_num]);
         } break;
         case 0x0470'0008: // current_load
         case 0x0470'0014: // latency
         default: {
-            spdlog::critical("Unimplemented. Read from RI paddr = 0x{:x}",
-                             (uint32_t)paddr);
+            spdlog::critical("Unimplemented. Read from RI paddr = {:#08x}",
+                             paddr);
             Utils::core_dump();
             exit(-1);
         } break;

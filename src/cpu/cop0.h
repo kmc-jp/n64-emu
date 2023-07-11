@@ -160,8 +160,8 @@ class Cop0 {
 
     void dump() {
         for (int i = 0; i < 16; i++) {
-            spdlog::info("CP0[{}]\t= 0x{:016x}\tCP0[{}]\t= 0x{:016x}", i,
-                         reg[i], i + 16, reg[i + 16]);
+            spdlog::info("CP0[{}]\t= {:#016x}\tCP0[{}]\t= {:#016x}", i, reg[i],
+                         i + 16, reg[i + 16]);
         }
     }
 
