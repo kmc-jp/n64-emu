@@ -95,7 +95,7 @@ class Cpu {
         spdlog::info("======= Core dump =======");
         spdlog::info("PC\t= {:#x}", pc);
         for (int i = 0; i < 16; i++) {
-            spdlog::info("{}\t= {:#016x}\t{}\t= {:#016x}", GPR_NAMES[i],
+            spdlog::info("{}\t= {:#018x}\t{}\t= {:#018x}", GPR_NAMES[i],
                          gpr.read(i), GPR_NAMES[i + 16], gpr.read(i + 16));
         }
         spdlog::info("");

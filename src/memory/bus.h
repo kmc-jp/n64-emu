@@ -42,7 +42,7 @@ static uint8_t *get_pointer_to_paddr32(uint32_t paddr) {
     } else if (PHYS_ROM_BASE <= paddr && paddr <= PHYS_ROM_END) {
         return &n64mem.rom.raw()[paddr - PHYS_ROM_BASE];
     } else {
-        spdlog::critical("Unimplemented. access to paddr = {:#08x}", paddr);
+        spdlog::critical("Unimplemented. access to paddr = {:#010x}", paddr);
         Utils::core_dump();
         exit(-1);
     }

@@ -45,7 +45,7 @@ class RI {
         case 0x0470'0008: // current_load
         case 0x0470'0014: // latency
         default: {
-            spdlog::critical("Unimplemented. Read from RI paddr = {:#08x}",
+            spdlog::critical("Unimplemented. Read from RI paddr = {:#010x}",
                              paddr);
             Utils::core_dump();
             exit(-1);
