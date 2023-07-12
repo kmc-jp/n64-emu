@@ -37,17 +37,15 @@ uint32_t crc32(uint32_t crc, const uint8_t *buffer, const size_t length) {
 }
 
 CicType checksum_to_cic(uint32_t checksum) {
-    using c = CicType;
+    const auto result = checksum == 0xEC8B1325   ? CicType::CIC_NUS_7102
+                        : checksum == 0x1DEB51A9 ? CicType::CIC_NUS_6101
+                        : checksum == 0xC08E5BD6 ? CicType::CIC_NUS_6102_7101
+                        : checksum == 0x03B8376A ? CicType::CIC_NUS_6103_7103
+                        : checksum == 0xCF7F41DC ? CicType::CIC_NUS_6105_7105
+                        : checksum == 0xD1059C6A ? CicType::CIC_NUS_6106_7106
+                                                 : CicType::CIC_UNKNOWN;
 
-    const auto result = checksum == 0xEC8B1325   ? c::CIC_NUS_7102
-                        : checksum == 0x1DEB51A9 ? c::CIC_NUS_6101
-                        : checksum == 0xC08E5BD6 ? c::CIC_NUS_6102_7101
-                        : checksum == 0x03B8376A ? c::CIC_NUS_6103_7103
-                        : checksum == 0xCF7F41DC ? c::CIC_NUS_6105_7105
-                        : checksum == 0xD1059C6A ? c::CIC_NUS_6106_7106
-                                                 : c::CIC_UNKNOWN;
-
-    if (result == c::CIC_UNKNOWN) {
+    if (result == CicType::CIC_UNKNOWN) {
         spdlog::error("invalid checksum: {:#08x}", checksum);
     }
 
