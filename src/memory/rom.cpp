@@ -3,11 +3,11 @@
 namespace N64 {
 namespace Memory {
 
-constexpr int crc32_table_size = 256;
+constexpr int CRC32_TABLE_SIZE = 256;
 
-constexpr std::array<uint32_t, crc32_table_size> crc32_table() {
-    std::array<uint32_t, crc32_table_size> table{};
-    for (int i = 0; i < crc32_table_size; i++) {
+constexpr std::array<uint32_t, CRC32_TABLE_SIZE> crc32_table() {
+    std::array<uint32_t, CRC32_TABLE_SIZE> table{};
+    for (int i = 0; i < CRC32_TABLE_SIZE; i++) {
         uint32_t rem = i;
         for (int j = 0; j < 8; j++) {
             if (rem & 1) {
@@ -24,7 +24,7 @@ constexpr std::array<uint32_t, crc32_table_size> crc32_table() {
 // https://rosettacode.org/wiki/CRC-32#C
 // https://github.com/Dillonb/n64/blob/e015f9dddf82d4d8c813ff3a16d7044965acde86/src/mem/n64rom.c#L60C1-L60C53
 uint32_t crc32(uint32_t crc, const uint8_t *buffer, const size_t length) {
-    constexpr std::array<uint32_t, 256> table = crc32_table();
+    constexpr std::array<uint32_t, CRC32_TABLE_SIZE> table = crc32_table();
 
     crc = ~crc;
     const uint8_t *p_end = buffer + length;
