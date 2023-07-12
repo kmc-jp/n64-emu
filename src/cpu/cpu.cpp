@@ -217,15 +217,16 @@ void Cpu::execute_instruction(instruction_t inst) {
         {
             spdlog::debug("MFC0: {} <= COP0.reg[{}]", inst.copz_type1.rt,
                           GPR_NAMES[inst.copz_type1.rd]);
-            const uint64_t tmp = cop0.reg[inst.copz_type1.rd];
+            const auto tmp = static_cast<uint32_t>(cop0.reg[inst.copz_type1.rd]);
             gpr.write(inst.copz_type1.rt, tmp);
         } break;
         case CP0_SUB_MT: // MTC0 (COPZ format)
         {
             spdlog::debug("MTC0: COP0.reg[{}] <= {}", inst.copz_type1.rd,
                           GPR_NAMES[inst.copz_type1.rt]);
-            uint64_t tmp = gpr.read(inst.copz_type1.rt);
+            const uint32_t tmp = gpr.read(inst.copz_type1.rt);
             cop0.reg[inst.copz_type1.rd] = tmp;
+            // TODO: COP0を32bitレジスタに修正したあと、このあたりを見直す
         } break;
         default: {
             spdlog::critical("Unimplemented CP0 inst. sub = {:05b}",
