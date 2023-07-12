@@ -45,3 +45,6 @@ make # or cmake --build .
 ```
 ./n64[.exe] <rom_file.z64>
 ```
+
+# Contributing
+See: #[CONTRIBUTING.md](CONTRIBUTING.md)
