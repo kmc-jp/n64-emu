@@ -131,8 +131,10 @@ constexpr uint8_t SPECIAL_FUNCT_OR = 0b100101;   // OR
 constexpr uint8_t SPECIAL_FUNCT_XOR = 0b100110;  // XOR
 constexpr uint8_t SPECIAL_FUNCT_JR = 0b001000;   // JR
 
-constexpr uint8_t CP0_SUB_MF = 0b00000; // MFC0
-constexpr uint8_t CP0_SUB_MT = 0b00100; // MTC0
+constexpr uint8_t CP0_SUB_MF = 0b00000;  // MFC0
+constexpr uint8_t CP0_SUB_DMF = 0b00001; // DMFC0
+constexpr uint8_t CP0_SUB_MT = 0b00100;  // MTC0
+constexpr uint8_t CP0_SUB_DMT = 0b00101; // DMT
 
 } // namespace Cpu
 } // namespace N64

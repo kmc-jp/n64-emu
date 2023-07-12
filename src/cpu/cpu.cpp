@@ -126,8 +126,9 @@ void Cpu::execute_instruction(instruction_t inst) {
             branch(true, rs);
         } break;
         default: {
-            spdlog::critical("Unimplemented funct = {:#06b} for opcode({:#06x}).",
-                             static_cast<uint32_t>(inst.r_type.funct), op);
+            spdlog::critical(
+                "Unimplemented funct = {:#06b} for opcode({:#06x}).",
+                static_cast<uint32_t>(inst.r_type.funct), op);
             Utils::core_dump();
             exit(-1);
         } break;
@@ -210,24 +211,44 @@ void Cpu::execute_instruction(instruction_t inst) {
     case OPCODE_COP0: // CP0 instructions
     {
         // https://hack64.net/docs/VR43XX.pdf p.86
-        
+
         assert_encoding_is_valid(inst.copz_type1.should_be_zero == 0);
         switch (inst.copz_type1.sub) {
         case CP0_SUB_MF: // MFC0 (COPZ format)
         {
-            spdlog::debug("MFC0: {} <= COP0.reg[{}]", inst.copz_type1.rt,
+            spdlog::debug("MFC0: {} <= COP0.reg[{}]",
+                          static_cast<uint32_t>(inst.copz_type1.rt),
                           GPR_NAMES[inst.copz_type1.rd]);
-            const auto tmp = static_cast<uint32_t>(cop0.reg[inst.copz_type1.rd]);
+            const auto tmp =
+                static_cast<uint32_t>(cop0.reg[inst.copz_type1.rd]);
             gpr.write(inst.copz_type1.rt, tmp);
         } break;
         case CP0_SUB_MT: // MTC0 (COPZ format)
         {
-            spdlog::debug("MTC0: COP0.reg[{}] <= {}", inst.copz_type1.rd,
+            spdlog::debug("MTC0: COP0.reg[{}] <= {}",
+                          static_cast<uint32_t>(inst.copz_type1.rd),
                           GPR_NAMES[inst.copz_type1.rt]);
             const uint32_t tmp = gpr.read(inst.copz_type1.rt);
             cop0.reg[inst.copz_type1.rd] = tmp;
             // TODO: COP0を32bitレジスタに修正したあと、このあたりを見直す
         } break;
+        case CP0_SUB_DMF: // DMFC0 (COPZ format)
+        {
+            spdlog::debug("DMFC0: {} <= COP0.reg[{}]",
+                          static_cast<uint32_t>(inst.copz_type1.rt),
+                          GPR_NAMES[inst.copz_type1.rd]);
+            const uint64_t tmp = cop0.reg[inst.copz_type1.rd];
+            gpr.write(inst.copz_type1.rt, tmp);
+        } break;
+        case CP0_SUB_DMT: // DMTC0 (COPZ format)
+        {
+            spdlog::debug("DMTC0: COP0.reg[{}] <= {}",
+                          static_cast<uint32_t>(inst.copz_type1.rd),
+                          GPR_NAMES[inst.copz_type1.rt]);
+            const uint64_t tmp = gpr.read(inst.copz_type1.rt);
+            cop0.reg[inst.copz_type1.rd] = tmp;
+        } break;
+
         default: {
             spdlog::critical("Unimplemented CP0 inst. sub = {:05b}",
                              static_cast<uint8_t>(inst.copz_type1.sub));
