@@ -131,6 +131,7 @@ const uint8_t SPECIAL_FUNCT_OR = 0b100101;   // OR
 const uint8_t SPECIAL_FUNCT_XOR = 0b100110;  // XOR
 const uint8_t SPECIAL_FUNCT_JR = 0b001000;   // JR
 
+const uint8_t CP0_SUB_MF = 0b00000; // MFC0
 const uint8_t CP0_SUB_MT = 0b00100; // MTC0
 
 } // namespace Cpu
