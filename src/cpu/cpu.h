@@ -3,9 +3,10 @@
 
 #include "cop0.h"
 #include "instruction.h"
-#include <cassert>
+#include "rom.h"
+#include "gpr.h"
+
 #include <cstdint>
-#include <iostream>
 #include <spdlog/spdlog.h>
 
 namespace N64 {
@@ -49,28 +50,6 @@ const std::string GPR_NAMES[] = {
 };
 
 class Cpu {
-    class Gpr {
-      private:
-        uint64_t gpr[32];
-
-      public:
-        uint64_t read(uint32_t reg_num) const {
-            assert(reg_num < 32);
-            if (reg_num == 0) {
-                return 0;
-            } else {
-                return gpr[reg_num];
-            }
-        }
-
-        void write(uint32_t reg_num, uint64_t value) {
-            assert(reg_num < 32);
-            if (reg_num != 0) {
-                gpr[reg_num] = value;
-            }
-        }
-    };
-
     uint64_t pc;
     uint64_t next_pc;
 
@@ -86,10 +65,7 @@ class Cpu {
 
     Cpu() : delay_slot(false), prev_delay_slot(false) {}
 
-    void reset() {
-        // TODO: reset GPR?
-        cop0.reset();
-    }
+    void reset();
 
     void dump() {
         spdlog::info("======= Core dump =======");

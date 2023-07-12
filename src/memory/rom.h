@@ -34,41 +34,29 @@ typedef struct RomHeader {
     uint8_t boot_code[4032];
 } rom_header_t;
 
+enum class CicType {
+    CIC_UNKNOWN,
+    CIC_NUS_6101,
+    CIC_NUS_7102,
+    CIC_NUS_6102_7101,
+    CIC_NUS_6103_7103,
+    CIC_NUS_6105_7105,
+    CIC_NUS_6106_7106
+};
+
 class Rom {
   private:
     // pointer to raw byte string
     std::vector<uint8_t> rom;
     rom_header_t header;
     bool broken;
+    CicType cic{};
 
   public:
     Rom() : rom({}), broken(true) {}
 
-    void read_from(std::string filepath) {
-        spdlog::debug("reading from ROM");
-
-        std::ifstream file(filepath.c_str(), std::ios::in | std::ios::binary);
-        if (!file.is_open()) {
-            spdlog::error("Could not open ROM file");
-            return;
-        }
-        rom = {std::istreambuf_iterator<char>(file),
-               std::istreambuf_iterator<char>()};
-        // size of phisical memory region mapped to memory
-        rom.resize(0xFC00000);
-
-        if (rom.size() < sizeof(rom_header_t)) {
-            spdlog::error("ROM is too small");
-            return;
-        }
-
-        // set header
-        header = *((rom_header_t *)rom.data());
-
-        spdlog::debug("ROM size\t= {}", rom.size());
-        spdlog::debug("imageName\t= \"{}\"", std::string(header.image_name));
-        broken = false;
-    }
+    void read_from(const std::string &filepath);
+    CicType get_cic() const { return cic; }
 
     // bool is_broken() const { return broken; }
 
