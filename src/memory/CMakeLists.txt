@@ -1,2 +1,2 @@
 add_library(memory
-    memory.cpp memory.h bus.h pif.h rom.h ri.h)
+    memory.cpp memory.h bus.h pif.h rom.h rom.cpp ri.h)
