@@ -80,7 +80,7 @@ void Rom::read_from(const std::string &filepath) {
 
     spdlog::debug("ROM size\t= {}", rom.size());
     spdlog::debug("imageName\t= \"{}\"", std::string(header.image_name));
-    // spdlog::debug("CIC\t= {}", cic); // TODO: enumをstringにできるように
+    spdlog::debug("CIC\t= {}", static_cast<int>(cic));
 
     broken = false;
 }
