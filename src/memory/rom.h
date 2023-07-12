@@ -34,12 +34,23 @@ typedef struct RomHeader {
     uint8_t boot_code[4032];
 } rom_header_t;
 
+enum class CicType {
+    CIC_UNKNOWN,
+    CIC_NUS_6101,
+    CIC_NUS_7102,
+    CIC_NUS_6102_7101,
+    CIC_NUS_6103_7103,
+    CIC_NUS_6105_7105,
+    CIC_NUS_6106_7106
+};
+
 class Rom {
   private:
     // pointer to raw byte string
     std::vector<uint8_t> rom;
     rom_header_t header;
     bool broken;
+    CicType cic{};
 
   public:
     Rom() : rom({}), broken(true) {}
