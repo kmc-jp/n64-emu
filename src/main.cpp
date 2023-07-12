@@ -22,7 +22,7 @@ int main(int argc, char *argv[]) {
 
     N64::n64mem.load_rom(filepath);
     N64::n64mem.reset();
-    N64::n64cpu.reset(N64::n64mem.rom.get_cic());
+    N64::n64cpu.reset();
     N64::n64rsp.reset();
     N64::n64pi.reset();
 

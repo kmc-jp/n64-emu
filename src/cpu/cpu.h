@@ -65,7 +65,7 @@ class Cpu {
 
     Cpu() : delay_slot(false), prev_delay_slot(false) {}
 
-    void reset(Memory::CicType cic);
+    void reset();
 
     void dump() {
         spdlog::info("======= Core dump =======");

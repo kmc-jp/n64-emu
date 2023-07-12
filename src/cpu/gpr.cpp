@@ -87,7 +87,7 @@ std::array<uint64_t, 32> get_gpr_initial(Memory::CicType cic) {
     return {};
 }
 
-void Gpr::reset(Memory::CicType cic) { gpr = get_gpr_initial(cic); }
+void Gpr::init(Memory::CicType cic) { gpr = get_gpr_initial(cic); }
 
 } // namespace Cpu
 } // namespace N64
