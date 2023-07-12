@@ -1,16 +1,21 @@
 ﻿#ifndef GPR_H
 #define GPR_H
+
+#include "../memory/rom.h"
+
 #include <cassert>
 #include <cstdint>
 
 namespace N64 {
-namespace Cpu{
+namespace Cpu {
 
 class Gpr {
-private:
-    uint64_t gpr[32];
+  private:
+    std::array<uint64_t, 32> gpr{};
 
-public:
+  public:
+    void reset(Memory::CicType cic);
+
     uint64_t read(uint32_t reg_num) const {
         assert(reg_num < 32);
         if (reg_num == 0) {

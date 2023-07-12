@@ -8,8 +8,8 @@
 namespace N64 {
 namespace Cpu {
 
-void Cpu::reset(Memory::CicType cicType) {
-    // TODO: reset GPR?
+void Cpu::reset(Memory::CicType cic) {
+    gpr.reset(cic);
     cop0.reset();
 }
 
