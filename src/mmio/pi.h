@@ -36,7 +36,7 @@ class PI {
             return reinterpret_cast<uint8_t *>(&reg[reg_num]);
         } break;
         default: {
-            spdlog::critical("Unimplemented. Access to PI paddr = {:#08x}",
+            spdlog::critical("Unimplemented. Access to PI paddr = {:#010x}",
                              paddr);
             Utils::core_dump();
             exit(-1);

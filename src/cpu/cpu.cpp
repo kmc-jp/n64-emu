@@ -29,7 +29,7 @@ void Cpu::step() {
         case 0: // interrupt
         {
             spdlog::critical(
-                "Unimplemented. interruption IP = {:#07b} mask = {:#07b}",
+                "Unimplemented. interruption IP = {:#010b} mask = {:#010b}",
                 static_cast<uint32_t>(cop0.get_cause()->interrupt_pending),
                 static_cast<uint32_t>(cop0.get_status()->im));
             Utils::core_dump();
@@ -47,7 +47,7 @@ void Cpu::step() {
     uint32_t paddr_of_pc = Mmu::resolve_vaddr(pc);
     instruction_t inst;
     inst.raw = {Memory::read_paddr32(paddr_of_pc)};
-    spdlog::debug("fetched inst = {:#08x} from pc = {:#016x}", inst.raw, pc);
+    spdlog::debug("fetched inst = {:#010x} from pc = {:#018x}", inst.raw, pc);
 
     pc = next_pc;
     next_pc += 4;
@@ -127,7 +127,7 @@ void Cpu::execute_instruction(instruction_t inst) {
         } break;
         default: {
             spdlog::critical(
-                "Unimplemented funct = {:#06b} for opcode({:#06x}).",
+                "Unimplemented funct = {:#08b} for opcode = {:#08b}.",
                 static_cast<uint32_t>(inst.r_type.funct), op);
             Utils::core_dump();
             exit(-1);
@@ -195,7 +195,7 @@ void Cpu::execute_instruction(instruction_t inst) {
     {
         int64_t offset = (int16_t)inst.i_type.imm; // sext
         offset <<= 2;
-        spdlog::debug("BNE: {} != {}, pc + {:#x}", GPR_NAMES[inst.i_type.rs],
+        spdlog::debug("BNE: {} != {}, pc {:+#x}", GPR_NAMES[inst.i_type.rs],
                       GPR_NAMES[inst.i_type.rt], (int64_t)offset);
         branch(gpr.read(inst.i_type.rs) != gpr.read(inst.i_type.rt),
                pc + offset);
@@ -250,7 +250,7 @@ void Cpu::execute_instruction(instruction_t inst) {
         } break;
 
         default: {
-            spdlog::critical("Unimplemented CP0 inst. sub = {:05b}",
+            spdlog::critical("Unimplemented CP0 inst. sub = {:07b}",
                              static_cast<uint8_t>(inst.copz_type1.sub));
             Utils::core_dump();
             exit(-1);
@@ -258,7 +258,7 @@ void Cpu::execute_instruction(instruction_t inst) {
         }
     } break;
     default: {
-        spdlog::critical("Unimplemented opcode = {:#02x} ({:#06b})", op, op);
+        spdlog::critical("Unimplemented opcode = {:#04x} ({:#08b})", op, op);
         Utils::core_dump();
         exit(-1);
     }
