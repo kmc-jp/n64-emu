@@ -23,7 +23,7 @@ class Memory {
 
     void reset() { ri.reset(); }
 
-    void load_rom(std::string rom_filepath) {
+    void load_rom(const std::string &rom_filepath) {
         spdlog::debug("initializing RDRAM");
         rom.read_from(rom_filepath);
     }

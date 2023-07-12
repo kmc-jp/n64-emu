@@ -8,6 +8,11 @@
 namespace N64 {
 namespace Cpu {
 
+void Cpu::reset(Memory::CicType cicType) {
+    // TODO: reset GPR?
+    cop0.reset();
+}
+
 void Cpu::step() {
     spdlog::debug("");
     spdlog::debug("CPU cycle starts");

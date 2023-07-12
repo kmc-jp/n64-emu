@@ -56,6 +56,7 @@ class Rom {
     Rom() : rom({}), broken(true) {}
 
     void read_from(const std::string &filepath);
+    CicType get_cic() const { return cic; }
 
     // bool is_broken() const { return broken; }
 
