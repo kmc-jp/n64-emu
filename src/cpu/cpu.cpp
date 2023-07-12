@@ -209,14 +209,16 @@ void Cpu::execute_instruction(instruction_t inst) {
     } break;
     case OPCODE_COP0: // CP0 instructions
     {
+        // https://hack64.net/docs/VR43XX.pdf p.86
+        
         assert_encoding_is_valid(inst.copz_type1.should_be_zero == 0);
         switch (inst.copz_type1.sub) {
         case CP0_SUB_MF: // MFC0 (COPZ format)
         {
-            spdlog::debug("MFC0: COP0.reg[{}] <= {}", inst.copz_type1.rt,
+            spdlog::debug("MFC0: {} <= COP0.reg[{}]", inst.copz_type1.rt,
                           GPR_NAMES[inst.copz_type1.rd]);
-            uint64_t tmp = gpr.read(inst.copz_type1.rd);
-            cop0.reg[inst.copz_type1.rt] = tmp;
+            const uint64_t tmp = cop0.reg[inst.copz_type1.rd];
+            gpr.write(inst.copz_type1.rt, tmp);
         } break;
         case CP0_SUB_MT: // MTC0 (COPZ format)
         {
