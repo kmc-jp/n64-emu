@@ -2,9 +2,9 @@
 #define CPU_H
 
 #include "cop0.h"
+#include "gpr.h"
 #include "instruction.h"
 #include "rom.h"
-#include "gpr.h"
 
 #include <cstdint>
 #include <spdlog/spdlog.h>
@@ -50,6 +50,7 @@ const std::string GPR_NAMES[] = {
 };
 
 class Cpu {
+  private:
     uint64_t pc;
     uint64_t next_pc;
 
@@ -90,7 +91,10 @@ class Cpu {
 
     void execute_instruction(instruction_t inst);
 
-    void branch(bool cond, uint64_t addr);
+    void branch_offset16(bool cond, instruction_t inst);
+    void branch_likely_offset16(bool cond, instruction_t inst);
+    void branch_addr64(bool cond, uint64_t vaddr);
+    void branch_likely_addr64(bool cond, uint64_t vaddr);
 };
 
 } // namespace Cpu
