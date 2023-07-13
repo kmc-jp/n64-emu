@@ -4,7 +4,6 @@
 #include "cop0.h"
 #include "gpr.h"
 #include "instruction.h"
-#include "rom.h"
 
 #include <cstdint>
 #include <spdlog/spdlog.h>
@@ -91,10 +90,7 @@ class Cpu {
 
     void execute_instruction(instruction_t inst);
 
-    void branch_offset16(bool cond, instruction_t inst);
-    void branch_likely_offset16(bool cond, instruction_t inst);
-    void branch_addr64(bool cond, uint64_t vaddr);
-    void branch_likely_addr64(bool cond, uint64_t vaddr);
+    class Operation;
 };
 
 } // namespace Cpu

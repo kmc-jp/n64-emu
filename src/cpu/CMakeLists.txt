@@ -1,2 +1,6 @@
 add_library(cpu
-    cpu.cpp cpu.h cop0.h instruction.h gpr.h gpr.cpp)
+    cpu.h cpu.cpp 
+    cop0.h 
+    instruction.h 
+    gpr.h gpr.cpp 
+    cpu_operation.h cpu_operation.cpp)
