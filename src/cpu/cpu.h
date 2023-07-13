@@ -50,8 +50,14 @@ const std::string GPR_NAMES[] = {
 
 class Cpu {
   private:
+    // program counter
     uint64_t pc;
     uint64_t next_pc;
+    // special registers
+    // 1.3
+    // https://ultra64.ca/files/documentation/silicon-graphics/SGI_R4300_RISC_Processor_Specification_REV2.2.pdf
+    uint64_t lo;
+    uint64_t hi;
 
   public:
     Gpr gpr;

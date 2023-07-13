@@ -102,6 +102,8 @@ class Cop0 {
     // COP0 registers
     // https://n64.readthedocs.io/#cop0-registers
     // https://github.com/Dillonb/n64/blob/6502f7d2f163c3f14da5bff8cd6d5ccc47143156/src/cpu/r4300i.h#L484
+    // レジスタ幅については以下の1.3を参照
+    // https://ultra64.ca/files/documentation/silicon-graphics/SGI_R4300_RISC_Processor_Specification_REV2.2.pdf
     uint64_t reg[32];
 
     /* 一つずつレジスタを定義するとメンドイのでやめる
