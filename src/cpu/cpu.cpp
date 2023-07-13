@@ -125,7 +125,7 @@ void Cpu::execute_instruction(instruction_t inst) {
                                      inst.r_type.sa == 0);
             uint64_t rs = gpr.read(inst.r_type.rs);
             spdlog::debug("JR {}", GPR_NAMES[inst.r_type.rs]);
-            branch(true, rs);
+            branch_addr64(true, rs);
         } break;
         default: {
             spdlog::critical(
@@ -195,12 +195,17 @@ void Cpu::execute_instruction(instruction_t inst) {
     } break;
     case OPCODE_BNE: // BNE (I format)
     {
-        int64_t offset = (int16_t)inst.i_type.imm; // sext
-        offset <<= 2;
-        spdlog::debug("BNE: {} != {}, pc {:+#x}", GPR_NAMES[inst.i_type.rs],
-                      GPR_NAMES[inst.i_type.rt], (int64_t)offset);
-        branch(gpr.read(inst.i_type.rs) != gpr.read(inst.i_type.rt),
-               pc + offset);
+        spdlog::debug("BNE: cond {} != {}", GPR_NAMES[inst.i_type.rs],
+                      GPR_NAMES[inst.i_type.rt]);
+        branch_offset16(gpr.read(inst.i_type.rs) != gpr.read(inst.i_type.rt),
+                        inst);
+    } break;
+    case OPCODE_BNEL: // BNEL (I format)
+    {
+        spdlog::debug("BNEL: cond {} != {}", GPR_NAMES[inst.i_type.rs],
+                      GPR_NAMES[inst.i_type.rt]);
+        branch_likely_offset16(
+            gpr.read(inst.i_type.rs) != gpr.read(inst.i_type.rt), inst);
     } break;
     case OPCODE_CACHE: // CACHE
     {
@@ -267,13 +272,39 @@ void Cpu::execute_instruction(instruction_t inst) {
     }
 }
 
-void Cpu::branch(bool cond, uint64_t addr) {
+void Cpu::branch_offset16(bool cond, instruction_t inst) {
+    int64_t offset = (int16_t)inst.i_type.imm; // sext
+    offset <<= 2;
+    spdlog::debug("pc <= pc {:+#x}?", (int64_t)offset);
+    branch_addr64(cond, pc + offset);
+}
+
+void Cpu::branch_likely_offset16(bool cond, instruction_t inst) {
+    int64_t offset = (int16_t)inst.i_type.imm; // sext
+    offset <<= 2;
+    spdlog::debug("pc <= pc {:+#x}?", (int64_t)offset);
+    branch_likely_addr64(cond, pc + offset);
+}
+
+void Cpu::branch_addr64(bool cond, uint64_t vaddr) {
     delay_slot = true;
     if (cond) {
         spdlog::debug("branch taken");
-        next_pc = addr;
+        next_pc = vaddr;
     } else {
         spdlog::debug("branch not taken");
+    }
+}
+
+void Cpu::branch_likely_addr64(bool cond, uint64_t vaddr) {
+    // 分岐成立時のみ遅延スロットを実行する
+    delay_slot = true; // FIXME: correct?
+    if (cond) {
+        spdlog::debug("branch likely taken");
+        next_pc = vaddr;
+    } else {
+        spdlog::debug("branch likely not taken");
+        set_pc64(pc + 4);
     }
 }
 
