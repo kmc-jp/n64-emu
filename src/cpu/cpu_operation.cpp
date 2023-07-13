@@ -50,17 +50,6 @@ class Cpu::Operation::Impl {
         branch_addr64(cpu, cond, cpu.pc + offset);
     }
 
-    static void op_sub(Cpu &cpu, instruction_t inst) {
-        // TODO: throw exception
-        // TODO: 32bit mode?
-        assert_encoding_is_valid(inst.r_type.sa == 0);
-        uint64_t rs = cpu.gpr.read(inst.r_type.rs);
-        uint64_t rt = cpu.gpr.read(inst.r_type.rt);
-        spdlog::debug("SUB: {} <= {} - {}", GPR_NAMES[inst.r_type.rd],
-                      GPR_NAMES[inst.r_type.rs], GPR_NAMES[inst.r_type.rt]);
-        cpu.gpr.write(inst.r_type.rd, rs - rt);
-    }
-
     static void op_add(Cpu &cpu, instruction_t inst) {
         // TODO: throw exception
         // TODO: 32bit mode?
@@ -85,6 +74,17 @@ class Cpu::Operation::Impl {
         cpu.gpr.write(inst.r_type.rd, rs + rt);
     }
 
+    static void op_sub(Cpu &cpu, instruction_t inst) {
+        // TODO: throw exception
+        // TODO: 32bit mode?
+        assert_encoding_is_valid(inst.r_type.sa == 0);
+        uint64_t rs = cpu.gpr.read(inst.r_type.rs);
+        uint64_t rt = cpu.gpr.read(inst.r_type.rt);
+        spdlog::debug("SUB: {} <= {} - {}", GPR_NAMES[inst.r_type.rd],
+                      GPR_NAMES[inst.r_type.rs], GPR_NAMES[inst.r_type.rt]);
+        cpu.gpr.write(inst.r_type.rd, rs - rt);
+    }
+
     static void op_subu(Cpu &cpu, instruction_t inst) {
         // TODO: 32bit mode?
         assert_encoding_is_valid(inst.r_type.sa == 0);
@@ -93,6 +93,36 @@ class Cpu::Operation::Impl {
         spdlog::debug("SUBU: {} <= {} - {}", GPR_NAMES[inst.r_type.rd],
                       GPR_NAMES[inst.r_type.rs], GPR_NAMES[inst.r_type.rt]);
         cpu.gpr.write(inst.r_type.rd, rs - rt);
+    }
+
+    static void op_mult(Cpu &cpu, instruction_t inst) {
+        assert_encoding_is_valid(inst.r_type.sa == 0);
+        int32_t rs = cpu.gpr.read(inst.r_type.rs); // as signed 32bit
+        int32_t rt = cpu.gpr.read(inst.r_type.rt); // as signed 32bit
+        int64_t t = rs * rt;
+        int32_t lo = t & 0xFFFFFFFF;
+        int32_t hi = (t >> 32) & 0xFFFFFFFF;
+        int64_t sext_lo = lo; // sext
+        int64_t sext_hi = hi; // sext
+        spdlog::debug("MULT {}, {}", GPR_NAMES[inst.r_type.rs],
+                      GPR_NAMES[inst.r_type.rt]);
+        cpu.lo = static_cast<uint64_t>(lo);
+        cpu.hi = static_cast<uint64_t>(hi);
+    }
+
+    static void op_multu(Cpu &cpu, instruction_t inst) {
+        assert_encoding_is_valid(inst.r_type.sa == 0);
+        uint32_t rs = cpu.gpr.read(inst.r_type.rs); // as unsigned 32bit
+        uint32_t rt = cpu.gpr.read(inst.r_type.rt); // as unsigned 32bit
+        uint64_t t = rs * rt;
+        int32_t lo = t & 0xFFFFFFFF;
+        int32_t hi = (t >> 32) & 0xFFFFFFFF;
+        int64_t sext_lo = lo; // sext
+        int64_t sext_hi = hi; // sext
+        spdlog::debug("MULTU {}, {}", GPR_NAMES[inst.r_type.rs],
+                      GPR_NAMES[inst.r_type.rt]);
+        cpu.lo = static_cast<uint64_t>(lo);
+        cpu.hi = static_cast<uint64_t>(hi);
     }
 
     static void op_sll(Cpu &cpu, instruction_t inst) {
@@ -272,12 +302,16 @@ void Cpu::Operation::execute(Cpu &cpu, instruction_t inst) {
         switch (inst.r_type.funct) {
         case SPECIAL_FUNCT_ADD: // ADD
             return Impl::op_add(cpu, inst);
-        case SPECIAL_FUNCT_SUB: // SUB
-            return Impl::op_sub(cpu, inst);
         case SPECIAL_FUNCT_ADDU: // ADDU
             return Impl::op_addu(cpu, inst);
+        case SPECIAL_FUNCT_SUB: // SUB
+            return Impl::op_sub(cpu, inst);
         case SPECIAL_FUNCT_SUBU: // SUBU
             return Impl::op_subu(cpu, inst);
+        case SPECIAL_FUNCT_MULT: // MULT
+            return Impl::op_mult(cpu, inst);
+        case SPECIAL_FUNCT_MULTU: // MULTU
+            return Impl::op_multu(cpu, inst);
         case SPECIAL_FUNCT_SLL: // SLL
             return Impl::op_sll(cpu, inst);
         case SPECIAL_FUNCT_SLTU: // SLTU
