@@ -72,6 +72,50 @@ void Cpu::execute_instruction(instruction_t inst) {
     case OPCODE_SPECIAL: // various operations (R format)
     {
         switch (inst.r_type.funct) {
+        case SPECIAL_FUNCT_ADD: // ADD
+        {
+            // TODO: throw exception
+            // TODO: 32bit mode?
+            // https://github.com/Dillonb/n64/blob/6502f7d2f163c3f14da5bff8cd6d5ccc47143156/src/cpu/mips_instructions.c#L903
+            assert_encoding_is_valid(inst.r_type.sa == 0);
+            uint64_t rs = gpr.read(inst.r_type.rs);
+            uint64_t rt = gpr.read(inst.r_type.rt);
+            spdlog::debug("ADD: {} <= {} + {}", GPR_NAMES[inst.r_type.rd],
+                          GPR_NAMES[inst.r_type.rs], GPR_NAMES[inst.r_type.rt]);
+            gpr.write(inst.r_type.rd, rs + rt);
+        } break;
+        case SPECIAL_FUNCT_SUB: // SUB
+        {
+            // TODO: throw exception
+            // TODO: 32bit mode?
+            assert_encoding_is_valid(inst.r_type.sa == 0);
+            uint64_t rs = gpr.read(inst.r_type.rs);
+            uint64_t rt = gpr.read(inst.r_type.rt);
+            spdlog::debug("SUB: {} <= {} - {}", GPR_NAMES[inst.r_type.rd],
+                          GPR_NAMES[inst.r_type.rs], GPR_NAMES[inst.r_type.rt]);
+            gpr.write(inst.r_type.rd, rs - rt);
+        } break;
+        case SPECIAL_FUNCT_ADDU: // ADDU
+        {
+            // TODO: 32bit mode?
+            // https://github.com/Dillonb/n64/blob/6502f7d2f163c3f14da5bff8cd6d5ccc47143156/src/cpu/mips_instructions.c#L915
+            assert_encoding_is_valid(inst.r_type.sa == 0);
+            uint64_t rs = gpr.read(inst.r_type.rs);
+            uint64_t rt = gpr.read(inst.r_type.rt);
+            spdlog::debug("ADDU: {} <= {} + {}", GPR_NAMES[inst.r_type.rd],
+                          GPR_NAMES[inst.r_type.rs], GPR_NAMES[inst.r_type.rt]);
+            gpr.write(inst.r_type.rd, rs + rt);
+        } break;
+        case SPECIAL_FUNCT_SUBU: // SUBU
+        {
+            // TODO: 32bit mode?
+            assert_encoding_is_valid(inst.r_type.sa == 0);
+            uint64_t rs = gpr.read(inst.r_type.rs);
+            uint64_t rt = gpr.read(inst.r_type.rt);
+            spdlog::debug("SUBU: {} <= {} - {}", GPR_NAMES[inst.r_type.rd],
+                          GPR_NAMES[inst.r_type.rs], GPR_NAMES[inst.r_type.rt]);
+            gpr.write(inst.r_type.rd, rs - rt);
+        } break;
         case SPECIAL_FUNCT_SLL: // SLL
         {
             assert_encoding_is_valid(inst.r_type.rs == 0);
