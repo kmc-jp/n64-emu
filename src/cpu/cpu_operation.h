@@ -8,7 +8,8 @@ namespace Cpu {
 
 class Cpu::Operation {
   public:
-    static void Execute(Cpu &cpu, instruction_t inst);
+    static void op_sub(Cpu &cpu, instruction_t inst);
+    static void execute(Cpu &cpu, instruction_t inst);
 
   private:
     class Impl;

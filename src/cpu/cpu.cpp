@@ -61,7 +61,7 @@ void Cpu::step() {
 }
 
 void Cpu::execute_instruction(instruction_t inst) {
-    Operation::Execute(*this, inst);
+    Operation::execute(*this, inst);
 }
 
 } // namespace Cpu
