@@ -16,7 +16,7 @@ void Cpu::step() {
 
     // Compare interrupt
     if (cop0.reg[Cop0Reg::COUNT] == cop0.reg[Cop0Reg::COMPARE]) {
-        cop0.get_cause()->ip7 = true;
+        cop0.get_cause_ref()->ip7 = true;
     }
 
     // updates delay slot
@@ -26,14 +26,14 @@ void Cpu::step() {
     // check for interrupt/exception
     // TODO: implement MI_INTR_MASK_REG?
     if (cop0.get_interrupt_pending_masked()) {
-        uint8_t exc_code = cop0.get_cause()->exception_code;
+        uint8_t exc_code = cop0.get_cause_ref()->exception_code;
         switch (exc_code) {
         case 0: // interrupt
         {
             spdlog::critical(
                 "Unimplemented. interruption IP = {:#010b} mask = {:#010b}",
-                static_cast<uint32_t>(cop0.get_cause()->interrupt_pending),
-                static_cast<uint32_t>(cop0.get_status()->im));
+                static_cast<uint32_t>(cop0.get_cause_ref()->interrupt_pending),
+                static_cast<uint32_t>(cop0.get_status_ref()->im));
             Utils::core_dump();
             exit(-1);
         } break;
