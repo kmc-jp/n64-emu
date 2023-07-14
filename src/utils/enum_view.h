@@ -13,24 +13,14 @@ class EnumView {
     static constexpr auto offset = 0;
 #endif
     template <bool B> using enabler_t = std::enable_if_t<B, std::nullptr_t>;
-    template <typename T, enabler_t<std::is_enum_v<T>> = nullptr>
-    static constexpr auto t() {
-        return std::string_view{__PRETTY_FUNCTION__};
-    }
     template <auto E, enabler_t<std::is_enum_v<decltype(E)>> = nullptr>
-    static constexpr auto f() {
-        return std::string_view{__PRETTY_FUNCTION__};
-    }
-    static constexpr std::string_view e(std::string_view name,
-                                        std::string_view::size_type pos) {
-        return name.substr(pos, name.size() - pos - 1);
+    static constexpr auto n() {
+        constexpr std::string_view name{__PRETTY_FUNCTION__};
+        return name.substr(offset, name.size() - offset - 1);
     }
 
   public:
-    template <auto E> static constexpr auto type = e(t<T>(), offset);
-    template <auto E> static constexpr auto full = e(f<E>(), offset);
-    template <auto E>
-    static constexpr auto value = e(f<E>(), type<E>.size() + offset + 2);
+    template <auto E> static constexpr auto value = n<E>();
 };
 } // namespace Utils
 
