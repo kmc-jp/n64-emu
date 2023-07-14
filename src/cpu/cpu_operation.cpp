@@ -250,6 +250,22 @@ class Cpu::Operation::Impl {
         cpu.gpr.write(inst.i_type.rt, cpu.gpr.read(inst.i_type.rs) ^ imm);
     }
 
+    static void op_beq(Cpu &cpu, instruction_t inst) {
+        spdlog::debug("BEQ: cond {} == {}", GPR_NAMES[inst.i_type.rs],
+                      GPR_NAMES[inst.i_type.rt]);
+        branch_offset16(
+            cpu, cpu.gpr.read(inst.i_type.rs) == cpu.gpr.read(inst.i_type.rt),
+            inst);
+    }
+
+    static void op_beql(Cpu &cpu, instruction_t inst) {
+        spdlog::debug("BEQL: cond {} == {}", GPR_NAMES[inst.i_type.rs],
+                      GPR_NAMES[inst.i_type.rt]);
+        branch_likely_offset16(
+            cpu, cpu.gpr.read(inst.i_type.rs) == cpu.gpr.read(inst.i_type.rt),
+            inst);
+    }
+
     static void op_bne(Cpu &cpu, instruction_t inst) {
         spdlog::debug("BNE: cond {} != {}", GPR_NAMES[inst.i_type.rs],
                       GPR_NAMES[inst.i_type.rt]);
@@ -264,6 +280,38 @@ class Cpu::Operation::Impl {
         branch_likely_offset16(
             cpu, cpu.gpr.read(inst.i_type.rs) != cpu.gpr.read(inst.i_type.rt),
             inst);
+    }
+
+    static void op_blez(Cpu &cpu, instruction_t inst) {
+        assert_encoding_is_valid(inst.i_type.rt == 0);
+        // TODO: 32bit mode
+        int64_t rs = cpu.gpr.read(inst.i_type.rs); // as signed integer
+        spdlog::debug("BLEZ: cond {} <= 0", GPR_NAMES[inst.i_type.rs]);
+        branch_offset16(cpu, rs < 0, inst);
+    }
+
+    static void op_blezl(Cpu &cpu, instruction_t inst) {
+        assert_encoding_is_valid(inst.i_type.rt == 0);
+        // TODO: 32bit mode
+        int64_t rs = cpu.gpr.read(inst.i_type.rs); // as signed integer
+        spdlog::debug("BLEZL: cond {} <= 0", GPR_NAMES[inst.i_type.rs]);
+        branch_likely_offset16(cpu, rs < 0, inst);
+    }
+
+    static void op_bgtz(Cpu &cpu, instruction_t inst) {
+        assert_encoding_is_valid(inst.i_type.rt == 0);
+        // TODO: 32bit mode
+        int64_t rs = cpu.gpr.read(inst.i_type.rs); // as signed integer
+        spdlog::debug("BGTZ: cond {} > 0", GPR_NAMES[inst.i_type.rs]);
+        branch_offset16(cpu, rs > 0, inst);
+    }
+
+    static void op_bgtzl(Cpu &cpu, instruction_t inst) {
+        assert_encoding_is_valid(inst.i_type.rt == 0);
+        // TODO: 32bit mode
+        int64_t rs = cpu.gpr.read(inst.i_type.rs); // as signed integer
+        spdlog::debug("BGTZL: cond {} > 0", GPR_NAMES[inst.i_type.rs]);
+        branch_likely_offset16(cpu, rs > 0, inst);
     }
 
     static void op_cache() {
@@ -364,10 +412,22 @@ void Cpu::Operation::execute(Cpu &cpu, instruction_t inst) {
         return Impl::op_ori(cpu, inst);
     case OPCODE_XORI: // XORI (I format)
         return Impl::op_xori(cpu, inst);
+    case OPCODE_BEQ: // BEQ (I format)
+        return Impl::op_beq(cpu, inst);
+    case OPCODE_BEQL: // BEQL (I format)
+        return Impl::op_beql(cpu, inst);
     case OPCODE_BNE: // BNE (I format)
         return Impl::op_bne(cpu, inst);
     case OPCODE_BNEL: // BNEL (I format)
         return Impl::op_bnel(cpu, inst);
+    case OPCODE_BLEZ: // BLEZ (I format)
+        return Impl::op_blez(cpu, inst);
+    case OPCODE_BLEZL: // BLEZL (I format)
+        return Impl::op_blezl(cpu, inst);
+    case OPCODE_BGTZ: // BGTZ (I format)
+        return Impl::op_bgtz(cpu, inst);
+    case OPCODE_BGTZL: // BGTZL (I format)
+        return Impl::op_bgtzl(cpu, inst);
     case OPCODE_CACHE: // CACHE
         return Impl::op_cache();
     case OPCODE_COP0: // CP0 instructions
