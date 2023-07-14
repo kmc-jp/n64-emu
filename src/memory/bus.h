@@ -33,16 +33,16 @@ constexpr uint32_t PHYS_ROM_END     = 0x1FBFFFFF;
 static uint8_t *get_pointer_to_paddr32(uint32_t paddr) {
     if (PHYS_RDRAM_BASE <= paddr && paddr <= PHYS_RDRAM_END) {
         uint32_t offs = paddr - PHYS_RDRAM_BASE;
-        return &n64mem.rdram[offs];
+        return &g_memory().rdram[offs];
     } else if (PHYS_SPDMEM_BASE <= paddr && paddr <= PHYS_SPDMEM_END) {
         uint32_t offs = paddr - PHYS_SPDMEM_BASE;
-        return &n64rsp.sp_dmem[offs];
+        return &g_rsp().sp_dmem[offs];
     } else if (PHYS_PI_BASE <= paddr && paddr <= PHYS_PI_END) {
-        return n64pi.get_pointer_to_paddr32(paddr);
+        return g_pi().get_pointer_to_paddr32(paddr);
     } else if (PHYS_RI_BASE <= paddr && paddr <= PHYS_RI_END) {
-        return n64mem.ri.get_pointer_to_paddr32(paddr);
+        return g_memory().ri.get_pointer_to_paddr32(paddr);
     } else if (PHYS_ROM_BASE <= paddr && paddr <= PHYS_ROM_END) {
-        return &n64mem.rom.raw()[paddr - PHYS_ROM_BASE];
+        return &g_memory().rom.raw()[paddr - PHYS_ROM_BASE];
     } else {
         spdlog::critical("Unimplemented. access to paddr = {:#010x}", paddr);
         Utils::core_dump();

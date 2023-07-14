@@ -27,11 +27,16 @@ class Memory {
         spdlog::debug("initializing RDRAM");
         rom.read_from(rom_filepath);
     }
+
+    static Memory &get_instance() { return instance; }
+
+  private:
+    static Memory instance;
 };
 
 } // namespace Memory
 
-extern Memory::Memory n64mem;
+inline Memory::Memory &g_memory() { return Memory::Memory::get_instance(); }
 
 } // namespace N64
 

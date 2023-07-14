@@ -1,7 +1,9 @@
 ﻿#include "memory.h"
 
 namespace N64 {
+namespace Memory {
 
-Memory::Memory n64mem{};
+Memory Memory::instance{};
 
+} // namespace Memory
 } // namespace N64

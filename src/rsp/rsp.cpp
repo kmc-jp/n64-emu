@@ -1,7 +1,9 @@
 ﻿#include "rsp.h"
 
 namespace N64 {
+namespace Rsp {
 
-Rsp n64rsp{};
+Rsp Rsp::instance{};
 
+}
 }

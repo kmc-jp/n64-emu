@@ -1,7 +1,11 @@
 #include "pi.h"
 
 namespace N64 {
+namespace Mmio {
+namespace PI {
 
-Mmio::PI::PI n64pi{};
+PI PI::instance{};
 
+} // namespace PI
+} // namespace Mmio
 } // namespace N64
