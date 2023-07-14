@@ -37,6 +37,9 @@ static uint8_t *get_pointer_to_paddr32(uint32_t paddr) {
     } else if (PHYS_SPDMEM_BASE <= paddr && paddr <= PHYS_SPDMEM_END) {
         uint32_t offs = paddr - PHYS_SPDMEM_BASE;
         return &n64rsp.sp_dmem[offs];
+    } else if (PHYS_SPIMEM_BASE <= paddr && paddr < PHYS_SPIMEM_END) {
+        uint32_t offs = paddr - PHYS_SPIMEM_BASE;
+        return &n64rsp.sp_imem[offs];
     } else if (PHYS_PI_BASE <= paddr && paddr <= PHYS_PI_END) {
         return n64pi.get_pointer_to_paddr32(paddr);
     } else if (PHYS_RI_BASE <= paddr && paddr <= PHYS_RI_END) {

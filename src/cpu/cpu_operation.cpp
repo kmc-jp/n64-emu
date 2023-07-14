@@ -179,6 +179,20 @@ class Cpu::Operation::Impl {
         branch_addr64(cpu, true, rs);
     }
 
+    static void op_mfhi(Cpu &cpu, instruction_t inst) {
+        assert_encoding_is_valid(inst.r_type.rs == 0 && inst.r_type.rt == 0 &&
+                                 inst.r_type.sa == 0);
+        spdlog::debug("MFHI {} <= hi", GPR_NAMES[inst.r_type.rd]);
+        n64cpu.gpr.write(inst.r_type.rd, n64cpu.hi);
+    }
+
+    static void op_mflo(Cpu &cpu, instruction_t inst) {
+        assert_encoding_is_valid(inst.r_type.rs == 0 && inst.r_type.rt == 0 &&
+                                 inst.r_type.sa == 0);
+        spdlog::debug("MFLO {} <= lo", GPR_NAMES[inst.r_type.rd]);
+        n64cpu.gpr.write(inst.r_type.rd, n64cpu.lo);
+    }
+
     static void op_lui(Cpu &cpu, instruction_t inst) {
         assert_encoding_is_valid(inst.i_type.rs == 0);
         int64_t simm = (int16_t)inst.i_type.imm; // sext
@@ -324,6 +338,10 @@ void Cpu::Operation::execute(Cpu &cpu, instruction_t inst) {
             return Impl::op_xor(cpu, inst);
         case SPECIAL_FUNCT_JR: // JR
             return Impl::op_jr(cpu, inst);
+        case SPECIAL_FUNCT_MFHI: // MFHI
+            return Impl::op_mfhi(cpu, inst);
+        case SPECIAL_FUNCT_MFLO: // MFLO
+            return Impl::op_mflo(cpu, inst);
         default:
             spdlog::critical(
                 "Unimplemented funct = {:#08b} for opcode = {:#08b}.",
