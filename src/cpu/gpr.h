@@ -14,8 +14,6 @@ class Gpr {
     std::array<uint64_t, 32> gpr{};
 
   public:
-    void set_gpr(const std::array<uint64_t, 32> &array) { gpr = array; }
-
     uint64_t read(uint32_t reg_num) const {
         assert(reg_num < 32);
         if (reg_num == 0) {
