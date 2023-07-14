@@ -183,14 +183,14 @@ class Cpu::Operation::Impl {
         assert_encoding_is_valid(inst.r_type.rs == 0 && inst.r_type.rt == 0 &&
                                  inst.r_type.sa == 0);
         spdlog::debug("MFHI {} <= hi", GPR_NAMES[inst.r_type.rd]);
-        n64cpu.gpr.write(inst.r_type.rd, n64cpu.hi);
+        cpu.gpr.write(inst.r_type.rd, cpu.hi);
     }
 
     static void op_mflo(Cpu &cpu, instruction_t inst) {
         assert_encoding_is_valid(inst.r_type.rs == 0 && inst.r_type.rt == 0 &&
                                  inst.r_type.sa == 0);
         spdlog::debug("MFLO {} <= lo", GPR_NAMES[inst.r_type.rd]);
-        n64cpu.gpr.write(inst.r_type.rd, n64cpu.lo);
+        cpu.gpr.write(inst.r_type.rd, cpu.lo);
     }
 
     static void op_lui(Cpu &cpu, instruction_t inst) {
