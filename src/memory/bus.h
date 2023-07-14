@@ -39,7 +39,7 @@ static uint8_t *get_pointer_to_paddr32(uint32_t paddr) {
         return &g_rsp().sp_dmem[offs];
     } else if (PHYS_SPIMEM_BASE <= paddr && paddr < PHYS_SPIMEM_END) {
         uint32_t offs = paddr - PHYS_SPIMEM_BASE;
-        return &g_rsp()..sp_imem[offs];
+        return &g_rsp().sp_imem[offs];
     } else if (PHYS_PI_BASE <= paddr && paddr <= PHYS_PI_END) {
         return g_pi().get_pointer_to_paddr32(paddr);
     } else if (PHYS_RI_BASE <= paddr && paddr <= PHYS_RI_END) {
