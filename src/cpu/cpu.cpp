@@ -8,6 +8,8 @@
 namespace N64 {
 namespace Cpu {
 
+Cpu Cpu::instance{};
+
 void Cpu::reset() { cop0.reset(); }
 
 void Cpu::step() {
@@ -65,7 +67,5 @@ void Cpu::execute_instruction(instruction_t inst) {
 }
 
 } // namespace Cpu
-
-Cpu::Cpu n64cpu{};
 
 } // namespace N64

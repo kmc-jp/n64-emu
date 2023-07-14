@@ -18,6 +18,6 @@ void write_to_byte_array32(uint8_t *ptr, uint32_t value) {
     ptr[3] = b1;
 }
 
-void core_dump() { N64::n64cpu.dump(); }
+void core_dump() { N64::g_cpu().dump(); }
 
 } // namespace Utils

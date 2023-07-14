@@ -59,6 +59,8 @@ class Cpu {
     uint64_t lo;
     uint64_t hi;
 
+    static Cpu instance;
+
   public:
     Gpr gpr;
     // branch delay slot?
@@ -96,12 +98,14 @@ class Cpu {
 
     void execute_instruction(instruction_t inst);
 
+    static Cpu &get_instance() { return instance; }
+
     class Operation;
 };
 
 } // namespace Cpu
 
-extern Cpu::Cpu n64cpu;
+inline Cpu::Cpu &g_cpu() { return Cpu::Cpu::get_instance(); }
 
 } // namespace N64
 

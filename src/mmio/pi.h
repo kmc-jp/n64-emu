@@ -20,6 +20,8 @@ class PI {
   private:
     uint32_t reg[9];
 
+    static PI instance;
+
   public:
     PI() {}
 
@@ -43,12 +45,14 @@ class PI {
         } break;
         }
     }
+
+    static PI &get_instance() { return instance; }
 };
 
 } // namespace PI
 } // namespace Mmio
 
-extern Mmio::PI::PI n64pi;
+inline Mmio::PI::PI &g_pi() { return Mmio::PI::PI::get_instance(); }
 
 } // namespace N64
 
