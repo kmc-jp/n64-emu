@@ -31,7 +31,6 @@ add_subdirectory(mmio)
 add_subdirectory(mmu)
 add_subdirectory(rsp)
 add_subdirectory(utils)
-add_subdirectory(ui)
 
 add_executable(n64 main.cpp)
 target_link_libraries(n64 PUBLIC
