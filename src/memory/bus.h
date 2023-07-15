@@ -30,22 +30,26 @@ constexpr uint32_t PHYS_ROM_END     = 0x1FBFFFFF;
 // TODO: もっと追加
 // clang-format on
 
-static uint8_t *get_pointer_to_paddr32(uint32_t paddr) {
+// 指定された物理アドレスから32bitを読み込む (big endian)
+// https://github.com/Dillonb/n64/blob/6502f7d2f163c3f14da5bff8cd6d5ccc47143156/src/mem/n64bus.c#L488
+static uint32_t read_paddr32(uint32_t paddr) {
+    // TODO: アラインメントのチェック
     if (PHYS_RDRAM_BASE <= paddr && paddr <= PHYS_RDRAM_END) {
         uint32_t offs = paddr - PHYS_RDRAM_BASE;
-        return &g_memory().rdram[offs];
+        return Utils::read_from_byte_array32(&g_memory().rdram[offs]);
     } else if (PHYS_SPDMEM_BASE <= paddr && paddr <= PHYS_SPDMEM_END) {
         uint32_t offs = paddr - PHYS_SPDMEM_BASE;
-        return &g_rsp().sp_dmem[offs];
+        return Utils::read_from_byte_array32(&g_rsp().sp_dmem[offs]);
     } else if (PHYS_SPIMEM_BASE <= paddr && paddr < PHYS_SPIMEM_END) {
         uint32_t offs = paddr - PHYS_SPIMEM_BASE;
-        return &g_rsp().sp_imem[offs];
+        return Utils::read_from_byte_array32(&g_rsp().sp_imem[offs]);
     } else if (PHYS_PI_BASE <= paddr && paddr <= PHYS_PI_END) {
-        return g_pi().get_pointer_to_paddr32(paddr);
+        return g_pi().read_paddr32(paddr);
     } else if (PHYS_RI_BASE <= paddr && paddr <= PHYS_RI_END) {
-        return g_memory().ri.get_pointer_to_paddr32(paddr);
+        return g_memory().ri.read_paddr32(paddr);
     } else if (PHYS_ROM_BASE <= paddr && paddr <= PHYS_ROM_END) {
-        return &g_memory().rom.raw()[paddr - PHYS_ROM_BASE];
+        return Utils::read_from_byte_array32(
+            &g_memory().rom.raw()[paddr - PHYS_ROM_BASE]);
     } else {
         spdlog::critical("Unimplemented. access to paddr = {:#010x}", paddr);
         Utils::core_dump();
@@ -53,17 +57,30 @@ static uint8_t *get_pointer_to_paddr32(uint32_t paddr) {
     }
 }
 
-// 指定された物理アドレスから32bitを読み込む (big endian)
-// https://github.com/Dillonb/n64/blob/6502f7d2f163c3f14da5bff8cd6d5ccc47143156/src/mem/n64bus.c#L488
-static uint32_t read_paddr32(uint32_t paddr) {
-    // TODO: アラインメントのチェック
-    return Utils::read_from_byte_array32(get_pointer_to_paddr32(paddr));
-}
-
 // 指定された物理アドレスに32bitを書き込む (big endian)
 static void write_paddr32(uint32_t paddr, uint32_t value) {
     // TODO: アラインメントのチェック
-    Utils::write_to_byte_array32(get_pointer_to_paddr32(paddr), value);
+    if (PHYS_RDRAM_BASE <= paddr && paddr <= PHYS_RDRAM_END) {
+        uint32_t offs = paddr - PHYS_RDRAM_BASE;
+        Utils::write_to_byte_array32(&g_memory().rdram[offs], value);
+    } else if (PHYS_SPDMEM_BASE <= paddr && paddr <= PHYS_SPDMEM_END) {
+        uint32_t offs = paddr - PHYS_SPDMEM_BASE;
+        Utils::write_to_byte_array32(&g_rsp().sp_dmem[offs], value);
+    } else if (PHYS_SPIMEM_BASE <= paddr && paddr < PHYS_SPIMEM_END) {
+        uint32_t offs = paddr - PHYS_SPIMEM_BASE;
+        Utils::write_to_byte_array32(&g_rsp().sp_imem[offs], value);
+    } else if (PHYS_PI_BASE <= paddr && paddr <= PHYS_PI_END) {
+        g_pi().write_paddr32(paddr, value);
+    } else if (PHYS_RI_BASE <= paddr && paddr <= PHYS_RI_END) {
+        g_memory().ri.write_paddr32(paddr, value);
+    } else if (PHYS_ROM_BASE <= paddr && paddr <= PHYS_ROM_END) {
+        Utils::write_to_byte_array32(
+            &g_memory().rom.raw()[paddr - PHYS_ROM_BASE], value);
+    } else {
+        spdlog::critical("Unimplemented. access to paddr = {:#010x}", paddr);
+        Utils::core_dump();
+        exit(-1);
+    }
 }
 
 } // namespace Memory
