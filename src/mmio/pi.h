@@ -14,28 +14,62 @@ const uint32_t PADDR_DRAM_ADDR = 0x04600000;
 const uint32_t PADDR_CART_ADDR = 0x04600004;
 const uint32_t PADDR_RD_LEN = 0x04600008;
 const uint32_t PADDR_WR_LEN = 0x0460000C;
-const uint32_t PADDR_PI_STATUS = 0x04600010;
+const uint32_t PADDR_STATUS = 0x04600010;
 
 class PI {
   private:
-    uint32_t reg[9];
+    uint32_t dram_addr;
+    uint32_t cart_addr;
+    uint32_t rd_len;
+    uint32_t wr_len;
+    uint32_t status;
 
     static PI instance;
 
   public:
     PI() {}
 
-    void reset() {}
+    void reset() {
+      // TODO: what is the initial value?
+    }
 
-    uint8_t *get_pointer_to_paddr32(uint32_t paddr) {
+    uint32_t read_paddr32(uint32_t paddr) {
         switch (paddr) {
         case PADDR_DRAM_ADDR:
+            return dram_addr;
         case PADDR_CART_ADDR:
+            return cart_addr;
         case PADDR_RD_LEN:
+            return rd_len;
         case PADDR_WR_LEN:
-        case PADDR_PI_STATUS: {
-            uint32_t reg_num = (paddr - 0x0460'0000) / 4;
-            return reinterpret_cast<uint8_t *>(&reg[reg_num]);
+            return wr_len;
+        case PADDR_STATUS:
+            return status;
+        default: {
+            spdlog::critical("Unimplemented. Access to PI paddr = {:#010x}",
+                             paddr);
+            Utils::core_dump();
+            exit(-1);
+        } break;
+        }
+    }
+
+    void write_paddr32(uint32_t paddr, uint32_t value) {
+        switch (paddr) {
+        case PADDR_DRAM_ADDR: {
+            dram_addr = value;
+        } break;
+        case PADDR_CART_ADDR: {
+            cart_addr = value;
+        } break;
+        case PADDR_RD_LEN: {
+            rd_len = value;
+        } break;
+        case PADDR_WR_LEN: {
+            wr_len = value;
+        } break;
+        case PADDR_STATUS: {
+            status = value;
         } break;
         default: {
             spdlog::critical("Unimplemented. Access to PI paddr = {:#010x}",
