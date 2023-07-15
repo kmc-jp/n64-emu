@@ -325,7 +325,7 @@ class Cpu::Operation::Impl {
         spdlog::debug("MFC0: {} <= COP0.reg[{}]",
                       static_cast<uint32_t>(inst.copz_type1.rt),
                       GPR_NAMES[inst.copz_type1.rd]);
-        const auto tmp = cpu.cop0.read32(inst.copz_type1.rd);
+        const uint32_t tmp = cpu.cop0.read32(inst.copz_type1.rd);
         cpu.gpr.write(inst.copz_type1.rt, tmp);
     }
 
@@ -333,7 +333,7 @@ class Cpu::Operation::Impl {
         spdlog::debug("MTC0: COP0.reg[{}] <= {}",
                       static_cast<uint32_t>(inst.copz_type1.rd),
                       GPR_NAMES[inst.copz_type1.rt]);
-        const auto tmp =
+        const uint32_t tmp =
             static_cast<uint32_t>(cpu.gpr.read(inst.copz_type1.rt));
         cpu.cop0.write32(inst.copz_type1.rd, tmp);
         // TODO: COP0を32bitレジスタに修正したあと、このあたりを見直す
