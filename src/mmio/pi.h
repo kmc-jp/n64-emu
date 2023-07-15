@@ -1,4 +1,4 @@
-#ifndef PI_H
+﻿#ifndef PI_H
 #define PI_H
 
 #include "utils.h"
@@ -18,11 +18,11 @@ const uint32_t PADDR_STATUS = 0x04600010;
 
 class PI {
   private:
-    uint32_t dram_addr;
-    uint32_t cart_addr;
-    uint32_t rd_len;
-    uint32_t wr_len;
-    uint32_t status;
+    uint32_t reg_dram_addr;
+    uint32_t reg_cart_addr;
+    uint32_t reg_rd_len;
+    uint32_t reg_wr_len;
+    uint32_t reg_status;
 
     static PI instance;
 
@@ -30,21 +30,23 @@ class PI {
     PI() {}
 
     void reset() {
-      // TODO: what is the initial value?
+        // https://github.com/project64/project64/blob/353ef5ed897cb72a8904603feddbdc649dff9eca/Source/Project64-core/N64System/MemoryHandler/PeripheralInterfaceHandler.cpp#L177
+        reg_rd_len = 0x7f;
+        reg_wr_len = 0x7f;
     }
 
     uint32_t read_paddr32(uint32_t paddr) {
         switch (paddr) {
         case PADDR_DRAM_ADDR:
-            return dram_addr;
+            return reg_dram_addr;
         case PADDR_CART_ADDR:
-            return cart_addr;
+            return reg_cart_addr;
         case PADDR_RD_LEN:
-            return rd_len;
+            return reg_rd_len;
         case PADDR_WR_LEN:
-            return wr_len;
+            return reg_wr_len;
         case PADDR_STATUS:
-            return status;
+            return reg_status;
         default: {
             spdlog::critical("Unimplemented. Access to PI paddr = {:#010x}",
                              paddr);
@@ -57,19 +59,21 @@ class PI {
     void write_paddr32(uint32_t paddr, uint32_t value) {
         switch (paddr) {
         case PADDR_DRAM_ADDR: {
-            dram_addr = value;
+            reg_dram_addr = value;
         } break;
         case PADDR_CART_ADDR: {
-            cart_addr = value;
+            reg_cart_addr = value;
         } break;
         case PADDR_RD_LEN: {
-            rd_len = value;
+            reg_rd_len = value;
+            start_dma_transfer();
         } break;
         case PADDR_WR_LEN: {
-            wr_len = value;
+            reg_wr_len = value;
+            start_dma_transfer();
         } break;
         case PADDR_STATUS: {
-            status = value;
+            reg_status = value;
         } break;
         default: {
             spdlog::critical("Unimplemented. Access to PI paddr = {:#010x}",
@@ -81,6 +85,15 @@ class PI {
     }
 
     static PI &get_instance() { return instance; }
+
+  private:
+    void start_dma_transfer() {
+        // TODO: statusレジスタのセット
+        // TODO: DMAエンジン
+        spdlog::critical("Unimplemented. DMA Transfer by RI");
+        Utils::core_dump();
+        exit(-1);
+    }
 };
 
 } // namespace PI

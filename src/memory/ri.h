@@ -25,35 +25,36 @@ class RI {
         REFLESH = 4,
     };
 
-    uint32_t mode;
-    uint32_t config;
-    uint32_t current_load;
-    uint32_t select;
-    uint32_t refresh;
+    uint32_t reg_mode;
+    uint32_t reg_config;
+    uint32_t reg_current_load;
+    uint32_t reg_select;
+    uint32_t reg_refresh;
 
   public:
     RI() {}
 
     void reset() {
+        // https://github.com/Dillonb/n64/blob/6502f7d2f163c3f14da5bff8cd6d5ccc47143156/src/mem/n64mem.c#L10
         // https://github.com/SimoneN64/Kaizen/blob/dffd36fc31731a0391a9b90f88ac2e5ed5d3f9ec/src/backend/core/mmio/RI.cpp#L9
-        mode = 0xE;
-        config = 040;
-        select = 0x14;
-        refresh = 0x63634;
+        reg_mode = 0xE;
+        reg_config = 040;
+        reg_select = 0x14;
+        reg_refresh = 0x63634;
     }
 
     uint32_t read_paddr32(uint32_t paddr) {
         switch (paddr) {
         case PADDR_RI_MODE: // mode
-            return mode;
+            return reg_mode;
         case PADDR_RI_CONFIG: // config
-            return config;
+            return reg_config;
         case PADDR_RI_CURRENT_LOAD: // current_load
-            return current_load;
+            return reg_current_load;
         case PADDR_RI_SELECT: // select
-            return select;
+            return reg_select;
         case PADDR_RI_REFRESH: // refresh
-            return refresh;
+            return reg_refresh;
         default: {
             spdlog::critical("Unimplemented. Read from RI paddr = {:#010x}",
                              paddr);
@@ -67,23 +68,23 @@ class RI {
         switch (paddr) {
         case PADDR_RI_MODE: // mode
         {
-            mode = value;
+            reg_mode = value;
         } break;
         case PADDR_RI_CONFIG: // config
         {
-            config = value;
+            reg_config = value;
         } break;
         case PADDR_RI_CURRENT_LOAD: // current_load
         {
-            current_load = value;
+            reg_current_load = value;
         } break;
         case PADDR_RI_SELECT: // select
         {
-            select = value;
+            reg_select = value;
         } break;
         case PADDR_RI_REFRESH: // refresh
         {
-            refresh = value;
+            reg_refresh = value;
         } break;
         default: {
             spdlog::critical("Unimplemented. Write to RI paddr = {:#010x}",
