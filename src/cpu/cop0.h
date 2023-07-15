@@ -167,18 +167,18 @@ class Cop0 {
     void write64(uint32_t reg_num, uint64_t value);
 
     template <typename Wire> Wire read(uint32_t reg_num) {
-        static_assert(std::is_same_v<Wire, int32_t>::value ||
-                      std::is_same_v<Wire, int64_t>::value);
-        if constexpr (std::is_same_v<Wire, int32_t>)
+        static_assert(std::is_same_v<Wire, uint32_t>::value ||
+                      std::is_same_v<Wire, uint64_t>::value);
+        if constexpr (std::is_same_v<Wire, uint32_t>)
             return read32(reg_num);
         else
             return read64(reg_num);
     }
 
     template <typename Wire> void write(uint32_t reg_num, Wire value) {
-        static_assert(std::is_same_v<Wire, int32_t>::value ||
-                      std::is_same_v<Wire, int64_t>::value);
-        if constexpr (std::is_same_v<Wire, int32_t>)
+        static_assert(std::is_same_v<Wire, uint32_t>::value ||
+                      std::is_same_v<Wire, uint64_t>::value);
+        if constexpr (std::is_same_v<Wire, uint32_t>)
             write32(reg_num, value);
         else
             write64(reg_num, value);
