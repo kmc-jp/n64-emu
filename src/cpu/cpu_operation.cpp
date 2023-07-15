@@ -322,37 +322,43 @@ class Cpu::Operation::Impl {
     }
 
     static void op_mfc0(Cpu &cpu, instruction_t inst) {
-        spdlog::debug("MFC0: {} <= COP0.reg[{}]",
-                      static_cast<uint32_t>(inst.copz_type1.rt),
-                      GPR_NAMES[inst.copz_type1.rd]);
-        const uint32_t tmp = cpu.cop0.read32(inst.copz_type1.rd);
-        cpu.gpr.write(inst.copz_type1.rt, tmp);
+        assert_encoding_is_valid(inst.copz_type1.should_be_zero == 0);
+        spdlog::debug("MFC0: {} <= COP0.reg[{}]", GPR_NAMES[inst.copz_type1.rt],
+                      static_cast<uint32_t>(inst.copz_type1.rd));
+        int32_t tmp = cpu.cop0.reg.read(inst.copz_type1.rd);
+        int64_t stmp = tmp; // sext
+        // FIXME: T+1 (delay)
+        cpu.gpr.write(inst.copz_type1.rt, stmp);
     }
 
     static void op_mtc0(Cpu &cpu, instruction_t inst) {
+        assert_encoding_is_valid(inst.copz_type1.should_be_zero == 0);
         spdlog::debug("MTC0: COP0.reg[{}] <= {}",
                       static_cast<uint32_t>(inst.copz_type1.rd),
                       GPR_NAMES[inst.copz_type1.rt]);
-        const uint32_t tmp =
-            static_cast<uint32_t>(cpu.gpr.read(inst.copz_type1.rt));
-        cpu.cop0.write32(inst.copz_type1.rd, tmp);
-        // TODO: COP0を32bitレジスタに修正したあと、このあたりを見直す
+        uint64_t tmp = cpu.gpr.read(inst.copz_type1.rt);
+        // FIXME: T+1 (delay)
+        cpu.cop0.reg.write(inst.copz_type1.rd, tmp);
     }
 
     static void op_dmfc0(Cpu &cpu, instruction_t inst) {
+        assert_encoding_is_valid(inst.copz_type1.should_be_zero == 0);
         spdlog::debug("DMFC0: {} <= COP0.reg[{}]",
-                      static_cast<uint32_t>(inst.copz_type1.rt),
-                      GPR_NAMES[inst.copz_type1.rd]);
-        const uint64_t tmp = cpu.cop0.read64(inst.copz_type1.rd);
+                      GPR_NAMES[inst.copz_type1.rt],
+                      static_cast<uint32_t>(inst.copz_type1.rd));
+        const uint64_t tmp = cpu.cop0.reg.read(inst.copz_type1.rd);
+        // FIXME: T+1 (delay)
         cpu.gpr.write(inst.copz_type1.rt, tmp);
     }
 
     static void op_dmtc0(Cpu &cpu, instruction_t inst) {
+        assert_encoding_is_valid(inst.copz_type1.should_be_zero == 0);
         spdlog::debug("DMTC0: COP0.reg[{}] <= {}",
                       static_cast<uint32_t>(inst.copz_type1.rd),
                       GPR_NAMES[inst.copz_type1.rt]);
         const uint64_t tmp = cpu.gpr.read(inst.copz_type1.rt);
-        cpu.cop0.write64(inst.copz_type1.rd, tmp);
+        // FIXME: T+1 (delay)
+        cpu.cop0.reg.write(inst.copz_type1.rd, tmp);
     }
 };
 

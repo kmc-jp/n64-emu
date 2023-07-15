@@ -5,13 +5,13 @@
 #include "rsp/rsp.h"
 #include "spdlog/sinks/basic_file_sink.h"
 
-#include "ui/config.h"
+#include "config.h"
 #include <spdlog/spdlog.h>
 
 int main(int argc, char *argv[]) {
     N64::Ui::Config config{};
 
-    if (apply_config_from_command_line(config, argc, argv) == false) {
+    if (read_config_from_command_line(config, argc, argv) == false) {
         std::cout << N64::Ui::COMMAND_LINE_USAGE << std::endl;
         return -1;
     }

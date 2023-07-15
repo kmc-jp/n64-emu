@@ -1,4 +1,4 @@
-#ifndef CONFIG_H
+﻿#ifndef CONFIG_H
 #define CONFIG_H
 
 #include <string>
@@ -16,7 +16,7 @@ constexpr std::string_view COMMAND_LINE_USAGE =
     "Options:\n"
     "--log <file>\tspecify output log file\n";
 
-bool apply_config_from_command_line(Config &config, int argc, char *argv[]) {
+bool read_config_from_command_line(Config &config, int argc, char *argv[]) {
     if (argc < 2)
         return false;
 

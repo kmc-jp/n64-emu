@@ -17,8 +17,8 @@ void Cpu::step() {
     spdlog::debug("CPU cycle starts");
 
     // Compare interrupt
-    if (cop0.read64(Cop0Reg::COUNT) == cop0.read64(Cop0Reg::COMPARE)) {
-        cop0.get_cause_ref()->ip7 = true;
+    if (cop0.reg.count == cop0.reg.compare) {
+        cop0.reg.cause.ip7 = true;
     }
 
     // updates delay slot
@@ -27,15 +27,15 @@ void Cpu::step() {
 
     // check for interrupt/exception
     // TODO: implement MI_INTR_MASK_REG?
-    if (cop0.get_interrupt_pending_masked()) {
-        uint8_t exc_code = cop0.get_cause_ref()->exception_code;
+    if (cop0.reg.cause.interrupt_pending & cop0.reg.status.im) {
+        uint8_t exc_code = cop0.reg.cause.exception_code;
         switch (exc_code) {
         case 0: // interrupt
         {
             spdlog::critical(
                 "Unimplemented. interruption IP = {:#010b} mask = {:#010b}",
-                static_cast<uint32_t>(cop0.get_cause_ref()->interrupt_pending),
-                static_cast<uint32_t>(cop0.get_status_ref()->im));
+                static_cast<uint32_t>(cop0.reg.cause.interrupt_pending),
+                static_cast<uint32_t>(cop0.reg.status.im));
             Utils::core_dump();
             exit(-1);
         } break;
@@ -58,9 +58,8 @@ void Cpu::step() {
 
     execute_instruction(inst);
 
-    cop0.write64(Cop0Reg::COUNT,
-                 (cop0.read64(Cop0Reg::COUNT) + CPU_CYCLES_PER_INST) &
-                     0x1FFFFFFFF);
+    cop0.reg.count += CPU_CYCLES_PER_INST;
+    cop0.reg.count &= 0x1FFFFFFFF;
 }
 
 void Cpu::execute_instruction(instruction_t inst) {
