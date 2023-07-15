@@ -17,7 +17,7 @@ void Cpu::step() {
     spdlog::debug("CPU cycle starts");
 
     // Compare interrupt
-    if (cop0.reg[Cop0Reg::COUNT] == cop0.reg[Cop0Reg::COMPARE]) {
+    if (cop0.read64(Cop0Reg::COUNT) == cop0.read64(Cop0Reg::COMPARE)) {
         cop0.get_cause_ref()->ip7 = true;
     }
 
@@ -58,8 +58,9 @@ void Cpu::step() {
 
     execute_instruction(inst);
 
-    cop0.reg[Cop0Reg::COUNT] += CPU_CYCLES_PER_INST;
-    cop0.reg[Cop0Reg::COUNT] &= 0x1FFFFFFFF;
+    cop0.write64(Cop0Reg::COUNT,
+                 (cop0.read64(Cop0Reg::COUNT) + CPU_CYCLES_PER_INST) &
+                     0x1FFFFFFFF);
 }
 
 void Cpu::execute_instruction(instruction_t inst) {

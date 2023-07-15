@@ -6,7 +6,8 @@
 namespace N64 {
 namespace Cpu {
 
-enum Cop0Reg {
+namespace Cop0Reg {
+enum {
     INDEX = 0,
     RANDOM = 1,
     ENTRY_LO0 = 2,
@@ -33,6 +34,7 @@ enum Cop0Reg {
     TAG_HI = 29,
     ERROR_EPC = 30,
 };
+}
 
 // FIXME: packedいる?
 typedef union cp0_cause {
@@ -104,7 +106,6 @@ class Cop0 {
     // https://github.com/Dillonb/n64/blob/6502f7d2f163c3f14da5bff8cd6d5ccc47143156/src/cpu/r4300i.h#L484
     // レジスタ幅については以下の1.3を参照
     // https://ultra64.ca/files/documentation/silicon-graphics/SGI_R4300_RISC_Processor_Specification_REV2.2.pdf
-    uint64_t reg[32];
 
     /* 一つずつレジスタを定義するとメンドイのでやめる
     uint32_t index;
@@ -196,6 +197,15 @@ class Cop0 {
     uint8_t get_interrupt_pending_masked() {
         return get_cause_ref()->interrupt_pending & get_status_ref()->im;
     }
+
+    uint32_t read32(uint32_t reg_num) const;
+    uint64_t read64(uint32_t reg_num) const;
+
+    void write32(uint32_t reg_num, uint32_t value);
+    void write64(uint32_t reg_num, uint64_t value);
+
+  private:
+    std::array<uint64_t, 32> reg{};
 };
 
 } // namespace Cpu
