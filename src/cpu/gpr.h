@@ -46,7 +46,7 @@ constexpr std::array<std::string_view, 32> GPR_NAMES = {
 
 class Gpr {
   private:
-    std::array<uint64_t, 32> gpr{};
+    std::array<uint64_t, 32> reg{};
 
   public:
     uint64_t read(uint32_t reg_num) const {
@@ -54,14 +54,14 @@ class Gpr {
         if (reg_num == 0) {
             return 0;
         } else {
-            return gpr[reg_num];
+            return reg[reg_num];
         }
     }
 
     void write(uint32_t reg_num, uint64_t value) {
         assert(reg_num < 32);
         if (reg_num != 0) {
-            gpr[reg_num] = value;
+            reg[reg_num] = value;
         }
     }
 };
