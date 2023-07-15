@@ -23,8 +23,8 @@ class EnumView {
     static constexpr size_type prefix_offset = 58;
     static constexpr size_type suffix_offset = 1;
 #elif defined(_MSC_VER)
-    static constexpr size_type prefix_offset = 0;
-    static constexpr size_type suffix_offset = 0;
+    static constexpr size_type prefix_offset = 32;
+    static constexpr size_type suffix_offset = 7;
 #else
     static constexpr size_type prefix_offset = 0;
     static constexpr size_type suffix_offset = 0;
