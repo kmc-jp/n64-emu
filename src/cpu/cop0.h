@@ -326,13 +326,13 @@ class Cop0 {
             bool i_th_reg_is_unknwon =
                 i == 7 || (21 <= i && i <= 25) || i == 31;
             bool i_plus_16_th_reg_is_unknwon =
-                (i + 16) == 7 || (21 <= (i + 16) && (i + 1) <= 25) ||
+                (i + 16) == 7 || ((21 <= i + 16) && (i + 16 <= 25)) ||
                 (i + 16) == 31;
-            const uint64_t UNKNOWN_VAL = 0x0808deadbeef0808;
+            const uint64_t UNKNOWN_VAL = 0xccccdeadbeefcccc;
             spdlog::info(
                 "CP0[{}]\t= {:#018x}\tCP0[{}]\t= {:#018x}", i,
                 i_th_reg_is_unknwon ? UNKNOWN_VAL : reg.read(i), i + 16,
-                i_plus_16_th_reg_is_unknwon ? UNKNOWN_VAL : reg.read(i));
+                i_plus_16_th_reg_is_unknwon ? UNKNOWN_VAL : reg.read(i + 16));
         }
         spdlog::info("global interrupt enabled; ie\t= {}",
                      reg.status.ie ? "enabled" : "disabled");
