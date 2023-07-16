@@ -1,20 +1,8 @@
-﻿#ifndef CONFIG_H
-#define CONFIG_H
-
+﻿#include "config.h"
 #include <string>
 
 namespace N64 {
-namespace Ui {
-
-struct Config {
-    std::string rom_filepath{};
-    std::string log_filepath{};
-};
-
-constexpr std::string_view COMMAND_LINE_USAGE =
-    "Usage: n64 [options] <ROM.z64>\n"
-    "Options:\n"
-    "--log <file>\tspecify output log file\n";
+namespace N64System {
 
 bool read_config_from_command_line(Config &config, int argc, char *argv[]) {
     if (argc < 2)
@@ -40,7 +28,5 @@ bool read_config_from_command_line(Config &config, int argc, char *argv[]) {
     return true;
 }
 
-} // namespace Ui
+} // namespace N64System
 } // namespace N64
-
-#endif
