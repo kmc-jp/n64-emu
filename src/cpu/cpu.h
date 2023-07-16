@@ -36,21 +36,11 @@ class Cpu {
 
     // TODO: add COP1?
 
-    Cpu() : delay_slot(false), prev_delay_slot(false) {}
+    Cpu() {}
 
     void reset();
 
-    void dump() {
-        spdlog::info("======= Core dump =======");
-        spdlog::info("PC\t= {:#x}", pc);
-        for (int i = 0; i < 16; i++) {
-            spdlog::info("{}\t= {:#018x}\t{}\t= {:#018x}", GPR_NAMES[i],
-                         gpr.read(i), GPR_NAMES[i + 16], gpr.read(i + 16));
-        }
-        spdlog::info("");
-        cop0.dump();
-        spdlog::info("=========================");
-    }
+    void dump();
 
     void set_pc64(uint64_t value) {
         pc = value;
@@ -63,7 +53,7 @@ class Cpu {
 
     void execute_instruction(instruction_t inst);
 
-    static Cpu &get_instance() { return instance; }
+    inline static Cpu &get_instance() { return instance; }
 
     class Operation;
 };

@@ -2,6 +2,8 @@
 #define UTILS_H
 
 #include <cstdint>
+#include <string>
+#include <source_location>
 
 // PACK
 #ifdef __GNUC__
@@ -22,6 +24,8 @@ uint32_t read_from_byte_array32(uint8_t *ptr);
 void write_to_byte_array32(uint8_t *ptr, uint32_t value);
 
 void core_dump();
+
+void unimplemented(const std::string what, const std::source_location loc = std::source_location::current());
 
 } // namespace Utils
 

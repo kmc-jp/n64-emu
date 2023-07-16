@@ -28,7 +28,7 @@ class Rsp {
         // TODO: implement
     }
 
-    static Rsp &get_instance() { return instance; }
+    inline static Rsp &get_instance() { return instance; }
 
   private:
     static Rsp instance;

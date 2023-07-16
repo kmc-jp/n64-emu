@@ -10,7 +10,23 @@ namespace Cpu {
 
 Cpu Cpu::instance{};
 
-void Cpu::reset() { cop0.reset(); }
+void Cpu::reset() {
+    delay_slot = false;
+    prev_delay_slot = false;
+    cop0.reset();
+}
+
+void Cpu::dump() {
+    spdlog::info("======= Core dump =======");
+    spdlog::info("PC\t= {:#x}", pc);
+    for (int i = 0; i < 16; i++) {
+        spdlog::info("{}\t= {:#018x}\t{}\t= {:#018x}", GPR_NAMES[i],
+                     gpr.read(i), GPR_NAMES[i + 16], gpr.read(i + 16));
+    }
+    spdlog::info("");
+    cop0.dump();
+    spdlog::info("=========================");
+}
 
 void Cpu::step() {
     spdlog::debug("");
