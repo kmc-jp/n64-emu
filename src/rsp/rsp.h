@@ -1,8 +1,7 @@
 ﻿#ifndef RSP_H
 #define RSP_H
 
-#include <cstdint>
-#include <spdlog/spdlog.h>
+#include "utils/utils.h"
 
 namespace N64 {
 namespace Rsp {
@@ -20,7 +19,7 @@ class Rsp {
     Rsp() {}
 
     void reset() {
-        spdlog::debug("initializing RSP");
+        Utils::info("resetting RSP");
         // TODO: what should be done?
     }
 
