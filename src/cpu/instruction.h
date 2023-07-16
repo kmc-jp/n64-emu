@@ -50,6 +50,7 @@ typedef union {
 
 // MIPS instructions
 constexpr uint8_t OPCODE_SPECIAL = 0b000000;
+constexpr uint8_t OPCODE_REGIMM = 0b000001;
 constexpr uint8_t OPCODE_COP0 = 0b010000;
 constexpr uint8_t OPCODE_ADDIU = 0b001001;
 constexpr uint8_t OPCODE_LW = 0b100011;
@@ -80,6 +81,8 @@ constexpr uint8_t SPECIAL_FUNCT_SUBU = 0b100011;  // SUBU
 constexpr uint8_t SPECIAL_FUNCT_MULT = 0b011000;  // MULT
 constexpr uint8_t SPECIAL_FUNCT_MULTU = 0b011001; // MULTU
 constexpr uint8_t SPECIAL_FUNCT_SLL = 0b000000;   // SLL
+constexpr uint8_t SPECIAL_FUNCT_SLLV = 0b000100;  // SLLV
+constexpr uint8_t SPECIAL_FUNCT_SRLV = 0b000110;  // SRLV
 constexpr uint8_t SPECIAL_FUNCT_SLTU = 0b101011;  // SLTU
 constexpr uint8_t SPECIAL_FUNCT_AND = 0b100100;   // AND
 constexpr uint8_t SPECIAL_FUNCT_OR = 0b100101;    // OR
