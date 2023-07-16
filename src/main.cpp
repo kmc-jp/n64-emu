@@ -22,12 +22,7 @@ int main(int argc, char *argv[]) {
     if (config.log_filepath.empty() == false) {
         Utils::set_log_file(config.log_filepath);
     }
-
-    // set logger level
-    spdlog::set_level(spdlog::level::trace);
-    // use custom logging pattern
-    // https://github.com/gabime/spdlog/issues/2073
-    spdlog::set_pattern("[%^%l%$] %v");
+    Utils::set_log_level(config.log_level);
 
     N64::N64System::run(config);
 
