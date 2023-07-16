@@ -15,6 +15,7 @@ const int RDRAM_SIZE = 0x800000;
 
 class Memory {
   public:
+    // TODO: 境界チェックをしたいのでprivateにする
     uint8_t rdram[RDRAM_SIZE];
     RI ri;
     Rom rom;
