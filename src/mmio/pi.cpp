@@ -76,6 +76,7 @@ void PI::write_paddr32(uint32_t paddr, uint32_t value) {
 
 // DMA write完了時の処理
 void PI::on_dma_write_completed() {
+    // FIXME: read_posによってレジスタ制御が変わる?
     reg_status &= ~PI_STATUS_DMA_BUSY;
     reg_status &= ~PI_STATUS_IO_BUSY;
 }
@@ -90,6 +91,7 @@ void PI::dma_write() {
         g_memory().rdram[write_pos + i] =
             g_memory().rom.read_offset8(read_pos + i);
     }
+    // FIXME: read_posによってレジスタ制御が変わる?
     reg_status |= PI_STATUS_DMA_BUSY;
     reg_status |= PI_STATUS_IO_BUSY;
 
