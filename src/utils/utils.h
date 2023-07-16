@@ -30,18 +30,20 @@ void unimplemented(const std::string what, const std::source_location loc =
                                                std::source_location::current());
 
 enum class LogLevel {
-    Trace,
-    Debug,
-    Info,
-    // Warn,
-    // Error,
-    Critical,
-    Off
+    TRACE,
+    DEBUG,
+    INFO,
+    // WARN,
+    // ERROR,
+    CRITICAL,
+    OFF
 };
 
 void init_logger();
 
 void set_log_file(std::string filepath);
+
+void set_log_level(LogLevel level);
 
 template <typename... Args>
 inline void debug(std::string_view fmt, Args &&...args) {

@@ -34,26 +34,25 @@ void unimplemented(const std::string what, const std::source_location loc) {
 void init_logger() { spdlog::set_pattern("[%^%l%$] %v"); }
 
 void set_log_file(std::string filepath) {
-    set_default_logger(
-        spdlog::basic_logger_mt("basic_logger", filepath, true));
+    set_default_logger(spdlog::basic_logger_mt("basic_logger", filepath, true));
 }
 
 void set_log_level(LogLevel level) {
     spdlog::level::level_enum log_level;
     switch (level) {
-    case LogLevel::Trace: {
+    case LogLevel::TRACE: {
         log_level = spdlog::level::trace;
     } break;
-    case LogLevel::Debug: {
+    case LogLevel::DEBUG: {
         log_level = spdlog::level::debug;
     } break;
-    case LogLevel::Info: {
+    case LogLevel::INFO: {
         log_level = spdlog::level::info;
     } break;
-    case LogLevel::Critical: {
+    case LogLevel::CRITICAL: {
         log_level = spdlog::level::critical;
     } break;
-    case LogLevel::Off: {
+    case LogLevel::OFF: {
         log_level = spdlog::level::off;
     } break;
     default: {
