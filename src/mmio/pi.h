@@ -16,7 +16,16 @@ const uint32_t PADDR_RD_LEN = 0x04600008;
 const uint32_t PADDR_WR_LEN = 0x0460000C;
 const uint32_t PADDR_STATUS = 0x04600010;
 
+namespace PIScheduler {
+
+void on_dma_write_completed();
+
+}
+
 class PI {
+    // DMA write完了時の処理
+    friend void PIScheduler::on_dma_write_completed();
+
   private:
     uint32_t reg_dram_addr;
     uint32_t reg_cart_addr;
@@ -41,8 +50,6 @@ class PI {
     void dma_write();
 
     void dma_read();
-
-    void on_dma_write_completed();
 };
 
 } // namespace PI

@@ -1,5 +1,6 @@
 ﻿#include "pi.h"
 #include "memory.h"
+#include "n64_system/scheduler.h"
 
 namespace N64 {
 namespace Mmio {
@@ -74,15 +75,7 @@ void PI::write_paddr32(uint32_t paddr, uint32_t value) {
     }
 }
 
-// DMA write完了時の処理
-void PI::on_dma_write_completed() {
-    // FIXME: read_posによってレジスタ制御が変わる?
-    reg_status &= ~PI_STATUS_DMA_BUSY;
-    reg_status &= ~PI_STATUS_IO_BUSY;
-}
-
 void PI::dma_write() {
-    // TODO: statusレジスタのセット
     uint32_t write_pos = reg_dram_addr & 0x7FFFFE;
     uint32_t read_pos = reg_cart_addr;
     // FIXME: カートリッジのサイズを超えてsegvになる可能性あり
@@ -95,14 +88,20 @@ void PI::dma_write() {
     reg_status |= PI_STATUS_DMA_BUSY;
     reg_status |= PI_STATUS_IO_BUSY;
 
-    // TODO: スケジューラで処理する. issue #30
-    on_dma_write_completed();
+    g_scheduler().set_timer(
+        5, N64System::Event{&PIScheduler::on_dma_write_completed});
 }
 
 void PI::dma_read() {
     // TODO: statusレジスタのセット
     // TODO: DMAエンジン
     Utils::unimplemented("DMA Transfer by RI");
+}
+
+void PIScheduler::on_dma_write_completed() {
+    // FIXME: read_posによってレジスタ制御が変わる?
+    g_pi().reg_status &= ~PI_STATUS_DMA_BUSY;
+    g_pi().reg_status &= ~PI_STATUS_IO_BUSY;
 }
 
 PI PI::instance{};
