@@ -1,18 +1,19 @@
-﻿#include "cpu/cpu.h"
-#include "memory/memory.h"
-#include "memory/pif.h"
-#include "mmio/pi.h"
-#include "rsp/rsp.h"
-#include "spdlog/sinks/basic_file_sink.h"
-
-#include "config.h"
+﻿#include "config.h"
+#include "n64_system/n64_system.h"
+#include "n64_system/config.h"
+#include <spdlog/sinks/basic_file_sink.h>
 #include <spdlog/spdlog.h>
+#include <iostream>
+
+constexpr std::string_view USAGE = "Usage: n64 [options] <ROM.z64>\n"
+                                   "Options:\n"
+                                   "--log <file>\tspecify output log file\n";
 
 int main(int argc, char *argv[]) {
-    N64::Ui::Config config{};
+    N64::N64System::Config config{};
 
     if (read_config_from_command_line(config, argc, argv) == false) {
-        std::cout << N64::Ui::COMMAND_LINE_USAGE << std::endl;
+        std::cout << USAGE << std::endl;
         return -1;
     }
 
@@ -27,26 +28,7 @@ int main(int argc, char *argv[]) {
     // https://github.com/gabime/spdlog/issues/2073
     spdlog::set_pattern("[%^%l%$] %v");
 
-    N64::g_memory().load_rom(config.rom_filepath);
-    N64::g_memory().reset();
-    N64::g_cpu().reset();
-    N64::g_rsp().reset();
-    N64::g_pi().reset();
-
-    N64::Memory::pif_rom_execute();
-
-    int consumed_cpu_cycles = 0;
-    while (true) {
-        N64::g_cpu().step();
-        consumed_cpu_cycles += N64::Cpu::CPU_CYCLES_PER_INST;
-
-        // RSP ticks 2/3x faster than CPU
-        while (consumed_cpu_cycles >= 3) {
-            consumed_cpu_cycles -= 3;
-            N64::g_rsp().step();
-            N64::g_rsp().step();
-        }
-    }
+    N64::N64System::run(config);
 
     return 0;
 }

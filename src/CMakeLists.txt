@@ -6,6 +6,7 @@ include_directories(
     mmu
     rsp
     utils
+    n64_system
 )
 
 # Boost
@@ -31,10 +32,11 @@ add_subdirectory(mmio)
 add_subdirectory(mmu)
 add_subdirectory(rsp)
 add_subdirectory(utils)
+add_subdirectory(n64_system)
 
 add_executable(n64 main.cpp)
 target_link_libraries(n64 PUBLIC
-    cpu memory mmio mmu rsp utils
+    cpu memory mmio mmu rsp utils n64_system
     ${Boost_LIBRARIES})
 
 # target_link_libraries(n64 PRIVATE SDL2::SDL2)
