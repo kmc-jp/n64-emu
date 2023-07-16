@@ -4,11 +4,14 @@
 #include "memory/pif.h"
 #include "mmio/pi.h"
 #include "rsp/rsp.h"
+#include "scheduler.h"
 
 namespace N64 {
 namespace N64System {
 
 void run(Config config) {
+    N64::g_scheduler().init();
+
     // Reset all processors
     N64::g_memory().load_rom(config.rom_filepath);
     N64::g_memory().reset();
@@ -30,7 +33,8 @@ void run(Config config) {
             N64::g_rsp().step();
             N64::g_rsp().step();
         }
-        // TODO: scheduling PI, VI, AI, SI, RI, DI, etc.
+
+        g_scheduler().tick(N64::Cpu::CPU_CYCLES_PER_INST);
     }
 }
 
