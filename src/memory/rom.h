@@ -6,7 +6,6 @@
 #include <cstdlib>
 #include <fstream>
 #include <iostream>
-#include <spdlog/spdlog.h>
 #include <vector>
 
 namespace N64 {

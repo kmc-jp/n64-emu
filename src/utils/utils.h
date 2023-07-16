@@ -52,7 +52,7 @@ inline void debug(std::string_view fmt, Args &&...args) {
 
 template <typename... Args>
 inline void critical(std::string_view fmt, Args &&...args) {
-    spdlog::debug(fmt, std::forward<Args>(args)...);
+    spdlog::critical(fmt, std::forward<Args>(args)...);
 }
 
 template <typename... Args>
@@ -63,6 +63,13 @@ inline void trace(std::string_view fmt, Args &&...args) {
 template <typename... Args>
 inline void info(std::string_view fmt, Args &&...args) {
     spdlog::info(fmt, std::forward<Args>(args)...);
+}
+
+template <typename... Args> void abort(std::string_view fmt, Args &&...args) {
+    spdlog::critical("Abort!");
+    spdlog::critical(fmt, std::forward<Args>(args)...);
+    core_dump();
+    exit(-1);
 }
 
 } // namespace Utils

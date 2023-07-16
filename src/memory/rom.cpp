@@ -1,4 +1,5 @@
 #include "rom.h"
+#include "utils.h"
 
 namespace N64 {
 namespace Memory {
@@ -58,7 +59,7 @@ void Rom::read_from(const std::string &filepath) {
 
     std::ifstream file(filepath.c_str(), std::ios::in | std::ios::binary);
     if (!file.is_open()) {
-        spdlog::error("Could not open ROM file");
+        Utils::abort("Could not open ROM file: {}", filepath);
         return;
     }
     rom = {std::istreambuf_iterator<char>(file),
