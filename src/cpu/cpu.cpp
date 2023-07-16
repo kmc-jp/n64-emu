@@ -4,6 +4,7 @@
 #include "instruction.h"
 #include "memory/bus.h"
 #include "mmu/mmu.h"
+#include "utils/utils.h"
 
 namespace N64 {
 namespace Cpu {
@@ -11,26 +12,27 @@ namespace Cpu {
 Cpu Cpu::instance{};
 
 void Cpu::reset() {
+    Utils::info("resetting CPU");
     delay_slot = false;
     prev_delay_slot = false;
     cop0.reset();
 }
 
 void Cpu::dump() {
-    spdlog::info("======= Core dump =======");
-    spdlog::info("PC\t= {:#x}", pc);
+    Utils::info("======= Core dump =======");
+    Utils::info("PC\t= {:#x}", pc);
     for (int i = 0; i < 16; i++) {
-        spdlog::info("{}\t= {:#018x}\t{}\t= {:#018x}", GPR_NAMES[i],
+        Utils::info("{}\t= {:#018x}\t{}\t= {:#018x}", GPR_NAMES[i],
                      gpr.read(i), GPR_NAMES[i + 16], gpr.read(i + 16));
     }
-    spdlog::info("");
+    Utils::info("");
     cop0.dump();
-    spdlog::info("=========================");
+    Utils::info("=========================");
 }
 
 void Cpu::step() {
-    spdlog::debug("");
-    spdlog::debug("CPU cycle starts");
+    Utils::trace("");
+    Utils::trace("CPU cycle starts");
 
     // Compare interrupt
     if (cop0.reg.count == cop0.reg.compare) {
@@ -48,7 +50,7 @@ void Cpu::step() {
         switch (exc_code) {
         case 0: // interrupt
         {
-            spdlog::critical(
+            Utils::critical(
                 "Unimplemented. interruption IP = {:#010b} mask = {:#010b}",
                 static_cast<uint32_t>(cop0.reg.cause.interrupt_pending),
                 static_cast<uint32_t>(cop0.reg.status.im));
@@ -56,7 +58,7 @@ void Cpu::step() {
             exit(-1);
         } break;
         default: {
-            spdlog::critical("Unimplemented. exception code = {}", exc_code);
+            Utils::critical("Unimplemented. exception code = {}", exc_code);
             Utils::core_dump();
             exit(-1);
         } break;
@@ -67,7 +69,7 @@ void Cpu::step() {
     uint32_t paddr_of_pc = Mmu::resolve_vaddr(pc);
     instruction_t inst;
     inst.raw = {Memory::read_paddr32(paddr_of_pc)};
-    spdlog::debug("fetched inst = {:#010x} from pc = {:#018x}", inst.raw, pc);
+    Utils::trace("fetched inst = {:#010x} from pc = {:#018x}", inst.raw, pc);
 
     pc = next_pc;
     next_pc += 4;

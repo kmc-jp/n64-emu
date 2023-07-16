@@ -10,6 +10,7 @@ namespace N64 {
 namespace N64System {
 
 void run(Config config) {
+    Utils::info("Resetting N64 system");
     N64::g_scheduler().init();
 
     // Reset all processors
@@ -20,8 +21,10 @@ void run(Config config) {
     N64::g_pi().reset();
 
     // PIF ROM execution
+    Utils::info("Executing PIF ROM");
     N64::Memory::pif_rom_execute();
 
+    Utils::info("Starting N64 system");
     int consumed_cpu_cycles = 0;
     while (true) {
         N64::g_cpu().step();

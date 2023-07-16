@@ -1,6 +1,7 @@
 ﻿#include "pi.h"
 #include "memory.h"
 #include "n64_system/scheduler.h"
+#include "utils.h"
 
 namespace N64 {
 namespace Mmio {
@@ -15,6 +16,7 @@ constexpr uint32_t PI_STATUS_DMA_BUSY = 0b0001;
 constexpr uint32_t PI_STATUS_IO_BUSY = 0b0010;
 
 void PI::reset() {
+    Utils::info("resetting PI");
     // https://github.com/project64/project64/blob/353ef5ed897cb72a8904603feddbdc649dff9eca/Source/Project64-core/N64System/MemoryHandler/PeripheralInterfaceHandler.cpp#L177
     reg_rd_len = 0x7f;
     reg_wr_len = 0x7f;
@@ -33,7 +35,7 @@ uint32_t PI::read_paddr32(uint32_t paddr) const {
     case PADDR_STATUS:
         return reg_status;
     default: {
-        spdlog::critical("Unimplemented. Access to PI paddr = {:#010x}", paddr);
+        Utils::critical("Unimplemented. Access to PI paddr = {:#010x}", paddr);
         Utils::core_dump();
         exit(-1);
     } break;
@@ -68,7 +70,7 @@ void PI::write_paddr32(uint32_t paddr, uint32_t value) {
         // do not write to register
     } break;
     default: {
-        spdlog::critical("Unimplemented. Access to PI paddr = {:#010x}", paddr);
+        Utils::critical("Unimplemented. Access to PI paddr = {:#010x}", paddr);
         Utils::core_dump();
         exit(-1);
     } break;
@@ -88,8 +90,13 @@ void PI::dma_write() {
     reg_status |= PI_STATUS_DMA_BUSY;
     reg_status |= PI_STATUS_IO_BUSY;
 
+    Utils::debug("DMA Write: {:#010x} -> {:#010x} (len = {:#010x})", read_pos,
+                  write_pos, transfer_len);
+    // FIXME: Timerの値は以下を参考にしているが自信ない
+    // https://github.com/project64/project64/blob/353ef5ed897cb72a8904603feddbdc649dff9eca/Source/Project64-core/N64System/MemoryHandler/PeripheralInterfaceHandler.cpp#L460
     g_scheduler().set_timer(
-        5, N64System::Event{&PIScheduler::on_dma_write_completed});
+        transfer_len / 8,
+        N64System::Event{&PIScheduler::on_dma_write_completed});
 }
 
 void PI::dma_read() {
@@ -102,6 +109,7 @@ void PIScheduler::on_dma_write_completed() {
     // FIXME: read_posによってレジスタ制御が変わる?
     g_pi().reg_status &= ~PI_STATUS_DMA_BUSY;
     g_pi().reg_status &= ~PI_STATUS_IO_BUSY;
+    Utils::debug("DMA Write completed");
 }
 
 PI PI::instance{};

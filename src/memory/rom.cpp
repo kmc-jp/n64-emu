@@ -1,4 +1,5 @@
 #include "rom.h"
+#include "utils.h"
 
 namespace N64 {
 namespace Memory {
@@ -46,7 +47,7 @@ CicType checksum_to_cic(uint32_t checksum) {
                                                  : CicType::CIC_UNKNOWN;
 
     if (result == CicType::CIC_UNKNOWN) {
-        spdlog::error("invalid checksum: {:#08x}", checksum);
+        Utils::abort("invalid checksum: {:#08x}", checksum);
     }
 
     return result;
@@ -54,11 +55,11 @@ CicType checksum_to_cic(uint32_t checksum) {
 
 void Rom::read_from(const std::string &filepath) {
 
-    spdlog::debug("reading from ROM");
+    Utils::debug("reading from ROM");
 
     std::ifstream file(filepath.c_str(), std::ios::in | std::ios::binary);
     if (!file.is_open()) {
-        spdlog::error("Could not open ROM file");
+        Utils::abort("Could not open ROM file: {}", filepath);
         return;
     }
     rom = {std::istreambuf_iterator<char>(file),
@@ -68,7 +69,7 @@ void Rom::read_from(const std::string &filepath) {
     rom.resize(0xF000'0000);
 
     if (rom.size() < sizeof(rom_header_t)) {
-        spdlog::error("ROM is too small");
+        Utils::abort("ROM is too small");
         return;
     }
 
@@ -79,9 +80,9 @@ void Rom::read_from(const std::string &filepath) {
     const uint32_t checksum = crc32(0, &rom[0x40], 0x9C0);
     cic = checksum_to_cic(checksum);
 
-    spdlog::debug("ROM size\t= {}", rom.size());
-    spdlog::debug("imageName\t= \"{}\"", std::string(header.image_name));
-    spdlog::debug("CIC\t= {}", static_cast<int>(cic));
+    Utils::debug("ROM size\t= {}", rom.size());
+    Utils::debug("imageName\t= \"{}\"", std::string(header.image_name));
+    Utils::debug("CIC\t= {}", static_cast<int>(cic));
 
     broken = false;
 }
