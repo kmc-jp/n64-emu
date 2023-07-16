@@ -38,9 +38,11 @@ class PI {
     inline static PI &get_instance() { return instance; }
 
   private:
-    void write_dma();
+    void dma_write();
 
-    void read_dma();
+    void dma_read();
+
+    void on_dma_write_completed();
 };
 
 } // namespace PI

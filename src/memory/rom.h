@@ -61,7 +61,11 @@ class Rom {
     // bool is_broken() const { return broken; }
 
     // ROMの生データの先頭へのポインタを返す
+    // FIXME: 生ポインタは使いたくない, read_offset8, read_offset32,
+    // write_offset8, write_offset32を使う
     uint8_t *raw() { return reinterpret_cast<uint8_t *>(&rom[0]); }
+
+    uint8_t read_offset8(uint32_t offset) const { return rom.at(offset); }
 };
 
 } // namespace Memory
