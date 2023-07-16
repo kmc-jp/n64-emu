@@ -58,7 +58,7 @@ class Cpu::Operation::Impl {
         uint64_t rs = cpu.gpr.read(inst.r_type.rs);
         uint64_t rt = cpu.gpr.read(inst.r_type.rt);
         Utils::trace("ADD: {} <= {} + {}", GPR_NAMES[inst.r_type.rd],
-                      GPR_NAMES[inst.r_type.rs], GPR_NAMES[inst.r_type.rt]);
+                     GPR_NAMES[inst.r_type.rs], GPR_NAMES[inst.r_type.rt]);
         cpu.gpr.write(inst.r_type.rd, rs + rt);
     }
 
@@ -70,7 +70,7 @@ class Cpu::Operation::Impl {
         uint64_t rs = cpu.gpr.read(inst.r_type.rs);
         uint64_t rt = cpu.gpr.read(inst.r_type.rt);
         Utils::trace("ADDU: {} <= {} + {}", GPR_NAMES[inst.r_type.rd],
-                      GPR_NAMES[inst.r_type.rs], GPR_NAMES[inst.r_type.rt]);
+                     GPR_NAMES[inst.r_type.rs], GPR_NAMES[inst.r_type.rt]);
         cpu.gpr.write(inst.r_type.rd, rs + rt);
     }
 
@@ -81,7 +81,7 @@ class Cpu::Operation::Impl {
         uint64_t rs = cpu.gpr.read(inst.r_type.rs);
         uint64_t rt = cpu.gpr.read(inst.r_type.rt);
         Utils::trace("SUB: {} <= {} - {}", GPR_NAMES[inst.r_type.rd],
-                      GPR_NAMES[inst.r_type.rs], GPR_NAMES[inst.r_type.rt]);
+                     GPR_NAMES[inst.r_type.rs], GPR_NAMES[inst.r_type.rt]);
         cpu.gpr.write(inst.r_type.rd, rs - rt);
     }
 
@@ -91,7 +91,7 @@ class Cpu::Operation::Impl {
         uint64_t rs = cpu.gpr.read(inst.r_type.rs);
         uint64_t rt = cpu.gpr.read(inst.r_type.rt);
         Utils::trace("SUBU: {} <= {} - {}", GPR_NAMES[inst.r_type.rd],
-                      GPR_NAMES[inst.r_type.rs], GPR_NAMES[inst.r_type.rt]);
+                     GPR_NAMES[inst.r_type.rs], GPR_NAMES[inst.r_type.rt]);
         cpu.gpr.write(inst.r_type.rd, rs - rt);
     }
 
@@ -105,7 +105,7 @@ class Cpu::Operation::Impl {
         int64_t sext_lo = lo; // sext
         int64_t sext_hi = hi; // sext
         Utils::trace("MULT {}, {}", GPR_NAMES[inst.r_type.rs],
-                      GPR_NAMES[inst.r_type.rt]);
+                     GPR_NAMES[inst.r_type.rt]);
         cpu.lo = static_cast<uint64_t>(lo);
         cpu.hi = static_cast<uint64_t>(hi);
     }
@@ -120,7 +120,7 @@ class Cpu::Operation::Impl {
         int64_t sext_lo = lo; // sext
         int64_t sext_hi = hi; // sext
         Utils::trace("MULTU {}, {}", GPR_NAMES[inst.r_type.rs],
-                      GPR_NAMES[inst.r_type.rt]);
+                     GPR_NAMES[inst.r_type.rt]);
         cpu.lo = static_cast<uint64_t>(lo);
         cpu.hi = static_cast<uint64_t>(hi);
     }
@@ -133,9 +133,33 @@ class Cpu::Operation::Impl {
             Utils::trace("NOP");
         } else {
             Utils::trace("SLL: {} <= {} << {}", GPR_NAMES[inst.r_type.rd],
-                          GPR_NAMES[inst.r_type.rt], GPR_NAMES[inst.r_type.sa]);
+                         GPR_NAMES[inst.r_type.rt], GPR_NAMES[inst.r_type.sa]);
         }
         cpu.gpr.write(inst.r_type.rd, rt << sa);
+    }
+
+    static void op_sllv(Cpu &cpu, instruction_t inst) {
+        assert_encoding_is_valid(inst.r_type.sa == 0);
+        Utils::trace("SLLV {}, {}, {}", GPR_NAMES[inst.r_type.rd],
+                     GPR_NAMES[inst.r_type.rt], GPR_NAMES[inst.r_type.rs]);
+        uint8_t shift_amount =
+            cpu.gpr.read(inst.r_type.rs) & 0b11111; // 5bit mask
+        uint32_t rt = cpu.gpr.read(inst.r_type.rt); // as 32bit
+        uint32_t tmp = rt << shift_amount;
+        int64_t stmp = tmp; // sext
+        cpu.gpr.write(inst.r_type.rd, stmp);
+    }
+
+    static void op_srlv(Cpu &cpu, instruction_t inst) {
+        assert_encoding_is_valid(inst.r_type.sa == 0);
+        Utils::trace("SRLV {}, {}, {}", GPR_NAMES[inst.r_type.rd],
+                     GPR_NAMES[inst.r_type.rt], GPR_NAMES[inst.r_type.rs]);
+        uint8_t shift_amount =
+            cpu.gpr.read(inst.r_type.rs) & 0b11111; // 5bit mask
+        uint32_t rt = cpu.gpr.read(inst.r_type.rt); // as 32bit
+        uint32_t tmp = rt >> shift_amount;
+        int64_t stmp = tmp; // sext
+        cpu.gpr.write(inst.r_type.rd, stmp);
     }
 
     static void op_sltu(Cpu &cpu, instruction_t inst) {
@@ -143,7 +167,7 @@ class Cpu::Operation::Impl {
         uint64_t rs = cpu.gpr.read(inst.r_type.rs); // unsigned
         uint64_t rt = cpu.gpr.read(inst.r_type.rt); // unsigned
         Utils::trace("SLTU {} {} {}", GPR_NAMES[inst.r_type.rd],
-                      GPR_NAMES[inst.r_type.rt], GPR_NAMES[inst.r_type.sa]);
+                     GPR_NAMES[inst.r_type.rt], GPR_NAMES[inst.r_type.sa]);
         if (rs < rt) {
             cpu.gpr.write(inst.r_type.rd, 1);
         } else {
@@ -154,7 +178,7 @@ class Cpu::Operation::Impl {
     static void op_and(Cpu &cpu, instruction_t inst) {
         assert_encoding_is_valid(inst.r_type.sa == 0);
         Utils::trace("AND: {} <= {} & {}", GPR_NAMES[inst.r_type.rd],
-                      GPR_NAMES[inst.r_type.rs], GPR_NAMES[inst.r_type.rt]);
+                     GPR_NAMES[inst.r_type.rs], GPR_NAMES[inst.r_type.rt]);
         cpu.gpr.write(inst.r_type.rd, cpu.gpr.read(inst.r_type.rs) &
                                           cpu.gpr.read(inst.r_type.rt));
     }
@@ -162,7 +186,7 @@ class Cpu::Operation::Impl {
     static void op_or(Cpu &cpu, instruction_t inst) {
         assert_encoding_is_valid(inst.r_type.sa == 0);
         Utils::trace("OR: {} <= {} | {}", GPR_NAMES[inst.r_type.rd],
-                      GPR_NAMES[inst.r_type.rs], GPR_NAMES[inst.r_type.rt]);
+                     GPR_NAMES[inst.r_type.rs], GPR_NAMES[inst.r_type.rt]);
         cpu.gpr.write(inst.r_type.rd, cpu.gpr.read(inst.r_type.rs) |
                                           cpu.gpr.read(inst.r_type.rt));
     }
@@ -170,7 +194,7 @@ class Cpu::Operation::Impl {
     static void op_xor(Cpu &cpu, instruction_t inst) {
         assert_encoding_is_valid(inst.r_type.sa == 0);
         Utils::trace("XOR: {} <= {} ^ {}", GPR_NAMES[inst.r_type.rd],
-                      GPR_NAMES[inst.r_type.rs], GPR_NAMES[inst.r_type.rt]);
+                     GPR_NAMES[inst.r_type.rs], GPR_NAMES[inst.r_type.rt]);
         cpu.gpr.write(inst.r_type.rd, cpu.gpr.read(inst.r_type.rs) ^
                                           cpu.gpr.read(inst.r_type.rt));
     }
@@ -208,7 +232,7 @@ class Cpu::Operation::Impl {
     static void op_lw(Cpu &cpu, instruction_t inst) {
         int64_t offset = (int16_t)inst.i_type.imm; // sext
         Utils::trace("LW: {} <= *({} + {:#x})", GPR_NAMES[inst.i_type.rt],
-                      GPR_NAMES[inst.i_type.rs], offset);
+                     GPR_NAMES[inst.i_type.rs], offset);
         uint64_t vaddr = cpu.gpr.read(inst.i_type.rs) + offset;
         uint32_t paddr = Mmu::resolve_vaddr(vaddr);
         uint32_t word = Memory::read_paddr32(paddr);
@@ -218,7 +242,7 @@ class Cpu::Operation::Impl {
     static void op_sw(Cpu &cpu, instruction_t inst) {
         int64_t offset = (int16_t)inst.i_type.imm; // sext
         Utils::trace("SW: *({} + {:#x}) <= {}", GPR_NAMES[inst.i_type.rs],
-                      offset, GPR_NAMES[inst.r_type.rt]);
+                     offset, GPR_NAMES[inst.r_type.rt]);
         uint64_t vaddr = cpu.gpr.read(inst.i_type.rs) + offset;
         uint32_t paddr = Mmu::resolve_vaddr(vaddr);
         uint32_t word = cpu.gpr.read(inst.r_type.rt);
@@ -229,34 +253,34 @@ class Cpu::Operation::Impl {
         int64_t imm = (int16_t)inst.i_type.imm; // sext
         int64_t tmp = cpu.gpr.read(inst.i_type.rs) + imm;
         Utils::trace("ADDIU: {} <= {} + {:#x}", GPR_NAMES[inst.i_type.rt],
-                      GPR_NAMES[inst.i_type.rs], imm);
+                     GPR_NAMES[inst.i_type.rs], imm);
         cpu.gpr.write(inst.i_type.rt, tmp);
     }
 
     static void op_andi(Cpu &cpu, instruction_t inst) {
         uint64_t imm = inst.i_type.imm; // zext
         Utils::trace("ANDI: {} <= {} & {:#x}", GPR_NAMES[inst.i_type.rt],
-                      GPR_NAMES[inst.i_type.rs], imm);
+                     GPR_NAMES[inst.i_type.rs], imm);
         cpu.gpr.write(inst.i_type.rt, cpu.gpr.read(inst.i_type.rs) & imm);
     }
 
     static void op_ori(Cpu &cpu, instruction_t inst) {
         uint64_t imm = inst.i_type.imm; // zext
         Utils::trace("ORI: {} <= {} | {:#x}", GPR_NAMES[inst.i_type.rt],
-                      GPR_NAMES[inst.i_type.rs], imm);
+                     GPR_NAMES[inst.i_type.rs], imm);
         cpu.gpr.write(inst.i_type.rt, cpu.gpr.read(inst.i_type.rs) | imm);
     }
 
     static void op_xori(Cpu &cpu, instruction_t inst) {
         uint64_t imm = inst.i_type.imm; // zext
         Utils::trace("XORI: {} <= {} ^ {:#x}", GPR_NAMES[inst.i_type.rt],
-                      GPR_NAMES[inst.i_type.rs], imm);
+                     GPR_NAMES[inst.i_type.rs], imm);
         cpu.gpr.write(inst.i_type.rt, cpu.gpr.read(inst.i_type.rs) ^ imm);
     }
 
     static void op_beq(Cpu &cpu, instruction_t inst) {
         Utils::trace("BEQ: cond {} == {}", GPR_NAMES[inst.i_type.rs],
-                      GPR_NAMES[inst.i_type.rt]);
+                     GPR_NAMES[inst.i_type.rt]);
         branch_offset16(
             cpu, cpu.gpr.read(inst.i_type.rs) == cpu.gpr.read(inst.i_type.rt),
             inst);
@@ -264,7 +288,7 @@ class Cpu::Operation::Impl {
 
     static void op_beql(Cpu &cpu, instruction_t inst) {
         Utils::trace("BEQL: cond {} == {}", GPR_NAMES[inst.i_type.rs],
-                      GPR_NAMES[inst.i_type.rt]);
+                     GPR_NAMES[inst.i_type.rt]);
         branch_likely_offset16(
             cpu, cpu.gpr.read(inst.i_type.rs) == cpu.gpr.read(inst.i_type.rt),
             inst);
@@ -272,7 +296,7 @@ class Cpu::Operation::Impl {
 
     static void op_bne(Cpu &cpu, instruction_t inst) {
         Utils::trace("BNE: cond {} != {}", GPR_NAMES[inst.i_type.rs],
-                      GPR_NAMES[inst.i_type.rt]);
+                     GPR_NAMES[inst.i_type.rt]);
         branch_offset16(
             cpu, cpu.gpr.read(inst.i_type.rs) != cpu.gpr.read(inst.i_type.rt),
             inst);
@@ -280,7 +304,7 @@ class Cpu::Operation::Impl {
 
     static void op_bnel(Cpu &cpu, instruction_t inst) {
         Utils::trace("BNEL: cond {} != {}", GPR_NAMES[inst.i_type.rs],
-                      GPR_NAMES[inst.i_type.rt]);
+                     GPR_NAMES[inst.i_type.rt]);
         branch_likely_offset16(
             cpu, cpu.gpr.read(inst.i_type.rs) != cpu.gpr.read(inst.i_type.rt),
             inst);
@@ -326,9 +350,8 @@ class Cpu::Operation::Impl {
     }
 
     static void op_mfc0(Cpu &cpu, instruction_t inst) {
-        assert_encoding_is_valid(inst.copz_type1.should_be_zero == 0);
         Utils::trace("MFC0: {} <= COP0.reg[{}]", GPR_NAMES[inst.copz_type1.rt],
-                      static_cast<uint32_t>(inst.copz_type1.rd));
+                     static_cast<uint32_t>(inst.copz_type1.rd));
         int32_t tmp = cpu.cop0.reg.read(inst.copz_type1.rd);
         int64_t stmp = tmp; // sext
         // FIXME: T+1 (delay)
@@ -336,30 +359,26 @@ class Cpu::Operation::Impl {
     }
 
     static void op_mtc0(Cpu &cpu, instruction_t inst) {
-        assert_encoding_is_valid(inst.copz_type1.should_be_zero == 0);
         Utils::trace("MTC0: COP0.reg[{}] <= {}",
-                      static_cast<uint32_t>(inst.copz_type1.rd),
-                      GPR_NAMES[inst.copz_type1.rt]);
+                     static_cast<uint32_t>(inst.copz_type1.rd),
+                     GPR_NAMES[inst.copz_type1.rt]);
         uint64_t tmp = cpu.gpr.read(inst.copz_type1.rt);
         // FIXME: T+1 (delay)
         cpu.cop0.reg.write(inst.copz_type1.rd, tmp);
     }
 
     static void op_dmfc0(Cpu &cpu, instruction_t inst) {
-        assert_encoding_is_valid(inst.copz_type1.should_be_zero == 0);
-        Utils::trace("DMFC0: {} <= COP0.reg[{}]",
-                      GPR_NAMES[inst.copz_type1.rt],
-                      static_cast<uint32_t>(inst.copz_type1.rd));
+        Utils::trace("DMFC0: {} <= COP0.reg[{}]", GPR_NAMES[inst.copz_type1.rt],
+                     static_cast<uint32_t>(inst.copz_type1.rd));
         const uint64_t tmp = cpu.cop0.reg.read(inst.copz_type1.rd);
         // FIXME: T+1 (delay)
         cpu.gpr.write(inst.copz_type1.rt, tmp);
     }
 
     static void op_dmtc0(Cpu &cpu, instruction_t inst) {
-        assert_encoding_is_valid(inst.copz_type1.should_be_zero == 0);
         Utils::trace("DMTC0: COP0.reg[{}] <= {}",
-                      static_cast<uint32_t>(inst.copz_type1.rd),
-                      GPR_NAMES[inst.copz_type1.rt]);
+                     static_cast<uint32_t>(inst.copz_type1.rd),
+                     GPR_NAMES[inst.copz_type1.rt]);
         const uint64_t tmp = cpu.gpr.read(inst.copz_type1.rt);
         // FIXME: T+1 (delay)
         cpu.cop0.reg.write(inst.copz_type1.rd, tmp);
@@ -386,6 +405,10 @@ void Cpu::Operation::execute(Cpu &cpu, instruction_t inst) {
             return Impl::op_multu(cpu, inst);
         case SPECIAL_FUNCT_SLL: // SLL
             return Impl::op_sll(cpu, inst);
+        case SPECIAL_FUNCT_SLLV: // SLLV
+            return Impl::op_sllv(cpu, inst);
+        case SPECIAL_FUNCT_SRLV: // SRLV
+            return Impl::op_srlv(cpu, inst);
         case SPECIAL_FUNCT_SLTU: // SLTU
             return Impl::op_sltu(cpu, inst);
         case SPECIAL_FUNCT_AND: // AND
@@ -401,13 +424,17 @@ void Cpu::Operation::execute(Cpu &cpu, instruction_t inst) {
         case SPECIAL_FUNCT_MFLO: // MFLO
             return Impl::op_mflo(cpu, inst);
         default:
-            Utils::critical(
-                "Unimplemented funct = {:#08b} for opcode = {:#08b}.",
-                static_cast<uint32_t>(inst.r_type.funct), op);
-            Utils::core_dump();
-            exit(-1);
+            Utils::abort("Unimplemented funct = {:#08b} for opcode = SPECIAL.",
+                         static_cast<uint32_t>(inst.r_type.funct));
         }
-    }
+    } break;
+    case OPCODE_REGIMM: {
+        switch (inst.i_type.rt) {
+        default:
+            Utils::abort("Unimplemented rt = {:#07b} for opcode = REGIMM.",
+                         static_cast<uint32_t>(inst.i_type.rt));
+        }
+    } break;
     case OPCODE_LUI: // LUI (I format)
         return Impl::op_lui(cpu, inst);
     case OPCODE_LW: // LW (I format)
@@ -443,7 +470,6 @@ void Cpu::Operation::execute(Cpu &cpu, instruction_t inst) {
     case OPCODE_COP0: // CP0 instructions
     {
         // https://hack64.net/docs/VR43XX.pdf p.86
-
         assert_encoding_is_valid(inst.copz_type1.should_be_zero == 0);
         switch (inst.copz_type1.sub) {
         case CP0_SUB_MF: // MFC0 (COPZ format)
@@ -455,16 +481,14 @@ void Cpu::Operation::execute(Cpu &cpu, instruction_t inst) {
         case CP0_SUB_DMT: // DMTC0 (COPZ format)
             return Impl::op_dmtc0(cpu, inst);
         default:
-            Utils::critical("Unimplemented CP0 inst. sub = {:07b}",
-                             static_cast<uint8_t>(inst.copz_type1.sub));
-            Utils::core_dump();
-            exit(-1);
+            Utils::abort("Unimplemented CP0 inst. sub = {:07b}",
+                         static_cast<uint8_t>(inst.copz_type1.sub));
+            return;
         }
-    }
+    } break;
     default: {
-        Utils::critical("Unimplemented opcode = {:#04x} ({:#08b})", op, op);
-        Utils::core_dump();
-        exit(-1);
+        Utils::abort("Unimplemented opcode = {:#04x} ({:#08b})", op, op);
+        return;
     }
     }
 }
