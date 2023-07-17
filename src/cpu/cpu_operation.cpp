@@ -38,14 +38,16 @@ class Cpu::Operation::Impl {
     static void branch_likely_offset16(Cpu &cpu, bool cond,
                                        instruction_t inst) {
         int64_t offset = (int16_t)inst.i_type.imm; // sext
-        offset <<= 2;
+        // 負数の左シフトはUBなので乗算で実装
+        offset *= 4;
         Utils::trace("pc <= pc {:+#x}?", (int64_t)offset);
         branch_likely_addr64(cpu, cond, cpu.pc + offset);
     }
 
     static void branch_offset16(Cpu &cpu, bool cond, instruction_t inst) {
         int64_t offset = (int16_t)inst.i_type.imm; // sext
-        offset <<= 2;
+        // 負数の左シフトはUBなので乗算で実装
+        offset *= 4;
         Utils::trace("pc <= pc {:+#x}?", (int64_t)offset);
         branch_addr64(cpu, cond, cpu.pc + offset);
     }
@@ -224,7 +226,8 @@ class Cpu::Operation::Impl {
     static void op_lui(Cpu &cpu, instruction_t inst) {
         assert_encoding_is_valid(inst.i_type.rs == 0);
         int64_t simm = (int16_t)inst.i_type.imm; // sext
-        simm <<= 16;
+        // 負数の左シフトはUBなので乗算で実装
+        simm *= 65536;
         Utils::trace("LUI: {} <= {:#x}", GPR_NAMES[inst.i_type.rt], simm);
         cpu.gpr.write(inst.i_type.rt, simm);
     }
