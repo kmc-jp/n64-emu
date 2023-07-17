@@ -242,7 +242,7 @@ class Cpu::Operation::Impl {
     static void op_bgezal(Cpu &cpu, instruction_t inst) {
         int64_t rs = cpu.gpr.read(inst.i_type.rs);
         // TODO: 32bit
-        Utils::trace("BLTZAL cond: {} >= 0", GPR_NAMES[inst.i_type.rs]);
+        Utils::trace("BGEZAL cond: {} >= 0", GPR_NAMES[inst.i_type.rs]);
         branch_offset16_and_link(cpu, rs >= 0, inst);
     }
 
