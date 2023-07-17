@@ -135,48 +135,45 @@ class Cpu::Operation::Impl {
     }
 
     static void op_sll(Cpu &cpu, instruction_t inst) {
+        // https://github.com/Dillonb/n64/blob/6502f7d2f163c3f14da5bff8cd6d5ccc47143156/src/cpu/mips_instructions.c#L698
         assert_encoding_is_valid(inst.r_type.rs == 0);
-        uint64_t rt = cpu.gpr.read(inst.r_type.rt);
-        uint8_t sa = inst.r_type.sa;
+        int32_t res = cpu.gpr.read(inst.r_type.rt) << inst.r_type.sa;
         if (inst.raw == 0) {
             Utils::trace("NOP");
         } else {
             Utils::trace("SLL: {} <= {} << {}", GPR_NAMES[inst.r_type.rd],
-                         GPR_NAMES[inst.r_type.rt], GPR_NAMES[inst.r_type.sa]);
+                         GPR_NAMES[inst.r_type.rt], inst.r_type.sa);
         }
-        cpu.gpr.write(inst.r_type.rd, rt << sa);
+        cpu.gpr.write(inst.r_type.rd, (int64_t)res);
     }
 
     static void op_sllv(Cpu &cpu, instruction_t inst) {
+        // https://github.com/Dillonb/n64/blob/6502f7d2f163c3f14da5bff8cd6d5ccc47143156/src/cpu/mips_instructions.c#L721
         assert_encoding_is_valid(inst.r_type.sa == 0);
         Utils::trace("SLLV {}, {}, {}", GPR_NAMES[inst.r_type.rd],
                      GPR_NAMES[inst.r_type.rt], GPR_NAMES[inst.r_type.rs]);
-        uint8_t shift_amount =
-            cpu.gpr.read(inst.r_type.rs) & 0b11111; // 5bit mask
-        uint32_t rt = cpu.gpr.read(inst.r_type.rt); // as 32bit
-        uint32_t tmp = rt << shift_amount;
-        int64_t stmp = tmp; // sext
-        cpu.gpr.write(inst.r_type.rd, stmp);
+        uint32_t value = cpu.gpr.read(inst.r_type.rt); // as 32bit
+        int32_t res = value << (cpu.gpr.read(inst.r_type.rs) & 0b11111);
+        cpu.gpr.write(inst.r_type.rd, (int64_t)res);
     }
 
     static void op_srlv(Cpu &cpu, instruction_t inst) {
+        // https://github.com/Dillonb/n64/blob/6502f7d2f163c3f14da5bff8cd6d5ccc47143156/src/cpu/mips_instructions.c#L727
         assert_encoding_is_valid(inst.r_type.sa == 0);
         Utils::trace("SRLV {}, {}, {}", GPR_NAMES[inst.r_type.rd],
                      GPR_NAMES[inst.r_type.rt], GPR_NAMES[inst.r_type.rs]);
-        uint8_t shift_amount =
-            cpu.gpr.read(inst.r_type.rs) & 0b11111; // 5bit mask
-        uint32_t rt = cpu.gpr.read(inst.r_type.rt); // as 32bit
-        uint32_t tmp = rt >> shift_amount;
-        int64_t stmp = tmp; // sext
-        cpu.gpr.write(inst.r_type.rd, stmp);
+        uint32_t value = cpu.gpr.read(inst.r_type.rt); // as 32bit
+        int32_t res = value >> (cpu.gpr.read(inst.r_type.rs) & 0b11111);
+        cpu.gpr.write(inst.r_type.rd, (int64_t)res);
     }
 
     static void op_sltu(Cpu &cpu, instruction_t inst) {
+        // https://github.com/Dillonb/n64/blob/6502f7d2f163c3f14da5bff8cd6d5ccc47143156/src/cpu/mips_instructions.c#L968
         assert_encoding_is_valid(inst.r_type.sa == 0);
         uint64_t rs = cpu.gpr.read(inst.r_type.rs); // unsigned
         uint64_t rt = cpu.gpr.read(inst.r_type.rt); // unsigned
         Utils::trace("SLTU {} {} {}", GPR_NAMES[inst.r_type.rd],
-                     GPR_NAMES[inst.r_type.rt], GPR_NAMES[inst.r_type.sa]);
+                     GPR_NAMES[inst.r_type.rs], GPR_NAMES[inst.r_type.rt]);
         if (rs < rt) {
             cpu.gpr.write(inst.r_type.rd, 1);
         } else {
