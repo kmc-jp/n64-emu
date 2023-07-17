@@ -142,7 +142,7 @@ class Cpu::Operation::Impl {
             Utils::trace("NOP");
         } else {
             Utils::trace("SLL: {} <= {} << {}", GPR_NAMES[inst.r_type.rd],
-                         GPR_NAMES[inst.r_type.rt], inst.r_type.sa);
+                         GPR_NAMES[inst.r_type.rt], (uint8_t)inst.r_type.sa);
         }
         cpu.gpr.write(inst.r_type.rd, (int64_t)res);
     }
@@ -400,6 +400,7 @@ class Cpu::Operation::Impl {
     }
 
     static void op_cache() {
+        // https://github.com/Dillonb/n64/blob/6502f7d2f163c3f14da5bff8cd6d5ccc47143156/src/cpu/mips_instructions.c#L177
         // B.1.1 CACHE Instruction
         // https://hack64.net/docs/VR43XX.pdf
         // no need for emulation?
@@ -407,6 +408,7 @@ class Cpu::Operation::Impl {
     }
 
     static void op_mfc0(Cpu &cpu, instruction_t inst) {
+        // https://github.com/Dillonb/n64/blob/6502f7d2f163c3f14da5bff8cd6d5ccc47143156/src/cpu/mips_instructions.c#L220
         Utils::trace("MFC0: {} <= COP0.reg[{}]", GPR_NAMES[inst.copz_type1.rt],
                      static_cast<uint32_t>(inst.copz_type1.rd));
         int32_t tmp = cpu.cop0.reg.read(inst.copz_type1.rd);
@@ -416,23 +418,26 @@ class Cpu::Operation::Impl {
     }
 
     static void op_mtc0(Cpu &cpu, instruction_t inst) {
+        // https://github.com/Dillonb/n64/blob/6502f7d2f163c3f14da5bff8cd6d5ccc47143156/src/cpu/mips_instructions.c#L225
         Utils::trace("MTC0: COP0.reg[{}] <= {}",
                      static_cast<uint32_t>(inst.copz_type1.rd),
                      GPR_NAMES[inst.copz_type1.rt]);
-        uint64_t tmp = cpu.gpr.read(inst.copz_type1.rt);
+        uint32_t tmp = cpu.gpr.read(inst.copz_type1.rt);
         // FIXME: T+1 (delay)
         cpu.cop0.reg.write(inst.copz_type1.rd, tmp);
     }
 
     static void op_dmfc0(Cpu &cpu, instruction_t inst) {
+        // https://github.com/Dillonb/n64/blob/6502f7d2f163c3f14da5bff8cd6d5ccc47143156/src/cpu/mips_instructions.c#L230
         Utils::trace("DMFC0: {} <= COP0.reg[{}]", GPR_NAMES[inst.copz_type1.rt],
                      static_cast<uint32_t>(inst.copz_type1.rd));
-        const uint64_t tmp = cpu.cop0.reg.read(inst.copz_type1.rd);
+        uint64_t tmp = cpu.cop0.reg.read(inst.copz_type1.rd);
         // FIXME: T+1 (delay)
         cpu.gpr.write(inst.copz_type1.rt, tmp);
     }
 
     static void op_dmtc0(Cpu &cpu, instruction_t inst) {
+        // https://github.com/Dillonb/n64/blob/6502f7d2f163c3f14da5bff8cd6d5ccc47143156/src/cpu/mips_instructions.c#L235
         Utils::trace("DMTC0: COP0.reg[{}] <= {}",
                      static_cast<uint32_t>(inst.copz_type1.rd),
                      GPR_NAMES[inst.copz_type1.rt]);
