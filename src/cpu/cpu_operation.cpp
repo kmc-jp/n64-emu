@@ -325,6 +325,7 @@ class Cpu::Operation::Impl {
     }
 
     static void op_beq(Cpu &cpu, instruction_t inst) {
+        // https://github.com/Dillonb/n64/blob/6502f7d2f163c3f14da5bff8cd6d5ccc47143156/src/cpu/mips_instructions.c#L137
         Utils::trace("BEQ: cond {} == {}", GPR_NAMES[inst.i_type.rs],
                      GPR_NAMES[inst.i_type.rt]);
         branch_offset16(
@@ -333,6 +334,7 @@ class Cpu::Operation::Impl {
     }
 
     static void op_beql(Cpu &cpu, instruction_t inst) {
+        // https://github.com/Dillonb/n64/blob/6502f7d2f163c3f14da5bff8cd6d5ccc47143156/src/cpu/mips_instructions.c#L141
         Utils::trace("BEQL: cond {} == {}", GPR_NAMES[inst.i_type.rs],
                      GPR_NAMES[inst.i_type.rt]);
         branch_likely_offset16(
@@ -341,6 +343,7 @@ class Cpu::Operation::Impl {
     }
 
     static void op_bne(Cpu &cpu, instruction_t inst) {
+        // https://github.com/Dillonb/n64/blob/6502f7d2f163c3f14da5bff8cd6d5ccc47143156/src/cpu/mips_instructions.c#L165
         Utils::trace("BNE: cond {} != {}", GPR_NAMES[inst.i_type.rs],
                      GPR_NAMES[inst.i_type.rt]);
         Utils::trace("{} : {:#x}, {} = {:#x}", GPR_NAMES[inst.i_type.rs],
@@ -352,6 +355,7 @@ class Cpu::Operation::Impl {
     }
 
     static void op_bnel(Cpu &cpu, instruction_t inst) {
+        // https://github.com/Dillonb/n64/blob/6502f7d2f163c3f14da5bff8cd6d5ccc47143156/src/cpu/mips_instructions.c#L169
         Utils::trace("BNEL: cond {} != {}", GPR_NAMES[inst.i_type.rs],
                      GPR_NAMES[inst.i_type.rt]);
         branch_likely_offset16(
@@ -360,32 +364,32 @@ class Cpu::Operation::Impl {
     }
 
     static void op_blez(Cpu &cpu, instruction_t inst) {
+        // https://github.com/Dillonb/n64/blob/6502f7d2f163c3f14da5bff8cd6d5ccc47143156/src/cpu/mips_instructions.c#L155
         assert_encoding_is_valid(inst.i_type.rt == 0);
-        // TODO: 32bit mode
         int64_t rs = cpu.gpr.read(inst.i_type.rs); // as signed integer
         Utils::trace("BLEZ: cond {} <= 0", GPR_NAMES[inst.i_type.rs]);
-        branch_offset16(cpu, rs < 0, inst);
+        branch_offset16(cpu, rs <= 0, inst);
     }
 
     static void op_blezl(Cpu &cpu, instruction_t inst) {
+        // https://github.com/Dillonb/n64/blob/6502f7d2f163c3f14da5bff8cd6d5ccc47143156/src/cpu/mips_instructions.c#L160
         assert_encoding_is_valid(inst.i_type.rt == 0);
-        // TODO: 32bit mode
         int64_t rs = cpu.gpr.read(inst.i_type.rs); // as signed integer
         Utils::trace("BLEZL: cond {} <= 0", GPR_NAMES[inst.i_type.rs]);
-        branch_likely_offset16(cpu, rs < 0, inst);
+        branch_likely_offset16(cpu, rs <= 0, inst);
     }
 
     static void op_bgtz(Cpu &cpu, instruction_t inst) {
+        // https://github.com/Dillonb/n64/blob/6502f7d2f163c3f14da5bff8cd6d5ccc47143156/src/cpu/mips_instructions.c#L145
         assert_encoding_is_valid(inst.i_type.rt == 0);
-        // TODO: 32bit mode
         int64_t rs = cpu.gpr.read(inst.i_type.rs); // as signed integer
         Utils::trace("BGTZ: cond {} > 0", GPR_NAMES[inst.i_type.rs]);
         branch_offset16(cpu, rs > 0, inst);
     }
 
     static void op_bgtzl(Cpu &cpu, instruction_t inst) {
+        // https://github.com/Dillonb/n64/blob/6502f7d2f163c3f14da5bff8cd6d5ccc47143156/src/cpu/mips_instructions.c#L150
         assert_encoding_is_valid(inst.i_type.rt == 0);
-        // TODO: 32bit mode
         int64_t rs = cpu.gpr.read(inst.i_type.rs); // as signed integer
         Utils::trace("BGTZL: cond {} > 0", GPR_NAMES[inst.i_type.rs]);
         branch_likely_offset16(cpu, rs > 0, inst);
