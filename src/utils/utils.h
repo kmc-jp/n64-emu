@@ -46,26 +46,27 @@ void set_log_file(std::string filepath);
 void set_log_level(LogLevel level);
 
 template <typename... Args>
-inline void debug(const std::string &fmt, Args &&...args) {
+inline void debug(fmt::format_string<Args...> fmt, Args &&...args) {
     spdlog::debug(fmt, std::forward<Args>(args)...);
 }
 
 template <typename... Args>
-inline void critical(const std::string &fmt, Args &&...args) {
+inline void critical(fmt::format_string<Args...> fmt, Args &&...args) {
     spdlog::critical(fmt, std::forward<Args>(args)...);
 }
 
 template <typename... Args>
-inline void trace(const std::string &fmt, Args &&...args) {
+inline void trace(fmt::format_string<Args...> fmt, Args &&...args) {
     spdlog::trace(fmt, std::forward<Args>(args)...);
 }
 
 template <typename... Args>
-inline void info(const std::string &fmt, Args &&...args) {
+inline void info(fmt::format_string<Args...> fmt, Args &&...args) {
     spdlog::info(fmt, std::forward<Args>(args)...);
 }
 
-template <typename... Args> void abort(const std::string &fmt, Args &&...args) {
+template <typename... Args>
+void abort(fmt::format_string<Args...> fmt, Args &&...args) {
     spdlog::critical("Abort!");
     spdlog::critical(fmt, std::forward<Args>(args)...);
     core_dump();
