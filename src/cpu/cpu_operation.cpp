@@ -223,6 +223,16 @@ class Cpu::Operation::Impl {
         cpu.gpr.write(inst.r_type.rd, cpu.lo);
     }
 
+    static void op_jal(Cpu &cpu, instruction_t inst) {
+        uint64_t target = inst.j_type.target;
+        target <<= 2;
+        target |= ((cpu.pc - 4) & 0xFFFF'0000); // pc is now 4 ahead
+        uint64_t ra = cpu.pc + 4;               // pc is now 4 ahead
+        Utils::trace("JAL {:#x}", target);
+        cpu.gpr.write(31, ra);
+        branch_addr64(cpu, true, target);
+    }
+
     static void op_lui(Cpu &cpu, instruction_t inst) {
         assert_encoding_is_valid(inst.i_type.rs == 0);
         int64_t simm = (int16_t)inst.i_type.imm; // sext
@@ -438,6 +448,8 @@ void Cpu::Operation::execute(Cpu &cpu, instruction_t inst) {
                          static_cast<uint32_t>(inst.i_type.rt));
         }
     } break;
+    case OPCODE_JAL: // JAL (J format)
+        return Impl::op_jal(cpu, inst);
     case OPCODE_LUI: // LUI (I format)
         return Impl::op_lui(cpu, inst);
     case OPCODE_LW: // LW (I format)

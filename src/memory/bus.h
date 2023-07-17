@@ -3,6 +3,7 @@
 
 #include "memory.h"
 #include "mmio/pi.h"
+#include "mmio/si.h"
 #include "rsp/rsp.h"
 #include "utils/utils.h"
 #include <spdlog/spdlog.h>
@@ -27,6 +28,9 @@ constexpr uint32_t PHYS_RI_END      = 0x047FFFFF;
 
 constexpr uint32_t PHYS_ROM_BASE    = 0x10000000;
 constexpr uint32_t PHYS_ROM_END     = 0x1FBFFFFF;
+
+constexpr uint32_t PHYS_PIF_RAM_BASE = 0x1FC007C0;
+constexpr uint32_t PHYS_PIF_RAM_END  = 0x1FC007FF;
 // TODO: もっと追加
 // clang-format on
 
@@ -50,6 +54,8 @@ static uint32_t read_paddr32(uint32_t paddr) {
     } else if (PHYS_ROM_BASE <= paddr && paddr <= PHYS_ROM_END) {
         return Utils::read_from_byte_array32(
             &g_memory().rom.raw()[paddr - PHYS_ROM_BASE]);
+    } else if (PHYS_PIF_RAM_BASE <= paddr && paddr <= PHYS_PIF_RAM_END) {
+        return g_si().read_paddr32(paddr);
     } else {
         spdlog::critical("Unimplemented. access to paddr = {:#010x}", paddr);
         Utils::core_dump();
@@ -76,6 +82,8 @@ static void write_paddr32(uint32_t paddr, uint32_t value) {
     } else if (PHYS_ROM_BASE <= paddr && paddr <= PHYS_ROM_END) {
         Utils::write_to_byte_array32(
             &g_memory().rom.raw()[paddr - PHYS_ROM_BASE], value);
+    } else if (PHYS_PIF_RAM_BASE <= paddr && paddr <= PHYS_PIF_RAM_END) {
+        return g_si().write_paddr32(paddr, value);
     } else {
         spdlog::critical("Unimplemented. access to paddr = {:#010x}", paddr);
         Utils::core_dump();

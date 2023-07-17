@@ -51,6 +51,7 @@ typedef union {
 // MIPS instructions
 constexpr uint8_t OPCODE_SPECIAL = 0b000000;
 constexpr uint8_t OPCODE_REGIMM = 0b000001;
+constexpr uint8_t OPCODE_JAL = 0b000011;
 constexpr uint8_t OPCODE_COP0 = 0b010000;
 constexpr uint8_t OPCODE_ADDIU = 0b001001;
 constexpr uint8_t OPCODE_LW = 0b100011;

@@ -1,2 +1,2 @@
 add_library(mmio
-    pi.h pi.cpp)
+    pi.h pi.cpp si.h si.cpp)

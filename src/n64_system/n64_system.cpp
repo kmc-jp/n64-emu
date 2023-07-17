@@ -21,6 +21,7 @@ void run(Config config) {
     N64::g_cpu().reset();
     N64::g_rsp().reset();
     N64::g_pi().reset();
+    N64::g_si().reset();
 
     if (DILLON_TEST) {
         Utils::info("Copying ROM");
