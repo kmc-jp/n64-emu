@@ -52,6 +52,15 @@ class Cpu::Operation::Impl {
         branch_addr64(cpu, cond, cpu.pc + offset);
     }
 
+    static void branch_offset16_and_link(Cpu &cpu, bool cond,
+                                         instruction_t inst) {
+        int64_t offset = (int16_t)inst.i_type.imm; // sext
+        offset <<= 2;
+        Utils::trace("pc <= pc {:+#x}?", (int64_t)offset);
+        cpu.gpr.write(31, cpu.pc + 8);
+        branch_addr64(cpu, cond, cpu.pc + offset);
+    }
+
     static void op_add(Cpu &cpu, instruction_t inst) {
         // TODO: throw exception
         // TODO: 32bit mode?
@@ -221,6 +230,20 @@ class Cpu::Operation::Impl {
                                  inst.r_type.sa == 0);
         Utils::trace("MFLO {} <= lo", GPR_NAMES[inst.r_type.rd]);
         cpu.gpr.write(inst.r_type.rd, cpu.lo);
+    }
+
+    static void op_bltzal(Cpu &cpu, instruction_t inst) {
+        int64_t rs = cpu.gpr.read(inst.i_type.rs);
+        // TODO: 32bit
+        Utils::trace("BLTZAL cond: {} < 0", GPR_NAMES[inst.i_type.rs]);
+        branch_offset16_and_link(cpu, rs < 0, inst);
+    }
+
+    static void op_bgezal(Cpu &cpu, instruction_t inst) {
+        int64_t rs = cpu.gpr.read(inst.i_type.rs);
+        // TODO: 32bit
+        Utils::trace("BLTZAL cond: {} >= 0", GPR_NAMES[inst.i_type.rs]);
+        branch_offset16_and_link(cpu, rs >= 0, inst);
     }
 
     static void op_jal(Cpu &cpu, instruction_t inst) {
@@ -443,6 +466,10 @@ void Cpu::Operation::execute(Cpu &cpu, instruction_t inst) {
     } break;
     case OPCODE_REGIMM: {
         switch (inst.i_type.rt) {
+        case REGIMM_RT_BLTZAL: // BLTZAL
+            return Impl::op_bltzal(cpu, inst);
+        case REGIMM_RT_BGEZAL: // BGEZAL
+            return Impl::op_bgezal(cpu, inst);
         default:
             Utils::abort("Unimplemented rt = {:#07b} for opcode = REGIMM.",
                          static_cast<uint32_t>(inst.i_type.rt));

@@ -6,12 +6,13 @@
 #include "rsp/rsp.h"
 #include "scheduler.h"
 
+// TODO: remove this
+#define BOOTCODE_SKIP 0
+
 namespace N64 {
 namespace N64System {
 
 void run(Config config) {
-    bool DILLON_TEST = true;
-
     Utils::info("Resetting N64 system");
     N64::g_scheduler().init();
 
@@ -23,20 +24,20 @@ void run(Config config) {
     N64::g_pi().reset();
     N64::g_si().reset();
 
-    if (DILLON_TEST) {
-        Utils::info("Copying ROM");
-        for (uint32_t i = 0; i < 0x100000; i += 4) {
-            uint32_t data = N64::Memory::read_paddr32(0x10001000 + i);
-            N64::Memory::write_paddr32(0x00001000 + i, data);
-        }
-        Utils::info("Set pc to 0x80001000");
-        N64::g_cpu().set_pc64(0x80001000);
-        Utils::info("Skipped Bootcode");
-    } else {
-        // PIF ROM execution
-        Utils::info("Executing PIF ROM");
-        N64::Memory::pif_rom_execute();
+#if BOOTCODE_SKIP == 1
+    Utils::info("Copying ROM");
+    for (uint32_t i = 0; i < 0x100000; i += 4) {
+        uint32_t data = N64::Memory::read_paddr32(0x10001000 + i);
+        N64::Memory::write_paddr32(0x00001000 + i, data);
     }
+    Utils::info("Set pc to 0x80001000");
+    N64::g_cpu().set_pc64(0x80001000);
+    Utils::info("Skipped Bootcode");
+#else
+    // PIF ROM execution
+    Utils::info("Executing PIF ROM");
+    N64::Memory::pif_rom_execute();
+#endif
 
     Utils::info("Starting N64 system");
     int consumed_cpu_cycles = 0;
@@ -60,11 +61,12 @@ void run(Config config) {
         }
         */
 
-        // TODO: dillon's test
-        if (DILLON_TEST && g_cpu().gpr.read(31) != 0) {
+#if BOOTCODE_SKIP == 1
+        if (g_cpu().gpr.read(31) != 0) {
             Utils::core_dump();
             exit(-1);
         }
+#endif
 
         if (g_scheduler().get_current_time() % 0x10'0000 == 0) {
             Utils::set_log_level(Utils::LogLevel::TRACE);

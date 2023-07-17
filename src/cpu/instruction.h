@@ -67,9 +67,7 @@ constexpr uint8_t OPCODE_BLEZ = 0b000110;
 constexpr uint8_t OPCODE_BLEZL = 0b010110;
 constexpr uint8_t OPCODE_BGTZ = 0b000111;
 constexpr uint8_t OPCODE_BGTZL = 0b010111;
-/*
-  NOTE: BLTZ, BLTZL, BGEZ, BGEZLはopcodeで場合分けしない
-*/
+
 constexpr uint8_t OPCODE_CACHE = 0b101111;
 constexpr uint8_t OPCODE_ANDI = 0b001100;
 constexpr uint8_t OPCODE_ORI = 0b001101;
@@ -91,6 +89,9 @@ constexpr uint8_t SPECIAL_FUNCT_XOR = 0b100110;   // XOR
 constexpr uint8_t SPECIAL_FUNCT_JR = 0b001000;    // JR
 constexpr uint8_t SPECIAL_FUNCT_MFHI = 0b010000;  // MFHI
 constexpr uint8_t SPECIAL_FUNCT_MFLO = 0b010010;  // MFLO
+
+constexpr uint8_t REGIMM_RT_BLTZAL = 0b10000;   // BLTZAL
+constexpr uint8_t REGIMM_RT_BGEZAL = 0b10001;   // BGEZAL
 
 constexpr uint8_t CP0_SUB_MF = 0b00000;  // MFC0
 constexpr uint8_t CP0_SUB_DMF = 0b00001; // DMFC0
