@@ -38,6 +38,22 @@ void run(Config config) {
         }
 
         g_scheduler().tick(N64::Cpu::CPU_CYCLES_PER_INST);
+
+        /*
+        if (g_cpu().get_pc64() == (0xffffffff800001c8 - 0x98)) {
+            Utils::set_log_level(Utils::LogLevel::TRACE);
+            Utils::critical("here! pc = {:#18x}", g_cpu().get_pc64());
+        }
+        */
+
+        if (g_scheduler().get_current_time() % 0x10'0000 == 0) {
+            Utils::set_log_level(Utils::LogLevel::TRACE);
+            Utils::debug("Current time: 0x{:016X}",
+                         g_scheduler().get_current_time());
+            Utils::debug("pc = {:#18x}", N64::g_cpu().get_pc64());
+        } else if (g_scheduler().get_current_time() % 0x10'0000 == 1) {
+            Utils::set_log_level(config.log_level);
+        }
     }
 }
 

@@ -50,6 +50,15 @@ class Cpu::Operation::Impl {
         branch_addr64(cpu, cond, cpu.pc + offset);
     }
 
+    static void branch_offset16_and_link(Cpu &cpu, bool cond,
+                                         instruction_t inst) {
+        int64_t offset = (int16_t)inst.i_type.imm; // sext
+        offset <<= 2;
+        Utils::trace("pc <= pc {:+#x}?", (int64_t)offset);
+        cpu.gpr.write(31, cpu.pc + 8);
+        branch_addr64(cpu, cond, cpu.pc + offset);
+    }
+
     static void op_add(Cpu &cpu, instruction_t inst) {
         // TODO: throw exception
         // TODO: 32bit mode?
@@ -76,23 +85,27 @@ class Cpu::Operation::Impl {
 
     static void op_sub(Cpu &cpu, instruction_t inst) {
         // TODO: throw exception
-        // TODO: 32bit mode?
+        // TODO: 32bit/64bit?
         assert_encoding_is_valid(inst.r_type.sa == 0);
-        uint64_t rs = cpu.gpr.read(inst.r_type.rs);
-        uint64_t rt = cpu.gpr.read(inst.r_type.rt);
+        int32_t rs = cpu.gpr.read(inst.r_type.rs);
+        int32_t rt = cpu.gpr.read(inst.r_type.rt);
+        int32_t tmp = rs - rt;
+        int64_t stmp = tmp; // sext
         Utils::trace("SUB: {} <= {} - {}", GPR_NAMES[inst.r_type.rd],
                      GPR_NAMES[inst.r_type.rs], GPR_NAMES[inst.r_type.rt]);
-        cpu.gpr.write(inst.r_type.rd, rs - rt);
+        cpu.gpr.write(inst.r_type.rd, stmp);
     }
 
     static void op_subu(Cpu &cpu, instruction_t inst) {
-        // TODO: 32bit mode?
+        // TODO: 32bit/64bit?
         assert_encoding_is_valid(inst.r_type.sa == 0);
-        uint64_t rs = cpu.gpr.read(inst.r_type.rs);
-        uint64_t rt = cpu.gpr.read(inst.r_type.rt);
+        uint32_t rs = cpu.gpr.read(inst.r_type.rs);
+        uint32_t rt = cpu.gpr.read(inst.r_type.rt);
+        int32_t tmp = rs - rt;
+        int64_t stmp = tmp; // sext
         Utils::trace("SUBU: {} <= {} - {}", GPR_NAMES[inst.r_type.rd],
                      GPR_NAMES[inst.r_type.rs], GPR_NAMES[inst.r_type.rt]);
-        cpu.gpr.write(inst.r_type.rd, rs - rt);
+        cpu.gpr.write(inst.r_type.rd, stmp);
     }
 
     static void op_mult(Cpu &cpu, instruction_t inst) {
@@ -167,7 +180,7 @@ class Cpu::Operation::Impl {
         uint64_t rs = cpu.gpr.read(inst.r_type.rs); // unsigned
         uint64_t rt = cpu.gpr.read(inst.r_type.rt); // unsigned
         Utils::trace("SLTU {} {} {}", GPR_NAMES[inst.r_type.rd],
-                     GPR_NAMES[inst.r_type.rt], GPR_NAMES[inst.r_type.sa]);
+                     GPR_NAMES[inst.r_type.rs], GPR_NAMES[inst.r_type.rt]);
         if (rs < rt) {
             cpu.gpr.write(inst.r_type.rd, 1);
         } else {
@@ -221,6 +234,20 @@ class Cpu::Operation::Impl {
         cpu.gpr.write(inst.r_type.rd, cpu.lo);
     }
 
+    static void op_bltzal(Cpu &cpu, instruction_t inst) {
+        int64_t rs = cpu.gpr.read(inst.i_type.rs);
+        // TODO: 32bit
+        Utils::trace("BLTZAL cond: {} < 0", GPR_NAMES[inst.i_type.rs]);
+        branch_offset16_and_link(cpu, rs < 0, inst);
+    }
+
+    static void op_bgezal(Cpu &cpu, instruction_t inst) {
+        int64_t rs = cpu.gpr.read(inst.i_type.rs);
+        // TODO: 32bit
+        Utils::trace("BLTZAL cond: {} >= 0", GPR_NAMES[inst.i_type.rs]);
+        branch_offset16_and_link(cpu, rs >= 0, inst);
+    }
+
     static void op_lui(Cpu &cpu, instruction_t inst) {
         assert_encoding_is_valid(inst.i_type.rs == 0);
         int64_t simm = (int16_t)inst.i_type.imm; // sext
@@ -230,7 +257,7 @@ class Cpu::Operation::Impl {
     }
 
     static void op_lw(Cpu &cpu, instruction_t inst) {
-        int64_t offset = (int16_t)inst.i_type.imm; // sext
+        int16_t offset = inst.i_type.imm;
         Utils::trace("LW: {} <= *({} + {:#x})", GPR_NAMES[inst.i_type.rt],
                      GPR_NAMES[inst.i_type.rs], offset);
         uint64_t vaddr = cpu.gpr.read(inst.i_type.rs) + offset;
@@ -240,7 +267,7 @@ class Cpu::Operation::Impl {
     }
 
     static void op_sw(Cpu &cpu, instruction_t inst) {
-        int64_t offset = (int16_t)inst.i_type.imm; // sext
+        int16_t offset = inst.i_type.imm;
         Utils::trace("SW: *({} + {:#x}) <= {}", GPR_NAMES[inst.i_type.rs],
                      offset, GPR_NAMES[inst.r_type.rt]);
         uint64_t vaddr = cpu.gpr.read(inst.i_type.rs) + offset;
@@ -430,6 +457,10 @@ void Cpu::Operation::execute(Cpu &cpu, instruction_t inst) {
     } break;
     case OPCODE_REGIMM: {
         switch (inst.i_type.rt) {
+        case REGIMM_RT_BLTZAL: // BLTZAL
+            return Impl::op_bltzal(cpu, inst);
+        case REGIMM_RT_BGEZAL: // BGEZAL
+            return Impl::op_bgezal(cpu, inst);
         default:
             Utils::abort("Unimplemented rt = {:#07b} for opcode = REGIMM.",
                          static_cast<uint32_t>(inst.i_type.rt));
