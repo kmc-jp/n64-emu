@@ -212,6 +212,7 @@ class Cpu::Operation::Impl {
     }
 
     static void op_jr(Cpu &cpu, instruction_t inst) {
+        // https://github.com/Dillonb/n64/blob/6502f7d2f163c3f14da5bff8cd6d5ccc47143156/src/cpu/mips_instructions.c#L733
         assert_encoding_is_valid(inst.r_type.rt == 0 && inst.r_type.rd == 0 &&
                                  inst.r_type.sa == 0);
         uint64_t rs = cpu.gpr.read(inst.r_type.rs);
@@ -220,6 +221,7 @@ class Cpu::Operation::Impl {
     }
 
     static void op_mfhi(Cpu &cpu, instruction_t inst) {
+        // https://github.com/Dillonb/n64/blob/6502f7d2f163c3f14da5bff8cd6d5ccc47143156/src/cpu/mips_instructions.c#L746
         assert_encoding_is_valid(inst.r_type.rs == 0 && inst.r_type.rt == 0 &&
                                  inst.r_type.sa == 0);
         Utils::trace("MFHI {} <= hi", GPR_NAMES[inst.r_type.rd]);
@@ -227,6 +229,7 @@ class Cpu::Operation::Impl {
     }
 
     static void op_mflo(Cpu &cpu, instruction_t inst) {
+        // https://github.com/Dillonb/n64/blob/6502f7d2f163c3f14da5bff8cd6d5ccc47143156/src/cpu/mips_instructions.c#L754
         assert_encoding_is_valid(inst.r_type.rs == 0 && inst.r_type.rt == 0 &&
                                  inst.r_type.sa == 0);
         Utils::trace("MFLO {} <= lo", GPR_NAMES[inst.r_type.rd]);
@@ -260,6 +263,7 @@ class Cpu::Operation::Impl {
     }
 
     static void op_lui(Cpu &cpu, instruction_t inst) {
+        // https://github.com/Dillonb/n64/blob/6502f7d2f163c3f14da5bff8cd6d5ccc47143156/src/cpu/mips_instructions.c#L259
         assert_encoding_is_valid(inst.i_type.rs == 0);
         int64_t simm = (int16_t)inst.i_type.imm; // sext
         // 負数の左シフトはUBなので乗算で実装
@@ -269,25 +273,25 @@ class Cpu::Operation::Impl {
     }
 
     static void op_lw(Cpu &cpu, instruction_t inst) {
-        int64_t offset = (int16_t)inst.i_type.imm; // sext
+        // https://github.com/Dillonb/n64/blob/6502f7d2f163c3f14da5bff8cd6d5ccc47143156/src/cpu/mips_instructions.c#L317
+        // TODO: TLB exception
+        int16_t offset = inst.i_type.imm; // sext
         Utils::trace("LW: {} <= *({} + {:#x})", GPR_NAMES[inst.i_type.rt],
                      GPR_NAMES[inst.i_type.rs], offset);
         uint64_t vaddr = cpu.gpr.read(inst.i_type.rs) + offset;
         uint32_t paddr = Mmu::resolve_vaddr(vaddr);
-        // Utils::debug("LWed vadd = {:#x}", vaddr);
-        if (vaddr == 0x800f'fffc) {
-            Utils::set_log_level(Utils::LogLevel::TRACE);
-            Utils::core_dump();
-        }
-        uint32_t word = Memory::read_paddr32(paddr);
-        cpu.gpr.write(inst.i_type.rt, word);
+        int32_t word = Memory::read_paddr32(paddr);
+        cpu.gpr.write(inst.i_type.rt, (int64_t)word); // sext
     }
 
     static void op_sw(Cpu &cpu, instruction_t inst) {
-        int64_t offset = (int16_t)inst.i_type.imm; // sext
+        // https://github.com/Dillonb/n64/blob/6502f7d2f163c3f14da5bff8cd6d5ccc47143156/src/cpu/mips_instructions.c#L382
+        // TODO: TLB excepion
+        int16_t offset = inst.i_type.imm;
         Utils::trace("SW: *({} + {:#x}) <= {}", GPR_NAMES[inst.i_type.rs],
                      offset, GPR_NAMES[inst.r_type.rt]);
-        uint64_t vaddr = cpu.gpr.read(inst.i_type.rs) + offset;
+        uint64_t vaddr = cpu.gpr.read(inst.i_type.rs);
+        vaddr += offset;
         uint32_t paddr = Mmu::resolve_vaddr(vaddr);
         uint32_t word = cpu.gpr.read(inst.r_type.rt);
         Memory::write_paddr32(paddr, word);
