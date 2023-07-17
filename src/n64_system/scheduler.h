@@ -70,6 +70,8 @@ class Scheduler {
         }
     }
 
+    uint64_t get_current_time() const { return current_time; }
+
     inline static Scheduler &get_instance() { return instance; }
 };
 

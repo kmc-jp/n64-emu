@@ -56,5 +56,6 @@ test/test_runner
 
 ## ROMs
 **/*.z64
+!tests/**/*.z64
 
 .vscode

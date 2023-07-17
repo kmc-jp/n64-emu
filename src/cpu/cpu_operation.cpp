@@ -38,15 +38,26 @@ class Cpu::Operation::Impl {
     static void branch_likely_offset16(Cpu &cpu, bool cond,
                                        instruction_t inst) {
         int64_t offset = (int16_t)inst.i_type.imm; // sext
-        offset <<= 2;
+        // 負数の左シフトはUBなので乗算で実装
+        offset *= 4;
         Utils::trace("pc <= pc {:+#x}?", (int64_t)offset);
         branch_likely_addr64(cpu, cond, cpu.pc + offset);
     }
 
     static void branch_offset16(Cpu &cpu, bool cond, instruction_t inst) {
         int64_t offset = (int16_t)inst.i_type.imm; // sext
+        // 負数の左シフトはUBなので乗算で実装
+        offset *= 4;
+        Utils::trace("pc <= pc {:+#x}?", (int64_t)offset);
+        branch_addr64(cpu, cond, cpu.pc + offset);
+    }
+
+    static void branch_offset16_and_link(Cpu &cpu, bool cond,
+                                         instruction_t inst) {
+        int64_t offset = (int16_t)inst.i_type.imm; // sext
         offset <<= 2;
         Utils::trace("pc <= pc {:+#x}?", (int64_t)offset);
+        cpu.gpr.write(31, cpu.pc + 8);
         branch_addr64(cpu, cond, cpu.pc + offset);
     }
 
@@ -221,10 +232,35 @@ class Cpu::Operation::Impl {
         cpu.gpr.write(inst.r_type.rd, cpu.lo);
     }
 
+    static void op_bltzal(Cpu &cpu, instruction_t inst) {
+        int64_t rs = cpu.gpr.read(inst.i_type.rs);
+        // TODO: 32bit
+        Utils::trace("BLTZAL cond: {} < 0", GPR_NAMES[inst.i_type.rs]);
+        branch_offset16_and_link(cpu, rs < 0, inst);
+    }
+
+    static void op_bgezal(Cpu &cpu, instruction_t inst) {
+        int64_t rs = cpu.gpr.read(inst.i_type.rs);
+        // TODO: 32bit
+        Utils::trace("BLTZAL cond: {} >= 0", GPR_NAMES[inst.i_type.rs]);
+        branch_offset16_and_link(cpu, rs >= 0, inst);
+    }
+
+    static void op_jal(Cpu &cpu, instruction_t inst) {
+        uint64_t target = inst.j_type.target;
+        target <<= 2;
+        target |= ((cpu.pc - 4) & 0xFFFF'0000); // pc is now 4 ahead
+        uint64_t ra = cpu.pc + 4;               // pc is now 4 ahead
+        Utils::trace("JAL {:#x}", target);
+        cpu.gpr.write(31, ra);
+        branch_addr64(cpu, true, target);
+    }
+
     static void op_lui(Cpu &cpu, instruction_t inst) {
         assert_encoding_is_valid(inst.i_type.rs == 0);
         int64_t simm = (int16_t)inst.i_type.imm; // sext
-        simm <<= 16;
+        // 負数の左シフトはUBなので乗算で実装
+        simm *= 65536;
         Utils::trace("LUI: {} <= {:#x}", GPR_NAMES[inst.i_type.rt], simm);
         cpu.gpr.write(inst.i_type.rt, simm);
     }
@@ -430,11 +466,17 @@ void Cpu::Operation::execute(Cpu &cpu, instruction_t inst) {
     } break;
     case OPCODE_REGIMM: {
         switch (inst.i_type.rt) {
+        case REGIMM_RT_BLTZAL: // BLTZAL
+            return Impl::op_bltzal(cpu, inst);
+        case REGIMM_RT_BGEZAL: // BGEZAL
+            return Impl::op_bgezal(cpu, inst);
         default:
             Utils::abort("Unimplemented rt = {:#07b} for opcode = REGIMM.",
                          static_cast<uint32_t>(inst.i_type.rt));
         }
     } break;
+    case OPCODE_JAL: // JAL (J format)
+        return Impl::op_jal(cpu, inst);
     case OPCODE_LUI: // LUI (I format)
         return Impl::op_lui(cpu, inst);
     case OPCODE_LW: // LW (I format)
