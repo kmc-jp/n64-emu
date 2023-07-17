@@ -63,77 +63,82 @@ class Cpu::Operation::Impl {
 
     static void op_add(Cpu &cpu, instruction_t inst) {
         // TODO: throw exception
-        // TODO: 32bit mode?
         // https://github.com/Dillonb/n64/blob/6502f7d2f163c3f14da5bff8cd6d5ccc47143156/src/cpu/mips_instructions.c#L903
         assert_encoding_is_valid(inst.r_type.sa == 0);
-        uint64_t rs = cpu.gpr.read(inst.r_type.rs);
-        uint64_t rt = cpu.gpr.read(inst.r_type.rt);
+        uint32_t rs = cpu.gpr.read(inst.r_type.rs);
+        uint32_t rt = cpu.gpr.read(inst.r_type.rt);
+        uint32_t res = rs + rt;
         Utils::trace("ADD: {} <= {} + {}", GPR_NAMES[inst.r_type.rd],
                      GPR_NAMES[inst.r_type.rs], GPR_NAMES[inst.r_type.rt]);
-        cpu.gpr.write(inst.r_type.rd, rs + rt);
+        cpu.gpr.write(inst.r_type.rd, (int64_t)((int32_t)res));
     }
 
     static void op_addu(Cpu &cpu, instruction_t inst) {
-        // TODO: 32bit mode?
         // https://github.com/Dillonb/n64/blob/6502f7d2f163c3f14da5bff8cd6d5ccc47143156/src/cpu/mips_instructions.c#L915
-
         assert_encoding_is_valid(inst.r_type.sa == 0);
-        uint64_t rs = cpu.gpr.read(inst.r_type.rs);
-        uint64_t rt = cpu.gpr.read(inst.r_type.rt);
+        uint32_t rs = cpu.gpr.read(inst.r_type.rs);
+        uint32_t rt = cpu.gpr.read(inst.r_type.rt);
+        int32_t res = rs + rt;
         Utils::trace("ADDU: {} <= {} + {}", GPR_NAMES[inst.r_type.rd],
                      GPR_NAMES[inst.r_type.rs], GPR_NAMES[inst.r_type.rt]);
-        cpu.gpr.write(inst.r_type.rd, rs + rt);
+        cpu.gpr.write(inst.r_type.rd, (int64_t)res);
     }
 
     static void op_sub(Cpu &cpu, instruction_t inst) {
+        // https://github.com/Dillonb/n64/blob/6502f7d2f163c3f14da5bff8cd6d5ccc47143156/src/cpu/mips_instructions.c#L932
         // TODO: throw exception
-        // TODO: 32bit mode?
         assert_encoding_is_valid(inst.r_type.sa == 0);
-        uint64_t rs = cpu.gpr.read(inst.r_type.rs);
-        uint64_t rt = cpu.gpr.read(inst.r_type.rt);
+        int32_t rs = cpu.gpr.read(inst.r_type.rs);
+        int32_t rt = cpu.gpr.read(inst.r_type.rt);
+        int32_t res = rs - rt;
         Utils::trace("SUB: {} <= {} - {}", GPR_NAMES[inst.r_type.rd],
                      GPR_NAMES[inst.r_type.rs], GPR_NAMES[inst.r_type.rt]);
-        cpu.gpr.write(inst.r_type.rd, rs - rt);
+        cpu.gpr.write(inst.r_type.rd, (int64_t)res);
     }
 
     static void op_subu(Cpu &cpu, instruction_t inst) {
-        // TODO: 32bit mode?
+        // https://github.com/Dillonb/n64/blob/6502f7d2f163c3f14da5bff8cd6d5ccc47143156/src/cpu/mips_instructions.c#L946
         assert_encoding_is_valid(inst.r_type.sa == 0);
-        uint64_t rs = cpu.gpr.read(inst.r_type.rs);
-        uint64_t rt = cpu.gpr.read(inst.r_type.rt);
+        uint32_t rs = cpu.gpr.read(inst.r_type.rs);
+        uint32_t rt = cpu.gpr.read(inst.r_type.rt);
+        int32_t res = rs - rt;
         Utils::trace("SUBU: {} <= {} - {}", GPR_NAMES[inst.r_type.rd],
                      GPR_NAMES[inst.r_type.rs], GPR_NAMES[inst.r_type.rt]);
-        cpu.gpr.write(inst.r_type.rd, rs - rt);
+        cpu.gpr.write(inst.r_type.rd, (int64_t)res);
     }
 
     static void op_mult(Cpu &cpu, instruction_t inst) {
+        // https://github.com/Dillonb/n64/blob/6502f7d2f163c3f14da5bff8cd6d5ccc47143156/src/cpu/mips_instructions.c#L780
         assert_encoding_is_valid(inst.r_type.sa == 0);
         int32_t rs = cpu.gpr.read(inst.r_type.rs); // as signed 32bit
         int32_t rt = cpu.gpr.read(inst.r_type.rt); // as signed 32bit
-        int64_t t = rs * rt;
-        int32_t lo = t & 0xFFFFFFFF;
-        int32_t hi = (t >> 32) & 0xFFFFFFFF;
+        int64_t d_rs = rs;                         // sext
+        int64_t d_rt = rt;                         // sext
+        int64_t res = d_rs * d_rt;
+        int32_t lo = res & 0xFFFFFFFF;
+        int32_t hi = (res >> 32) & 0xFFFFFFFF;
         int64_t sext_lo = lo; // sext
         int64_t sext_hi = hi; // sext
         Utils::trace("MULT {}, {}", GPR_NAMES[inst.r_type.rs],
                      GPR_NAMES[inst.r_type.rt]);
-        cpu.lo = static_cast<uint64_t>(lo);
-        cpu.hi = static_cast<uint64_t>(hi);
+        cpu.lo = sext_lo;
+        cpu.hi = sext_hi;
     }
 
     static void op_multu(Cpu &cpu, instruction_t inst) {
+        // https://github.com/Dillonb/n64/blob/6502f7d2f163c3f14da5bff8cd6d5ccc47143156/src/cpu/mips_instructions.c#L796
         assert_encoding_is_valid(inst.r_type.sa == 0);
-        uint32_t rs = cpu.gpr.read(inst.r_type.rs); // as unsigned 32bit
-        uint32_t rt = cpu.gpr.read(inst.r_type.rt); // as unsigned 32bit
-        uint64_t t = rs * rt;
-        int32_t lo = t & 0xFFFFFFFF;
-        int32_t hi = (t >> 32) & 0xFFFFFFFF;
+        uint64_t rs = cpu.gpr.read(inst.r_type.rs); // as unsigned 32bit
+        uint64_t rt = cpu.gpr.read(inst.r_type.rt); // as unsigned 32bit
+        uint64_t res = rs * rt;
+        int32_t lo = res & 0xFFFFFFFF;
+        int32_t hi = (res >> 32) & 0xFFFFFFFF;
         int64_t sext_lo = lo; // sext
         int64_t sext_hi = hi; // sext
         Utils::trace("MULTU {}, {}", GPR_NAMES[inst.r_type.rs],
                      GPR_NAMES[inst.r_type.rt]);
-        cpu.lo = static_cast<uint64_t>(lo);
-        cpu.hi = static_cast<uint64_t>(hi);
+        cpu.lo = sext_lo;
+        cpu.hi = sext_hi;
     }
 
     static void op_sll(Cpu &cpu, instruction_t inst) {
@@ -271,6 +276,11 @@ class Cpu::Operation::Impl {
                      GPR_NAMES[inst.i_type.rs], offset);
         uint64_t vaddr = cpu.gpr.read(inst.i_type.rs) + offset;
         uint32_t paddr = Mmu::resolve_vaddr(vaddr);
+        // Utils::debug("LWed vadd = {:#x}", vaddr);
+        if (vaddr == 0x800f'fffc) {
+            Utils::set_log_level(Utils::LogLevel::TRACE);
+            Utils::core_dump();
+        }
         uint32_t word = Memory::read_paddr32(paddr);
         cpu.gpr.write(inst.i_type.rt, word);
     }
@@ -333,6 +343,9 @@ class Cpu::Operation::Impl {
     static void op_bne(Cpu &cpu, instruction_t inst) {
         Utils::trace("BNE: cond {} != {}", GPR_NAMES[inst.i_type.rs],
                      GPR_NAMES[inst.i_type.rt]);
+        Utils::trace("{} : {:#x}, {} = {:#x}", GPR_NAMES[inst.i_type.rs],
+                     cpu.gpr.read(inst.i_type.rs), GPR_NAMES[inst.i_type.rt],
+                     cpu.gpr.read(inst.i_type.rt));
         branch_offset16(
             cpu, cpu.gpr.read(inst.i_type.rs) != cpu.gpr.read(inst.i_type.rt),
             inst);
