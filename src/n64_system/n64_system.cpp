@@ -23,11 +23,14 @@ void run(Config config) {
     N64::g_pi().reset();
 
     if (DILLON_TEST) {
+        Utils::info("Copying ROM");
         for (uint32_t i = 0; i < 0x100000; i += 4) {
             uint32_t data = N64::Memory::read_paddr32(0x10001000 + i);
-            N64::Memory::write_paddr32(i, 0x00001000 + data);
+            N64::Memory::write_paddr32(0x00001000 + i, data);
         }
+        Utils::info("Set pc to 0x80001000");
         N64::g_cpu().set_pc64(0x80001000);
+        Utils::info("Skipped Bootcode");
     } else {
         // PIF ROM execution
         Utils::info("Executing PIF ROM");
