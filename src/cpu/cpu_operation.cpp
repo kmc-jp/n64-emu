@@ -52,14 +52,7 @@ class Cpu::Operation::Impl {
         branch_addr64(cpu, cond, cpu.pc + offset);
     }
 
-    static void branch_offset16_and_link(Cpu &cpu, bool cond,
-                                         instruction_t inst) {
-        int64_t offset = (int16_t)inst.i_type.imm; // sext
-        offset <<= 2;
-        Utils::trace("pc <= pc {:+#x}?", (int64_t)offset);
-        cpu.gpr.write(31, cpu.pc + 8);
-        branch_addr64(cpu, cond, cpu.pc + offset);
-    }
+    static void link(Cpu &cpu) { cpu.gpr.write(31, cpu.pc + 4); }
 
     static void op_add(Cpu &cpu, instruction_t inst) {
         // TODO: throw exception
@@ -238,26 +231,28 @@ class Cpu::Operation::Impl {
     }
 
     static void op_bltzal(Cpu &cpu, instruction_t inst) {
+        // https://github.com/Dillonb/n64/blob/6502f7d2f163c3f14da5bff8cd6d5ccc47143156/src/cpu/mips_instructions.c#L1133
         int64_t rs = cpu.gpr.read(inst.i_type.rs);
-        // TODO: 32bit
         Utils::trace("BLTZAL cond: {} < 0", GPR_NAMES[inst.i_type.rs]);
-        branch_offset16_and_link(cpu, rs < 0, inst);
+        branch_offset16(cpu, rs < 0, inst);
+        link(cpu);
     }
 
     static void op_bgezal(Cpu &cpu, instruction_t inst) {
+        // https://github.com/Dillonb/n64/blob/6502f7d2f163c3f14da5bff8cd6d5ccc47143156/src/cpu/mips_instructions.c#L1139
         int64_t rs = cpu.gpr.read(inst.i_type.rs);
-        // TODO: 32bit
         Utils::trace("BGEZAL cond: {} >= 0", GPR_NAMES[inst.i_type.rs]);
-        branch_offset16_and_link(cpu, rs >= 0, inst);
+        branch_offset16(cpu, rs >= 0, inst);
+        link(cpu);
     }
 
     static void op_jal(Cpu &cpu, instruction_t inst) {
+        // https://github.com/Dillonb/n64/blob/6502f7d2f163c3f14da5bff8cd6d5ccc47143156/src/cpu/mips_instructions.c#L189
+        link(cpu);
         uint64_t target = inst.j_type.target;
         target <<= 2;
-        target |= ((cpu.pc - 4) & 0xFFFF'0000); // pc is now 4 ahead
-        uint64_t ra = cpu.pc + 4;               // pc is now 4 ahead
+        target |= ((cpu.pc - 4) & 0xFFFFFFFF'00000000); // pc is now 4 ahead
         Utils::trace("JAL {:#x}", target);
-        cpu.gpr.write(31, ra);
         branch_addr64(cpu, true, target);
     }
 
