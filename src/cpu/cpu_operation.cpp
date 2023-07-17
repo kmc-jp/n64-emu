@@ -185,6 +185,7 @@ class Cpu::Operation::Impl {
     }
 
     static void op_and(Cpu &cpu, instruction_t inst) {
+        // https://github.com/Dillonb/n64/blob/6502f7d2f163c3f14da5bff8cd6d5ccc47143156/src/cpu/mips_instructions.c#L922
         assert_encoding_is_valid(inst.r_type.sa == 0);
         Utils::trace("AND: {} <= {} & {}", GPR_NAMES[inst.r_type.rd],
                      GPR_NAMES[inst.r_type.rs], GPR_NAMES[inst.r_type.rt]);
@@ -193,6 +194,7 @@ class Cpu::Operation::Impl {
     }
 
     static void op_or(Cpu &cpu, instruction_t inst) {
+        // https://github.com/Dillonb/n64/blob/6502f7d2f163c3f14da5bff8cd6d5ccc47143156/src/cpu/mips_instructions.c#L954
         assert_encoding_is_valid(inst.r_type.sa == 0);
         Utils::trace("OR: {} <= {} | {}", GPR_NAMES[inst.r_type.rd],
                      GPR_NAMES[inst.r_type.rs], GPR_NAMES[inst.r_type.rt]);
@@ -201,6 +203,7 @@ class Cpu::Operation::Impl {
     }
 
     static void op_xor(Cpu &cpu, instruction_t inst) {
+        // https://github.com/Dillonb/n64/blob/6502f7d2f163c3f14da5bff8cd6d5ccc47143156/src/cpu/mips_instructions.c#L958
         assert_encoding_is_valid(inst.r_type.sa == 0);
         Utils::trace("XOR: {} <= {} ^ {}", GPR_NAMES[inst.r_type.rd],
                      GPR_NAMES[inst.r_type.rs], GPR_NAMES[inst.r_type.rt]);
@@ -301,6 +304,7 @@ class Cpu::Operation::Impl {
     }
 
     static void op_andi(Cpu &cpu, instruction_t inst) {
+        // https://github.com/Dillonb/n64/blob/6502f7d2f163c3f14da5bff8cd6d5ccc47143156/src/cpu/mips_instructions.c#L131
         uint64_t imm = inst.i_type.imm; // zext
         Utils::trace("ANDI: {} <= {} & {:#x}", GPR_NAMES[inst.i_type.rt],
                      GPR_NAMES[inst.i_type.rs], imm);
@@ -308,6 +312,7 @@ class Cpu::Operation::Impl {
     }
 
     static void op_ori(Cpu &cpu, instruction_t inst) {
+        // https://github.com/Dillonb/n64/blob/6502f7d2f163c3f14da5bff8cd6d5ccc47143156/src/cpu/mips_instructions.c#L422
         uint64_t imm = inst.i_type.imm; // zext
         Utils::trace("ORI: {} <= {} | {:#x}", GPR_NAMES[inst.i_type.rt],
                      GPR_NAMES[inst.i_type.rs], imm);
@@ -315,6 +320,7 @@ class Cpu::Operation::Impl {
     }
 
     static void op_xori(Cpu &cpu, instruction_t inst) {
+        // https://github.com/Dillonb/n64/blob/6502f7d2f163c3f14da5bff8cd6d5ccc47143156/src/cpu/mips_instructions.c#L426
         uint64_t imm = inst.i_type.imm; // zext
         Utils::trace("XORI: {} <= {} ^ {:#x}", GPR_NAMES[inst.i_type.rt],
                      GPR_NAMES[inst.i_type.rs], imm);
