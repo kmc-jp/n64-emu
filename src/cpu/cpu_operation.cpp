@@ -291,11 +291,13 @@ class Cpu::Operation::Impl {
     }
 
     static void op_addiu(Cpu &cpu, instruction_t inst) {
-        int64_t imm = (int16_t)inst.i_type.imm; // sext
-        int64_t tmp = cpu.gpr.read(inst.i_type.rs) + imm;
+        // https://github.com/Dillonb/n64/blob/6502f7d2f163c3f14da5bff8cd6d5ccc47143156/src/cpu/mips_instructions.c#L430
+        uint32_t rs = cpu.gpr.read(inst.i_type.rs);
+        int16_t addend = inst.i_type.imm; // sext
+        int32_t res = rs + addend;
         Utils::trace("ADDIU: {} <= {} + {:#x}", GPR_NAMES[inst.i_type.rt],
-                     GPR_NAMES[inst.i_type.rs], imm);
-        cpu.gpr.write(inst.i_type.rt, tmp);
+                     GPR_NAMES[inst.i_type.rs], addend);
+        cpu.gpr.write(inst.i_type.rt, (int64_t)res);
     }
 
     static void op_andi(Cpu &cpu, instruction_t inst) {
