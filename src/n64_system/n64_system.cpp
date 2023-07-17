@@ -70,7 +70,8 @@ void run(Config config) {
 
         if (g_scheduler().get_current_time() % 0x10'0000 == 0) {
             Utils::set_log_level(Utils::LogLevel::TRACE);
-            Utils::debug("Current time: 0x{:016X}",
+            Utils::debug("");
+            Utils::debug("Current CPU time: 0x{:016X}. showing next trace log",
                          g_scheduler().get_current_time());
             Utils::debug("pc = {:#18x}", N64::g_cpu().get_pc64());
         } else if (g_scheduler().get_current_time() % 0x10'0000 == 1) {
