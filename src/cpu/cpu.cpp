@@ -22,8 +22,8 @@ void Cpu::dump() {
     Utils::info("======= Core dump =======");
     Utils::info("PC\t= {:#x}", pc);
     for (int i = 0; i < 16; i++) {
-        Utils::info("{}\t= {:#018x}\t{}\t= {:#018x}", GPR_NAMES[i],
-                     gpr.read(i), GPR_NAMES[i + 16], gpr.read(i + 16));
+        Utils::info("{}\t= {:#018x}\t{}\t= {:#018x}", GPR_NAMES[i], gpr.read(i),
+                    GPR_NAMES[i + 16], gpr.read(i + 16));
     }
     Utils::info("");
     cop0.dump();
@@ -32,7 +32,7 @@ void Cpu::dump() {
 
 void Cpu::step() {
     Utils::trace("");
-    Utils::trace("CPU cycle starts");
+    Utils::trace("CPU cycle starts PC={:#018x}", pc);
 
     // Compare interrupt
     if (cop0.reg.count == cop0.reg.compare) {

@@ -6,9 +6,6 @@
 #include "rsp/rsp.h"
 #include "scheduler.h"
 
-// TODO: remove this
-#define BOOTCODE_SKIP 0
-
 namespace N64 {
 namespace N64System {
 
@@ -61,8 +58,8 @@ void run(Config config) {
         }
         */
 
-#if BOOTCODE_SKIP == 1
-        if (g_cpu().gpr.read(31) != 0) {
+#if DILLON_TEST == 1
+        if (g_cpu().gpr.read(30) != 0) {
             Utils::core_dump();
             exit(-1);
         }
