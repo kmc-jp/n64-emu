@@ -1,5 +1,4 @@
 #include "rom.h"
-#include "test.h"
 #include "utils.h"
 
 namespace N64 {
@@ -48,9 +47,7 @@ CicType checksum_to_cic(uint32_t checksum) {
                                                  : CicType::CIC_UNKNOWN;
 
     if (result == CicType::CIC_UNKNOWN) {
-#if SIMPLE_BOOT == 0
-        Utils::abort("invalid checksum: {:#08x}", checksum);
-#endif
+        Utils::critical("invalid checksum: {:#08x}, ignored", checksum);
     }
 
     return result;

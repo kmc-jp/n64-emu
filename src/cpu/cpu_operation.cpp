@@ -249,12 +249,21 @@ class Cpu::Operation::Impl {
         link(cpu);
     }
 
+    static void op_j(Cpu &cpu, instruction_t inst) {
+        // https://github.com/Dillonb/n64/blob/6502f7d2f163c3f14da5bff8cd6d5ccc47143156/src/cpu/mips_instructions.c#L181
+        uint64_t target = inst.j_type.target;
+        target <<= 2;
+        target |= ((cpu.pc - 4) & 0xFFFFFFFF'F0000000); // pc is now 4 ahead
+        Utils::trace("J {:#x}", target);
+        branch_addr64(cpu, true, target);
+    }
+
     static void op_jal(Cpu &cpu, instruction_t inst) {
         // https://github.com/Dillonb/n64/blob/6502f7d2f163c3f14da5bff8cd6d5ccc47143156/src/cpu/mips_instructions.c#L189
         link(cpu);
         uint64_t target = inst.j_type.target;
         target <<= 2;
-        target |= ((cpu.pc - 4) & 0xFFFFFFFF'00000000); // pc is now 4 ahead
+        target |= ((cpu.pc - 4) & 0xFFFFFFFF'F0000000); // pc is now 4 ahead
         Utils::trace("JAL {:#x}", target);
         branch_addr64(cpu, true, target);
     }
@@ -272,13 +281,25 @@ class Cpu::Operation::Impl {
     static void op_lw(Cpu &cpu, instruction_t inst) {
         // https://github.com/Dillonb/n64/blob/6502f7d2f163c3f14da5bff8cd6d5ccc47143156/src/cpu/mips_instructions.c#L317
         // TODO: TLB exception
-        int16_t offset = inst.i_type.imm; // sext
+        int16_t offset = inst.i_type.imm;
         Utils::trace("LW: {} <= *({} + {:#x})", GPR_NAMES[inst.i_type.rt],
                      GPR_NAMES[inst.i_type.rs], offset);
         uint64_t vaddr = cpu.gpr.read(inst.i_type.rs) + offset;
         uint32_t paddr = Mmu::resolve_vaddr(vaddr);
         int32_t word = Memory::read_paddr32(paddr);
         cpu.gpr.write(inst.i_type.rt, (int64_t)word); // sext
+    }
+
+    static void op_lwu(Cpu &cpu, instruction_t inst) {
+        // https://github.com/Dillonb/n64/blob/6502f7d2f163c3f14da5bff8cd6d5ccc47143156/src/cpu/mips_instructions.c#L336
+        // TODO: TLB exception
+        int16_t offset = inst.i_type.imm;
+        Utils::trace("LWU: {} <= *({} + {:#x})", GPR_NAMES[inst.i_type.rt],
+                     GPR_NAMES[inst.i_type.rs], offset);
+        uint64_t vaddr = cpu.gpr.read(inst.i_type.rs) + offset;
+        uint32_t paddr = Mmu::resolve_vaddr(vaddr);
+        uint32_t word = Memory::read_paddr32(paddr);
+        cpu.gpr.write(inst.i_type.rt, (uint64_t)word); // zext
     }
 
     static void op_sw(Cpu &cpu, instruction_t inst) {
@@ -294,14 +315,36 @@ class Cpu::Operation::Impl {
         Memory::write_paddr32(paddr, word);
     }
 
+    static void op_addi(Cpu &cpu, instruction_t inst) {
+        // https://github.com/Dillonb/n64/blob/6502f7d2f163c3f14da5bff8cd6d5ccc47143156/src/cpu/mips_instructions.c#L99
+        uint32_t rs = cpu.gpr.read(inst.i_type.rs);
+        uint32_t addend = (int32_t)((int16_t)inst.i_type.imm); // sext
+        uint32_t res = rs + addend;
+        Utils::trace("ADDI: {} <= {} + {:#x}", GPR_NAMES[inst.i_type.rt],
+                     GPR_NAMES[inst.i_type.rs], addend);
+        // TODO: check overflow
+        cpu.gpr.write(inst.i_type.rt, (int64_t)((int32_t)res));
+    }
+
     static void op_addiu(Cpu &cpu, instruction_t inst) {
-        // https://github.com/Dillonb/n64/blob/6502f7d2f163c3f14da5bff8cd6d5ccc47143156/src/cpu/mips_instructions.c#L430
+        // https://github.com/Dillonb/n64/blob/6502f7d2f163c3f14da5bff8cd6d5ccc47143156/src/cpu/mips_instructions.c#L110
         uint32_t rs = cpu.gpr.read(inst.i_type.rs);
         int16_t addend = inst.i_type.imm; // sext
         int32_t res = rs + addend;
         Utils::trace("ADDIU: {} <= {} + {:#x}", GPR_NAMES[inst.i_type.rt],
                      GPR_NAMES[inst.i_type.rs], addend);
         cpu.gpr.write(inst.i_type.rt, (int64_t)res);
+    }
+
+    static void op_daddi(Cpu &cpu, instruction_t inst) {
+        // https://github.com/Dillonb/n64/blob/6502f7d2f163c3f14da5bff8cd6d5ccc47143156/src/cpu/mips_instructions.c#L110
+        uint64_t addend = (int64_t)((int16_t)inst.i_type.imm);
+        uint64_t rs = cpu.gpr.read(inst.i_type.rs);
+        uint64_t res = rs + addend;
+        // TODO: check overflow
+        Utils::trace("DADDI: {} <= {} + {:#x}", GPR_NAMES[inst.i_type.rt],
+                     GPR_NAMES[inst.i_type.rs], addend);
+        cpu.gpr.write(inst.i_type.rt, res);
     }
 
     static void op_andi(Cpu &cpu, instruction_t inst) {
@@ -501,16 +544,24 @@ void Cpu::Operation::execute(Cpu &cpu, instruction_t inst) {
                          static_cast<uint32_t>(inst.i_type.rt));
         }
     } break;
+    case OPCODE_J: // J (J format)
+        return Impl::op_j(cpu, inst);
     case OPCODE_JAL: // JAL (J format)
         return Impl::op_jal(cpu, inst);
     case OPCODE_LUI: // LUI (I format)
         return Impl::op_lui(cpu, inst);
     case OPCODE_LW: // LW (I format)
         return Impl::op_lw(cpu, inst);
+    case OPCODE_LWU: // LWU (I format)
+        return Impl::op_lwu(cpu, inst);
     case OPCODE_SW: // SW (I format)
         return Impl::op_sw(cpu, inst);
+    case OPCODE_ADDI: // ADDI (I format)
+        return Impl::op_addi(cpu, inst);
     case OPCODE_ADDIU: // ADDIU (I format)
         return Impl::op_addiu(cpu, inst);
+    case OPCODE_DADDI: // DADDI (I format)
+        return Impl::op_daddi(cpu, inst);
     case OPCODE_ANDI: // ANDI (I format)
         return Impl::op_andi(cpu, inst);
     case OPCODE_ORI: // ORI (I format)
