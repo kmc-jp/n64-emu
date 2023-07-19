@@ -6,7 +6,7 @@ namespace Mmio {
 namespace SI {
 
 void SI::reset() {
-    Utils::info("resetting PI");
+    Utils::info("resetting SI");
     // TODO:
 }
 

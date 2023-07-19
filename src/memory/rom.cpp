@@ -66,7 +66,7 @@ void Rom::read_from(const std::string &filepath) {
            std::istreambuf_iterator<char>()};
     // cartridge size
     // https://github.com/SimoneN64/Kaizen/blob/dffd36fc31731a0391a9b90f88ac2e5ed5d3f9ec/src/backend/MemoryRegions.hpp#L18
-    rom.resize(0xF000'0000);
+    rom.resize(ROM_SIZE);
 
     if (rom.size() < sizeof(rom_header_t)) {
         Utils::abort("ROM is too small");
@@ -83,8 +83,6 @@ void Rom::read_from(const std::string &filepath) {
     Utils::debug("ROM size\t= {}", rom.size());
     Utils::debug("imageName\t= \"{}\"", std::string(header.image_name));
     Utils::debug("CIC\t= {}", static_cast<int>(cic));
-
-    broken = false;
 }
 
 } // namespace Memory

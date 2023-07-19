@@ -11,6 +11,8 @@
 namespace N64 {
 namespace Memory {
 
+constexpr uint32_t ROM_SIZE = 0xF000'0000;
+
 typedef struct RomHeader {
     uint8_t initial_values[4];
     uint32_t clock_rate;
@@ -48,16 +50,13 @@ class Rom {
     // pointer to raw byte string
     std::vector<uint8_t> rom;
     rom_header_t header;
-    bool broken;
     CicType cic{};
 
   public:
-    Rom() : rom({}), broken(true) {}
+    Rom() : rom({}) { rom.resize(ROM_SIZE); }
 
     void read_from(const std::string &filepath);
     CicType get_cic() const { return cic; }
-
-    // bool is_broken() const { return broken; }
 
     // ROMの生データの先頭へのポインタを返す
     // FIXME: 生ポインタは使いたくない, read_offset8, read_offset32,
