@@ -12,6 +12,8 @@ bool read_config_from_command_line(Config &config, int argc, char *argv[]) {
 
     // default to debug
     config.log_level = Utils::LogLevel::DEBUG;
+    // default to false
+    config.test_mode = false;
 
     for (int i = 1; i < argc; ++i) {
         const std::string_view current = argv[i];
@@ -42,6 +44,8 @@ bool read_config_from_command_line(Config &config, int argc, char *argv[]) {
                 return false;
             }
             i++;
+        } else if (current == "--test") {
+            config.test_mode = true;
         } else if (current.empty() == false && !current.starts_with('-')) {
             // ROMパス指定
             if (config.rom_filepath.empty() == false) {

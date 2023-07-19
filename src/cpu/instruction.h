@@ -51,10 +51,14 @@ typedef union {
 // MIPS instructions
 constexpr uint8_t OPCODE_SPECIAL = 0b000000;
 constexpr uint8_t OPCODE_REGIMM = 0b000001;
+constexpr uint8_t OPCODE_J = 0b000010;
 constexpr uint8_t OPCODE_JAL = 0b000011;
 constexpr uint8_t OPCODE_COP0 = 0b010000;
+constexpr uint8_t OPCODE_ADDI = 0b001000;
 constexpr uint8_t OPCODE_ADDIU = 0b001001;
+constexpr uint8_t OPCODE_DADDI = 0b011000;
 constexpr uint8_t OPCODE_LW = 0b100011;
+constexpr uint8_t OPCODE_LWU = 0b100111;
 constexpr uint8_t OPCODE_SW = 0b101011;
 constexpr uint8_t OPCODE_LUI = 0b001111;
 
@@ -90,8 +94,8 @@ constexpr uint8_t SPECIAL_FUNCT_JR = 0b001000;    // JR
 constexpr uint8_t SPECIAL_FUNCT_MFHI = 0b010000;  // MFHI
 constexpr uint8_t SPECIAL_FUNCT_MFLO = 0b010010;  // MFLO
 
-constexpr uint8_t REGIMM_RT_BLTZAL = 0b10000;   // BLTZAL
-constexpr uint8_t REGIMM_RT_BGEZAL = 0b10001;   // BGEZAL
+constexpr uint8_t REGIMM_RT_BLTZAL = 0b10000; // BLTZAL
+constexpr uint8_t REGIMM_RT_BGEZAL = 0b10001; // BGEZAL
 
 constexpr uint8_t CP0_SUB_MF = 0b00000;  // MFC0
 constexpr uint8_t CP0_SUB_DMF = 0b00001; // DMFC0

@@ -47,7 +47,7 @@ CicType checksum_to_cic(uint32_t checksum) {
                                                  : CicType::CIC_UNKNOWN;
 
     if (result == CicType::CIC_UNKNOWN) {
-        Utils::abort("invalid checksum: {:#08x}", checksum);
+        Utils::critical("invalid checksum: {:#08x}, ignored", checksum);
     }
 
     return result;
