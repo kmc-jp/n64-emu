@@ -80,39 +80,46 @@ void PI::write_paddr32(uint32_t paddr, uint32_t value) {
 void PI::dma_write() {
     uint32_t dram_addr = reg_dram_addr & 0x7FFFFE;
     uint32_t cart_addr = reg_cart_addr;
-    // FIXME: カートリッジのサイズを超えてsegvになる可能性あり
     const uint32_t transfer_len = (reg_wr_len & 0x00FF'FFFF) + 1;
 
-    // FIXME: アドレスバグってる??
-    cart_addr -= 0x1000'0000;
-    for (uint32_t i = 0; i < transfer_len; i++) {
-        g_memory().rdram[dram_addr + i] =
-            g_memory().rom.read_offset8(cart_addr + i);
-    }
-    // FIXME: read_posによってレジスタ制御が変わる?
-    reg_status |= PI_STATUS_DMA_BUSY;
-    reg_status |= PI_STATUS_IO_BUSY;
+    if (0x1000'0000 <= cart_addr && cart_addr <= 0xFFFF'FFFF) {
+        cart_addr -= 0x1000'0000;
+        for (uint32_t i = 0; i < transfer_len; i++) {
+            // FIXME: ROMのサイズを超えてsegvになる可能性あり
+            g_memory().rdram[dram_addr + i] =
+                g_memory().rom.read_offset8(cart_addr + i);
+        }
 
-    Utils::debug("DMA Write: Cart {:#010x} -> dram {:#010x} (len = {:#010x})",
-                 cart_addr, dram_addr, transfer_len);
-    // FIXME: Timerの値は以下を参考にしているが自信ない
-    // https://github.com/project64/project64/blob/353ef5ed897cb72a8904603feddbdc649dff9eca/Source/Project64-core/N64System/MemoryHandler/PeripheralInterfaceHandler.cpp#L460
-    g_scheduler().set_timer(
-        transfer_len / 8,
-        N64System::Event{&PIScheduler::on_dma_write_completed});
+        reg_status |= PI_STATUS_DMA_BUSY;
+        reg_status |= PI_STATUS_IO_BUSY;
+
+        Utils::debug(
+            "DMA Write: Cart {:#010x} -> dram {:#010x} (len = {:#010x})",
+            cart_addr, dram_addr, transfer_len);
+        // Timerの値は以下を参考
+        // https://github.com/project64/project64/blob/353ef5ed897cb72a8904603feddbdc649dff9eca/Source/Project64-core/N64System/MemoryHandler/PeripheralInterfaceHandler.cpp#L460
+        g_scheduler().set_timer(
+            transfer_len / 8,
+            N64System::Event{&PIScheduler::on_dma_write_completed});
+    } else {
+        Utils::critical(
+            "DMA Write cart addr = {:#010x} -> dram addr = {:#010x}", cart_addr,
+            dram_addr);
+        Utils::unimplemented("DMA Transfer by RI");
+    }
+}
+
+void PIScheduler::on_dma_write_completed() {
+    // TODO: cart_addrの範囲によってセットするレジスタが異なる
+    g_pi().reg_status &= ~PI_STATUS_DMA_BUSY;
+    g_pi().reg_status &= ~PI_STATUS_IO_BUSY;
+    Utils::debug("DMA Write completed");
 }
 
 void PI::dma_read() {
     // TODO: statusレジスタのセット
     // TODO: DMAエンジン
     Utils::unimplemented("DMA Transfer by RI");
-}
-
-void PIScheduler::on_dma_write_completed() {
-    // FIXME: read_posによってレジスタ制御が変わる?
-    g_pi().reg_status &= ~PI_STATUS_DMA_BUSY;
-    g_pi().reg_status &= ~PI_STATUS_IO_BUSY;
-    Utils::debug("DMA Write completed");
 }
 
 PI PI::instance{};
