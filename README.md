@@ -1,10 +1,10 @@
 # n64-emu
-slackチャンネル: n64-emu
+A experimental Nintendo 64 emulator.
 
 # Build
 ## Windows
-1. Boostを[公式サイト](https://www.boost.org/users/download/)からダウンロードし、ビルドする
-2. `BOOST_ROOT`, `BOOST_INCLUDEDIR`, `BOOST_LIBRARYDIR`を以下のように設定する。
+1. Download and build [Boost](https://www.boost.org/users/download/)
+2. Set the environment variables `BOOST_ROOT`, `BOOST_INCLUDEDIR`, and `BOOST_LIBRARYDIR` as followings:
 
 ```
 BOOST_INCLUDEDIR    path/to/boost/include
@@ -12,7 +12,7 @@ BOOST_LIBRARYDIR    path/to/boost/lib
 BOOST_ROOT          path/to/boost
 ```
 
-3. 以下のコマンドを実行
+3. Run
 
 ```
 git clone --recursive git@github.com:kmc-jp/n64-emu.git
@@ -46,11 +46,17 @@ make # or cmake --build .
 ./n64[.exe] <rom_file.z64>
 ```
 
-# Contributing
-See: #[CONTRIBUTING.md](CONTRIBUTING.md)
-
 # Test
 ```
 # In build directory
 ctest -C Debug
 ```
+
+# Contributing
+We do not currently accept any pull requests except from members of KMC.
+See: [CONTRIBUTING.md](CONTRIBUTING.md)
+
+
+# Acknowledgements
+Big thanks to [Dillon](https://github.com/Dillonb) for his/her [test ROMs](https://github.com/Dillonb/n64-tests), which are put in tests/.
+
