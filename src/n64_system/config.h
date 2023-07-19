@@ -11,6 +11,7 @@ struct Config {
     std::string rom_filepath{};
     std::string log_filepath{};
     Utils::LogLevel log_level;
+    bool test_mode;
 };
 
 bool read_config_from_command_line(Config &config, int argc, char *argv[]);

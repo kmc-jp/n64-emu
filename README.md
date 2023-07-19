@@ -48,3 +48,9 @@ make # or cmake --build .
 
 # Contributing
 See: #[CONTRIBUTING.md](CONTRIBUTING.md)
+
+# Test
+```
+# In build directory
+ctest -C Debug
+```
