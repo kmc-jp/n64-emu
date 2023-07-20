@@ -6,7 +6,6 @@
 #include "mmio/si.h"
 #include "rsp/rsp.h"
 #include "utils/utils.h"
-#include <spdlog/spdlog.h>
 
 namespace N64 {
 namespace Memory {
@@ -57,7 +56,7 @@ static uint32_t read_paddr32(uint32_t paddr) {
     } else if (PHYS_PIF_RAM_BASE <= paddr && paddr <= PHYS_PIF_RAM_END) {
         return g_si().read_paddr32(paddr);
     } else {
-        spdlog::critical("Unimplemented. access to paddr = {:#010x}", paddr);
+        Utils::critical("Unimplemented. access to paddr = {:#010x}", paddr);
         Utils::core_dump();
         exit(-1);
     }
@@ -85,7 +84,7 @@ static void write_paddr32(uint32_t paddr, uint32_t value) {
     } else if (PHYS_PIF_RAM_BASE <= paddr && paddr <= PHYS_PIF_RAM_END) {
         return g_si().write_paddr32(paddr, value);
     } else {
-        spdlog::critical("Unimplemented. access to paddr = {:#010x}", paddr);
+        Utils::critical("Unimplemented. access to paddr = {:#010x}", paddr);
         Utils::core_dump();
         exit(-1);
     }

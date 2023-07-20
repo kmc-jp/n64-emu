@@ -4,9 +4,7 @@
 #include "cop0.h"
 #include "gpr.h"
 #include "instruction.h"
-
 #include <cstdint>
-#include <spdlog/spdlog.h>
 
 namespace N64 {
 namespace Cpu {

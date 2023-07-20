@@ -5,7 +5,6 @@
 #include "rom.h"
 #include <cstdint>
 #include <iostream>
-#include <spdlog/spdlog.h>
 
 namespace N64 {
 namespace Memory {
@@ -25,7 +24,7 @@ class Memory {
     void reset() { ri.reset(); }
 
     void load_rom(const std::string &rom_filepath) {
-        spdlog::debug("initializing RDRAM");
+        Utils::debug("initializing RDRAM");
         rom.read_from(rom_filepath);
     }
 

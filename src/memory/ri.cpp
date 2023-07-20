@@ -1,7 +1,5 @@
 #include "memory/ri.h"
 #include "utils/utils.h"
-#include <spdlog/spdlog.h>
-
 
 namespace N64 {
 namespace Memory {
@@ -28,7 +26,7 @@ uint32_t RI::read_paddr32(uint32_t paddr) const {
     case PADDR_RI_REFRESH: // refresh
         return reg_refresh;
     default: {
-        spdlog::critical("Unimplemented. Read from RI paddr = {:#010x}", paddr);
+        Utils::critical("Unimplemented. Read from RI paddr = {:#010x}", paddr);
         Utils::core_dump();
         exit(-1);
     } break;
@@ -58,7 +56,7 @@ void RI::write_paddr32(uint32_t paddr, uint32_t value) {
         reg_refresh = value;
     } break;
     default: {
-        spdlog::critical("Unimplemented. Write to RI paddr = {:#010x}", paddr);
+        Utils::critical("Unimplemented. Write to RI paddr = {:#010x}", paddr);
         Utils::core_dump();
         exit(-1);
     } break;

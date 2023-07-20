@@ -2,7 +2,6 @@
 #define MMU_H
 
 #include "utils/utils.h"
-#include <spdlog/spdlog.h>
 
 namespace N64 {
 namespace Mmu {
@@ -36,11 +35,11 @@ static uint32_t resolve_vaddr(uint32_t vaddr) {
         // KSEG1はdirect mapped. baseを引くだけでよい
         paddr = vaddr - KSEG1_BASE;
     } else {
-        spdlog::debug("Unimplemented: address translation {:#010x}", vaddr);
+        Utils::debug("Unimplemented: address translation {:#010x}", vaddr);
         Utils::core_dump();
         exit(-1);
     }
-    spdlog::trace("address translation vaddr {:#010x} => paddr {:#010x}", vaddr,
+    Utils::trace("address translation vaddr {:#010x} => paddr {:#010x}", vaddr,
                   paddr);
     return paddr;
 }
