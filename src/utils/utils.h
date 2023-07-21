@@ -31,6 +31,15 @@ inline uint16_t read_from_byte_array16(std::span<const uint8_t> span,
     return (span[offset + 0] << 8) | (span[offset + 1] << 0);
 }
 
+template <typename Wire>
+Wire read_from_byte_array(std::span<const uint8_t> span, uint64_t offset) {
+    if (std::is_same<Wire, uint32_t>::value) {
+        return read_from_byte_array32(span, offset);
+    } else if (std::is_same<Wire, uint16_t>::value) {
+        return read_from_byte_array16(span, offset);
+    }
+}
+
 /* 指定されたポインタに4byte分を書き込む (big endian) */
 void write_to_byte_array32(uint8_t *ptr, uint32_t value);
 
