@@ -3,6 +3,7 @@
 
 #include <cstdint>
 #include <source_location>
+#include <span>
 #include <spdlog/spdlog.h>
 #include <string>
 
@@ -18,14 +19,16 @@
 
 namespace Utils {
 
-/* 指定されたポインタから4byte分を読み込む (big endian) */
-inline uint32_t read_from_byte_array32(uint8_t *ptr) {
-    return (ptr[0] << 24) + (ptr[1] << 16) + (ptr[2] << 8) + ptr[3];
+/* 指定された配列からbyte分を読み込む (big endian) */
+inline uint32_t read_from_byte_array32(std::span<const uint8_t> span,
+                                       uint64_t offset) {
+    return (span[offset + 0] << 24) | (span[offset + 1] << 16) |
+           (span[offset + 2] << 8) | (span[offset + 3] << 0);
 }
 
-inline uint16_t read_from_byte_array16(uint8_t *ptr) {
-    return static_cast<uint8_t>(ptr[0] << 8) |
-           static_cast<uint8_t>(ptr[1] << 0);
+inline uint16_t read_from_byte_array16(std::span<const uint8_t> span,
+                                       uint64_t offset) {
+    return (span[offset + 0] << 8) | (span[offset + 1] << 0);
 }
 
 /* 指定されたポインタに4byte分を書き込む (big endian) */

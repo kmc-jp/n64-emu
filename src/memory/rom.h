@@ -1,11 +1,8 @@
 ﻿#ifndef ROM_H
 #define ROM_H
 
+#include "utils.h"
 #include <cstdint>
-#include <cstdio>
-#include <cstdlib>
-#include <fstream>
-#include <iostream>
 #include <vector>
 
 namespace N64 {
@@ -64,6 +61,12 @@ class Rom {
     uint8_t *raw() { return reinterpret_cast<uint8_t *>(&rom[0]); }
 
     uint8_t read_offset8(uint32_t offset) const { return rom.at(offset); }
+    uint16_t read_offset16(uint32_t offset) const {
+        return Utils::read_from_byte_array16(rom, offset);
+    }
+    uint32_t read_offset32(uint32_t offset) const {
+        return Utils::read_from_byte_array32(rom, offset);
+    }
 };
 
 } // namespace Memory
