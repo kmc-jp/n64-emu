@@ -40,3 +40,20 @@ target_link_libraries(n64 PUBLIC
     ${Boost_LIBRARIES})
 
 # target_link_libraries(n64 PRIVATE SDL2::SDL2)
+
+target_precompile_headers(n64
+  PRIVATE
+    <cassert>
+    <cstdint>
+    <fstream>
+    <functional>
+    <iostream>
+    <queue>
+    <source_location>
+    <span>
+    <string>
+    <utility>
+    <vector>
+    <spdlog/spdlog.h>
+    <spdlog/sinks/basic_file_sink.h>
+)
