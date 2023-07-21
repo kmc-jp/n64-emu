@@ -121,8 +121,8 @@ class Cpu::Operation::Impl {
     static void op_multu(Cpu &cpu, instruction_t inst) {
         // https://github.com/Dillonb/n64/blob/6502f7d2f163c3f14da5bff8cd6d5ccc47143156/src/cpu/mips_instructions.c#L796
         assert_encoding_is_valid(inst.r_type.sa == 0);
-        uint64_t rs = cpu.gpr.read(inst.r_type.rs); // as unsigned 32bit
-        uint64_t rt = cpu.gpr.read(inst.r_type.rt); // as unsigned 32bit
+        uint64_t rs = cpu.gpr.read(inst.r_type.rs) & 0xFFFFFFFF;
+        uint64_t rt = cpu.gpr.read(inst.r_type.rt) & 0xFFFFFFFF;
         uint64_t res = rs * rt;
         int32_t lo = res & 0xFFFFFFFF;
         int32_t hi = (res >> 32) & 0xFFFFFFFF;

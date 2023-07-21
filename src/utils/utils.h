@@ -57,7 +57,7 @@ Wire read_from_byte_array(std::span<const uint8_t> span, uint64_t offset) {
     } else if (std::is_same<Wire, uint16_t>::value) {
         return read_from_byte_array16(span, offset);
     } else if (std::is_same<Wire, uint64_t>::value) {
-        return read_from_byte_array16(span, offset);
+        return read_from_byte_array64(span, offset);
     }
 }
 
