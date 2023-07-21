@@ -1,6 +1,8 @@
 #include "rom.h"
 #include "utils.h"
 
+#include <fstream>
+
 namespace N64 {
 namespace Memory {
 

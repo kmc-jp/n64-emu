@@ -61,6 +61,8 @@ constexpr uint8_t OPCODE_LW = 0b100011;
 constexpr uint8_t OPCODE_LWU = 0b100111;
 constexpr uint8_t OPCODE_SW = 0b101011;
 constexpr uint8_t OPCODE_LUI = 0b001111;
+constexpr uint8_t OPCODE_LHU = 0b100101;
+constexpr uint8_t OPCODE_LD = 0b110111;
 
 constexpr uint8_t OPCODE_BEQ = 0b000100;
 constexpr uint8_t OPCODE_BEQL = 0b010100;
@@ -97,10 +99,10 @@ constexpr uint8_t SPECIAL_FUNCT_MFLO = 0b010010;  // MFLO
 constexpr uint8_t REGIMM_RT_BLTZAL = 0b10000; // BLTZAL
 constexpr uint8_t REGIMM_RT_BGEZAL = 0b10001; // BGEZAL
 
-constexpr uint8_t CP0_SUB_MF = 0b00000;  // MFC0
-constexpr uint8_t CP0_SUB_DMF = 0b00001; // DMFC0
-constexpr uint8_t CP0_SUB_MT = 0b00100;  // MTC0
-constexpr uint8_t CP0_SUB_DMT = 0b00101; // DMT
+constexpr uint8_t CP0_SUB_MFC0 = 0b00000;  // MFC0
+constexpr uint8_t CP0_SUB_DMFC0 = 0b00001; // DMFC0
+constexpr uint8_t CP0_SUB_MTC0 = 0b00100;  // MTC0
+constexpr uint8_t CP0_SUB_DMTC0 = 0b00101; // DMT
 
 } // namespace Cpu
 } // namespace N64

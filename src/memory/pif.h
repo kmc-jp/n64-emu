@@ -268,7 +268,7 @@ static void pif_rom_execute() {
     // ROMの最初0x1000バイトをSP DMEMにコピー
     //   i.e. 0xB0000000 から 0xA4000000 に0x1000バイトをコピー
     // https://github.com/Dillonb/n64/blob/6502f7d2f163c3f14da5bff8cd6d5ccc47143156/src/mem/pif.c#L358
-    memcpy(g_rsp().sp_dmem, g_memory().rom.raw(), sizeof(uint8_t) * 0x1000);
+    memcpy(g_rsp().sp_dmem.data(), g_memory().rom.raw(), sizeof(uint8_t) * 0x1000);
 }
 
 } // namespace Memory

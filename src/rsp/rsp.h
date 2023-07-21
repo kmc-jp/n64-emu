@@ -13,8 +13,8 @@ class Rsp {
   public:
     // TODO: レジスタを追加
 
-    uint8_t sp_dmem[SP_DMEM_SIZE];
-    uint8_t sp_imem[SP_IMEM_SIZE];
+    std::array<uint8_t, SP_DMEM_SIZE> sp_dmem{};
+    std::array<uint8_t, SP_IMEM_SIZE> sp_imem{};
 
     Rsp() {}
 
