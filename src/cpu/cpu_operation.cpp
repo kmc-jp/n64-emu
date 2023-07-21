@@ -316,6 +316,21 @@ class Cpu::Operation::Impl {
         cpu.gpr.write(inst.i_type.rt, static_cast<uint64_t>(value)); // zext
     }
 
+    static void op_ld(Cpu &cpu, instruction_t inst) {
+        // https://hack64.net/docs/VR43XX.pdf p.441
+        // https://github.com/Dillonb/n64/blob/6502f7d2f163c3f14da5bff8cd6d5ccc47143156/src/cpu/mips_instructions.c#L282
+        // TODO: TLB exception
+        int16_t offset = inst.i_type.imm;
+        Utils::trace("LD: {} <= *({} + {:#x})", GPR_NAMES[inst.i_type.rt],
+                     GPR_NAMES[inst.i_type.rs], offset);
+        const uint64_t vaddr = cpu.gpr.read(inst.i_type.rs) + offset;
+        // FIXME: address check and throw an address error
+
+        const uint32_t paddr = Mmu::resolve_vaddr(vaddr);
+        const uint64_t value = Memory::read_paddr64(paddr);
+        cpu.gpr.write(inst.i_type.rt, value);
+    }
+
     static void op_sw(Cpu &cpu, instruction_t inst) {
         // https://github.com/Dillonb/n64/blob/6502f7d2f163c3f14da5bff8cd6d5ccc47143156/src/cpu/mips_instructions.c#L382
         // TODO: TLB excepion
@@ -570,8 +585,8 @@ void Cpu::Operation::execute(Cpu &cpu, instruction_t inst) {
         return Impl::op_lwu(cpu, inst);
     case OPCODE_LHU: // LHU (I format)
         return Impl::op_lhu(cpu, inst);
-    case OPCODE_LD:  // LD (I format)
-        assert(false); // TODO
+    case OPCODE_LD: // LD (I format)
+        return Impl::op_ld(cpu, inst);
     case OPCODE_SW: // SW (I format)
         return Impl::op_sw(cpu, inst);
     case OPCODE_ADDI: // ADDI (I format)
