@@ -6,10 +6,6 @@
 
 namespace Utils {
 
-uint32_t read_from_byte_array32(uint8_t *ptr) {
-    return (ptr[0] << 24) + (ptr[1] << 16) + (ptr[2] << 8) + ptr[3];
-}
-
 void write_to_byte_array32(uint8_t *ptr, uint32_t value) {
     uint8_t b1 = value & 0xFF;
     uint8_t b2 = (value & 0xFF00) >> 8;

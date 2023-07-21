@@ -19,7 +19,14 @@
 namespace Utils {
 
 /* 指定されたポインタから4byte分を読み込む (big endian) */
-uint32_t read_from_byte_array32(uint8_t *ptr);
+inline uint32_t read_from_byte_array32(uint8_t *ptr) {
+    return (ptr[0] << 24) + (ptr[1] << 16) + (ptr[2] << 8) + ptr[3];
+}
+
+inline uint16_t read_from_byte_array16(uint8_t *ptr) {
+    return static_cast<uint8_t>(ptr[0] << 8) |
+           static_cast<uint8_t>(ptr[1] << 0);
+}
 
 /* 指定されたポインタに4byte分を書き込む (big endian) */
 void write_to_byte_array32(uint8_t *ptr, uint32_t value);
