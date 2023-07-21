@@ -19,7 +19,7 @@
 
 namespace Utils {
 
-/* 指定された配列からbyte分を読み込む (big endian) */
+/* 指定された配列から8byte分を読み込む (big endian) */
 inline uint64_t read_from_byte_array64(std::span<const uint8_t> span,
                                        uint64_t offset) {
     return (static_cast<uint64_t>(span[offset + 0]) << 56) |
@@ -32,19 +32,26 @@ inline uint64_t read_from_byte_array64(std::span<const uint8_t> span,
            (static_cast<uint64_t>(span[offset + 7]) << 0);
 }
 
+/* 指定された配列から4byte分を読み込む (big endian) */
 inline uint32_t read_from_byte_array32(std::span<const uint8_t> span,
                                        uint64_t offset) {
     return (span[offset + 0] << 24) | (span[offset + 1] << 16) |
            (span[offset + 2] << 8) | (span[offset + 3] << 0);
 }
 
+/* 指定された配列から2byte分を読み込む (big endian) */
 inline uint16_t read_from_byte_array16(std::span<const uint8_t> span,
                                        uint64_t offset) {
-    return (span[offset + 0] << 8) | (span[offset + 1] << 0);
+    return (static_cast<uint16_t>(span[offset + 0] << 8)) |
+           (static_cast<uint16_t>(span[offset + 1] << 0));
 }
 
+/* 指定された配列からWire分を読み込む (big endian) */
 template <typename Wire>
 Wire read_from_byte_array(std::span<const uint8_t> span, uint64_t offset) {
+    static_assert(std::is_same<Wire, uint32_t>::value ||
+                  std::is_same<Wire, uint16_t>::value ||
+                  std::is_same<Wire, uint64_t>::value);
     if (std::is_same<Wire, uint32_t>::value) {
         return read_from_byte_array32(span, offset);
     } else if (std::is_same<Wire, uint16_t>::value) {
