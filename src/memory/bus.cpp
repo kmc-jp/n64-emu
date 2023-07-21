@@ -1,4 +1,5 @@
-﻿#include "bus.h"
+﻿#include "pch.h"
+#include "bus.h"
 
 namespace N64 {
 namespace Memory {

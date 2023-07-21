@@ -1,4 +1,5 @@
-﻿#include "rsp.h"
+﻿#include "pch.h"
+#include "rsp.h"
 
 namespace N64 {
 namespace Rsp {

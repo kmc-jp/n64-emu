@@ -1,4 +1,5 @@
-﻿#include "scheduler.h"
+﻿#include "pch.h"
+#include "scheduler.h"
 
 namespace N64 {
 namespace N64System {

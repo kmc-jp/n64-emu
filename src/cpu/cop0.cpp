@@ -1,4 +1,5 @@
-﻿#include "cop0.h"
+﻿#include "pch.h"
+#include "cop0.h"
 
 namespace N64 {
 namespace Cpu {

@@ -1,4 +1,5 @@
-﻿#include "config.h"
+﻿#include "pch.h"
+#include "config.h"
 #include "utils.h"
 #include <iostream>
 #include <string>
