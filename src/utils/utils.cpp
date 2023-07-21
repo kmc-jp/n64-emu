@@ -1,5 +1,8 @@
-﻿#include "pch.h"
-#include "cpu/cpu.h"
+﻿#include "cpu/cpu.h"
+#include <cstdint>
+#include <source_location>
+#include <spdlog/sinks/basic_file_sink.h>
+#include <spdlog/spdlog.h>
 
 namespace Utils {
 

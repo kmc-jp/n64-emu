@@ -1,5 +1,4 @@
-﻿#include "pch.h"
-#include "cpu.h"
+﻿#include "cpu.h"
 #include "cop0.h"
 #include "cpu_operation.h"
 #include "instruction.h"

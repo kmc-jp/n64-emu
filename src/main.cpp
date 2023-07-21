@@ -1,5 +1,5 @@
-﻿#include "pch.h"
-#include "config.h"
+﻿#include "config.h"
+#include "n64_system/config.h"
 #include "n64_system/n64_system.h"
 #include "utils.h"
 #include <iostream>

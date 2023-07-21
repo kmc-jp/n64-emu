@@ -1,5 +1,4 @@
-﻿#include "pch.h"
-#include "pi.h"
+﻿#include "pi.h"
 #include "memory.h"
 #include "n64_system/scheduler.h"
 #include "utils.h"

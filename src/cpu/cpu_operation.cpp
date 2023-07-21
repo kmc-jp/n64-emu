@@ -1,5 +1,4 @@
-﻿#include "pch.h"
-#include "cpu_operation.h"
+﻿#include "cpu_operation.h"
 #include "bus.h"
 #include "mmu.h"
 #include "utils.h"

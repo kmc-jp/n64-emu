@@ -40,5 +40,3 @@ target_link_libraries(n64 PUBLIC
     ${Boost_LIBRARIES})
 
 # target_link_libraries(n64 PRIVATE SDL2::SDL2)
-    
-target_precompile_headers(n64 PRIVATE pch.h)

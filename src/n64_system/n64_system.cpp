@@ -1,5 +1,4 @@
-﻿#include "pch.h"
-#include "n64_system.h"
+﻿#include "n64_system.h"
 #include "config.h"
 #include "cpu/cpu.h"
 #include "memory/memory.h"
