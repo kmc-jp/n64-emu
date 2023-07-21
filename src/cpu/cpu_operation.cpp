@@ -591,13 +591,13 @@ void Cpu::Operation::execute(Cpu &cpu, instruction_t inst) {
         // https://hack64.net/docs/VR43XX.pdf p.86
         assert_encoding_is_valid(inst.copz_type1.should_be_zero == 0);
         switch (inst.copz_type1.sub) {
-        case CP0_SUB_MF: // MFC0 (COPZ format)
+        case CP0_SUB_MFC0: // MFC0 (COPZ format)
             return Impl::op_mfc0(cpu, inst);
-        case CP0_SUB_MT: // MTC0 (COPZ format)
+        case CP0_SUB_MTC0: // MTC0 (COPZ format)
             return Impl::op_mtc0(cpu, inst);
-        case CP0_SUB_DMF: // DMFC0 (COPZ format)
+        case CP0_SUB_DMFC0: // DMFC0 (COPZ format)
             return Impl::op_dmfc0(cpu, inst);
-        case CP0_SUB_DMT: // DMTC0 (COPZ format)
+        case CP0_SUB_DMTC0: // DMTC0 (COPZ format)
             return Impl::op_dmtc0(cpu, inst);
         default:
             Utils::abort("Unimplemented CP0 inst. sub = {:07b}",

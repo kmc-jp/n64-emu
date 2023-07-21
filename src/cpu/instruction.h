@@ -97,10 +97,10 @@ constexpr uint8_t SPECIAL_FUNCT_MFLO = 0b010010;  // MFLO
 constexpr uint8_t REGIMM_RT_BLTZAL = 0b10000; // BLTZAL
 constexpr uint8_t REGIMM_RT_BGEZAL = 0b10001; // BGEZAL
 
-constexpr uint8_t CP0_SUB_MF = 0b00000;  // MFC0
-constexpr uint8_t CP0_SUB_DMF = 0b00001; // DMFC0
-constexpr uint8_t CP0_SUB_MT = 0b00100;  // MTC0
-constexpr uint8_t CP0_SUB_DMT = 0b00101; // DMT
+constexpr uint8_t CP0_SUB_MFC0 = 0b00000;  // MFC0
+constexpr uint8_t CP0_SUB_DMFC0 = 0b00001; // DMFC0
+constexpr uint8_t CP0_SUB_MTC0 = 0b00100;  // MTC0
+constexpr uint8_t CP0_SUB_DMTC0 = 0b00101; // DMT
 
 } // namespace Cpu
 } // namespace N64
