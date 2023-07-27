@@ -88,11 +88,13 @@ constexpr uint8_t SPECIAL_FUNCT_MULTU = 0b011001; // MULTU
 constexpr uint8_t SPECIAL_FUNCT_SLL = 0b000000;   // SLL
 constexpr uint8_t SPECIAL_FUNCT_SLLV = 0b000100;  // SLLV
 constexpr uint8_t SPECIAL_FUNCT_SRLV = 0b000110;  // SRLV
+constexpr uint8_t SPECIAL_FUNCT_SLT = 0b101010;   // SLT
 constexpr uint8_t SPECIAL_FUNCT_SLTU = 0b101011;  // SLTU
 constexpr uint8_t SPECIAL_FUNCT_AND = 0b100100;   // AND
 constexpr uint8_t SPECIAL_FUNCT_OR = 0b100101;    // OR
 constexpr uint8_t SPECIAL_FUNCT_XOR = 0b100110;   // XOR
 constexpr uint8_t SPECIAL_FUNCT_JR = 0b001000;    // JR
+constexpr uint8_t SPECIAL_FUNCT_JALR = 0b001001;  // JALR
 constexpr uint8_t SPECIAL_FUNCT_MFHI = 0b010000;  // MFHI
 constexpr uint8_t SPECIAL_FUNCT_MFLO = 0b010010;  // MFLO
 
