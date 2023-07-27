@@ -61,7 +61,6 @@ void Rom::load_file(const std::string &filepath) {
     std::ifstream file(filepath.c_str(), std::ios::in | std::ios::binary);
     if (!file.is_open()) {
         Utils::abort("Could not open ROM file: {}", filepath);
-        exit(-1);
         return;
     }
 
