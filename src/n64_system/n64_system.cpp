@@ -72,10 +72,13 @@ void step(Config &config) {
         if (N64::g_cpu().gpr.read(30) != 0) {
             Utils::info("Test finished");
             Utils::core_dump();
-            if ((int64_t)N64::g_cpu().gpr.read(30) == -1)
+            if ((int64_t)N64::g_cpu().gpr.read(30) == -1) {
+                Utils::info("Test passed");
                 exit(0);
-            else
+            } else {
+                Utils::info("Test failed");
                 exit(-1);
+            }
         }
     }
 

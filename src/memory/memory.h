@@ -5,21 +5,21 @@
 #include "rom.h"
 #include <cstdint>
 #include <iostream>
+#include <vector>
 
 namespace N64 {
 namespace Memory {
 
-// RDRAM with extension pack
-const int RDRAM_SIZE = 0x800000;
+constexpr uint32_t RDRAM_MEM_SIZE = 0x03F00000;
 
 class Memory {
   public:
     // TODO: 境界チェックをしたいのでprivateにする
-    uint8_t rdram[RDRAM_SIZE];
+    std::vector<uint8_t> rdram;
     RI ri;
     Rom rom;
 
-    Memory() {}
+    Memory() : rdram({}) { rdram.assign(RDRAM_MEM_SIZE, 0); }
 
     void reset() { ri.reset(); }
 
