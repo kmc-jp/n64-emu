@@ -6,6 +6,8 @@
 namespace N64 {
 namespace Cpu {
 
+constexpr uint8_t RA = 31;
+
 void assert_encoding_is_valid(bool validity) {
     // should be able to ignore?
     assert(validity);
@@ -52,7 +54,7 @@ class Cpu::Operation::Impl {
         branch_addr64(cpu, cond, cpu.pc + offset);
     }
 
-    static void link(Cpu &cpu) { cpu.gpr.write(31, cpu.pc + 4); }
+    static void link(Cpu &cpu, uint8_t reg) { cpu.gpr.write(reg, cpu.pc + 4); }
 
     static void op_add(Cpu &cpu, instruction_t inst) {
         // TODO: throw exception
@@ -167,6 +169,15 @@ class Cpu::Operation::Impl {
         cpu.gpr.write(inst.r_type.rd, (int64_t)res);
     }
 
+    static void op_slt(Cpu &cpu, instruction_t inst) {
+        // https://github.com/Dillonb/n64/blob/6502f7d2f163c3f14da5bff8cd6d5ccc47143156/src/cpu/mips_instructions.c#L962
+        uint64_t rs = cpu.gpr.read(inst.r_type.rs);
+        uint64_t rt = cpu.gpr.read(inst.r_type.rt);
+        Utils::trace("SLT {} {} {} ", GPR_NAMES[inst.r_type.rd],
+                     GPR_NAMES[inst.r_type.rs], GPR_NAMES[inst.r_type.rt]);
+        cpu.gpr.write(inst.r_type.rd, rs < rt ? 1 : 0);
+    }
+
     static void op_sltu(Cpu &cpu, instruction_t inst) {
         // https://github.com/Dillonb/n64/blob/6502f7d2f163c3f14da5bff8cd6d5ccc47143156/src/cpu/mips_instructions.c#L968
         assert_encoding_is_valid(inst.r_type.sa == 0);
@@ -217,6 +228,15 @@ class Cpu::Operation::Impl {
         branch_addr64(cpu, true, rs);
     }
 
+    static void op_jalr(Cpu &cpu, instruction_t inst) {
+        // https://github.com/Dillonb/n64/blob/6502f7d2f163c3f14da5bff8cd6d5ccc47143156/src/cpu/mips_instructions.c#L737
+        uint64_t rs = cpu.gpr.read(inst.r_type.rs);
+        branch_addr64(cpu, true, rs);
+        link(cpu, inst.r_type.rd);
+        Utils::trace("JALR addr={} dest={}", GPR_NAMES[inst.r_type.rs],
+                     GPR_NAMES[inst.r_type.rd]);
+    }
+
     static void op_mfhi(Cpu &cpu, instruction_t inst) {
         // https://github.com/Dillonb/n64/blob/6502f7d2f163c3f14da5bff8cd6d5ccc47143156/src/cpu/mips_instructions.c#L746
         assert_encoding_is_valid(inst.r_type.rs == 0 && inst.r_type.rt == 0 &&
@@ -238,7 +258,7 @@ class Cpu::Operation::Impl {
         int64_t rs = cpu.gpr.read(inst.i_type.rs);
         Utils::trace("BLTZAL cond: {} < 0", GPR_NAMES[inst.i_type.rs]);
         branch_offset16(cpu, rs < 0, inst);
-        link(cpu);
+        link(cpu, RA);
     }
 
     static void op_bgezal(Cpu &cpu, instruction_t inst) {
@@ -246,7 +266,7 @@ class Cpu::Operation::Impl {
         int64_t rs = cpu.gpr.read(inst.i_type.rs);
         Utils::trace("BGEZAL cond: {} >= 0", GPR_NAMES[inst.i_type.rs]);
         branch_offset16(cpu, rs >= 0, inst);
-        link(cpu);
+        link(cpu, RA);
     }
 
     static void op_j(Cpu &cpu, instruction_t inst) {
@@ -260,7 +280,7 @@ class Cpu::Operation::Impl {
 
     static void op_jal(Cpu &cpu, instruction_t inst) {
         // https://github.com/Dillonb/n64/blob/6502f7d2f163c3f14da5bff8cd6d5ccc47143156/src/cpu/mips_instructions.c#L189
-        link(cpu);
+        link(cpu, RA);
         uint64_t target = inst.j_type.target;
         target <<= 2;
         target |= ((cpu.pc - 4) & 0xFFFFFFFF'F0000000); // pc is now 4 ahead
@@ -543,6 +563,8 @@ void Cpu::Operation::execute(Cpu &cpu, instruction_t inst) {
             return Impl::op_sllv(cpu, inst);
         case SPECIAL_FUNCT_SRLV: // SRLV
             return Impl::op_srlv(cpu, inst);
+        case SPECIAL_FUNCT_SLT: // SLT
+            return Impl::op_slt(cpu, inst);
         case SPECIAL_FUNCT_SLTU: // SLTU
             return Impl::op_sltu(cpu, inst);
         case SPECIAL_FUNCT_AND: // AND
@@ -553,6 +575,8 @@ void Cpu::Operation::execute(Cpu &cpu, instruction_t inst) {
             return Impl::op_xor(cpu, inst);
         case SPECIAL_FUNCT_JR: // JR
             return Impl::op_jr(cpu, inst);
+        case SPECIAL_FUNCT_JALR: // JALR
+            return Impl::op_jalr(cpu, inst);
         case SPECIAL_FUNCT_MFHI: // MFHI
             return Impl::op_mfhi(cpu, inst);
         case SPECIAL_FUNCT_MFLO: // MFLO

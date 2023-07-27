@@ -5,8 +5,7 @@ namespace Memory {
 
 void abort_unimplemented_access(uint32_t paddr) {
     Utils::critical("Unimplemented access to paddr = {:#010x}", paddr);
-    Utils::core_dump();
-    exit(-1);
+    Utils::abort("aborted");
 }
 
 template <typename Wire> Wire read_paddr(uint32_t paddr) {
@@ -18,9 +17,9 @@ template <typename Wire> Wire read_paddr(uint32_t paddr) {
     // TODO: アラインメントのチェック
     // TODO: uint16_t, uint_64_tにちゃんと対応
 
-    if (PHYS_RDRAM_BASE <= paddr && paddr <= PHYS_RDRAM_END) {
-        const uint32_t offs = paddr - PHYS_RDRAM_BASE;
-        return Utils::read_from_byte_array<Wire>(g_memory().rdram, offs);
+    if (PHYS_RDRAM_MEM_BASE <= paddr && paddr <= PHYS_RDRAM_MEM_END) {
+        const uint32_t offs = paddr - PHYS_RDRAM_MEM_BASE;
+        return Utils::read_from_byte_array<Wire>(g_memory().get_rdram(), offs);
     } else if (PHYS_SPDMEM_BASE <= paddr && paddr <= PHYS_SPDMEM_END) {
         if constexpr (wire16) {
             abort_unimplemented_access(paddr);

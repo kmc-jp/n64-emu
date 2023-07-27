@@ -86,7 +86,7 @@ void PI::dma_write() {
         cart_addr -= 0x1000'0000;
         for (uint32_t i = 0; i < transfer_len; i++) {
             // FIXME: ROMのサイズを超えてsegvになる可能性あり
-            g_memory().rdram[dram_addr + i] =
+            g_memory().get_rdram()[dram_addr + i] =
                 g_memory().rom.read_offset8(cart_addr + i);
         }
 

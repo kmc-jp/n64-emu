@@ -5,30 +5,34 @@
 #include "rom.h"
 #include <cstdint>
 #include <iostream>
+#include <vector>
 
 namespace N64 {
 namespace Memory {
 
-// RDRAM with extension pack
-const int RDRAM_SIZE = 0x800000;
+constexpr uint32_t RDRAM_MEM_SIZE = 0x03F00000;
 
 class Memory {
+    std::vector<uint8_t> rdram;
+
   public:
-    // TODO: 境界チェックをしたいのでprivateにする
-    uint8_t rdram[RDRAM_SIZE];
     RI ri;
     Rom rom;
 
-    Memory() {}
+    Memory() : rdram({}) { rdram.assign(RDRAM_MEM_SIZE, 0); }
 
     void reset() { ri.reset(); }
 
     void load_rom(const std::string &rom_filepath) {
         Utils::debug("initializing RDRAM");
-        rom.read_from(rom_filepath);
+        rom.load_file(rom_filepath);
     }
 
     static Memory &get_instance() { return instance; }
+
+    std::vector<uint8_t> &get_rdram() {
+        return rdram;
+    }
 
   private:
     static Memory instance;
