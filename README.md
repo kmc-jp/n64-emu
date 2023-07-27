@@ -1,5 +1,5 @@
 # n64-emu
-A experimental Nintendo 64 emulator.
+An experimental Nintendo 64 emulator.
 
 # Build
 ## Windows
