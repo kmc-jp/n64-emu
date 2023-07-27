@@ -62,8 +62,7 @@ static void write_paddr32(uint32_t paddr, uint32_t value) {
         return g_si().write_paddr32(paddr, value);
     } else {
         Utils::critical("Unimplemented. access to paddr = {:#010x}", paddr);
-        Utils::core_dump();
-        exit(-1);
+        Utils::abort("aborted");
     }
 }
 

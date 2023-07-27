@@ -19,6 +19,8 @@
 
 namespace Utils {
 
+constexpr int NUM_BACKTRACE_LOG = 32;
+
 /* 指定された配列から8byte分を読み込む (big endian) */
 inline uint64_t read_from_byte_array64(std::span<const uint8_t> span,
                                        uint64_t offset) {
@@ -107,8 +109,8 @@ inline void info(fmt::format_string<Args...> fmt, Args &&...args) {
 
 template <typename... Args>
 void abort(fmt::format_string<Args...> fmt, Args &&...args) {
-    spdlog::critical("Abort!");
     spdlog::critical(fmt, std::forward<Args>(args)...);
+    spdlog::dump_backtrace();
     core_dump();
     exit(-1);
 }

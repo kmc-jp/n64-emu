@@ -27,7 +27,10 @@ void unimplemented(const std::string what, const std::source_location loc) {
     exit(-1);
 }
 
-void init_logger() { spdlog::set_pattern("[%^%l%$] %v"); }
+void init_logger() {
+    spdlog::set_pattern("[%^%l%$] %v");
+    spdlog::enable_backtrace(NUM_BACKTRACE_LOG);
+}
 
 void set_log_file(std::string filepath) {
     set_default_logger(spdlog::basic_logger_mt("basic_logger", filepath, true));

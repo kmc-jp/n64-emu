@@ -5,8 +5,7 @@ namespace Memory {
 
 void abort_unimplemented_access(uint32_t paddr) {
     Utils::critical("Unimplemented access to paddr = {:#010x}", paddr);
-    Utils::core_dump();
-    exit(-1);
+    Utils::abort("aborted");
 }
 
 template <typename Wire> Wire read_paddr(uint32_t paddr) {
