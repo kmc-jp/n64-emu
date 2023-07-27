@@ -73,6 +73,7 @@ void Rom::load_file(const std::string &filepath) {
     // go back to the first byte
     file.clear();
     file.seekg(0);
+    Utils::debug("ROM size\t= {} bytes", file_size);
 
     // Read entire ROM data
     file.read(reinterpret_cast<char *>(rom.data()), 0x10000);
