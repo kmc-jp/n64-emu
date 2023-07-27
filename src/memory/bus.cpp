@@ -19,7 +19,7 @@ template <typename Wire> Wire read_paddr(uint32_t paddr) {
 
     if (PHYS_RDRAM_MEM_BASE <= paddr && paddr <= PHYS_RDRAM_MEM_END) {
         const uint32_t offs = paddr - PHYS_RDRAM_MEM_BASE;
-        return Utils::read_from_byte_array<Wire>(g_memory().rdram, offs);
+        return Utils::read_from_byte_array<Wire>(g_memory().get_rdram(), offs);
     } else if (PHYS_SPDMEM_BASE <= paddr && paddr <= PHYS_SPDMEM_END) {
         if constexpr (wire16) {
             abort_unimplemented_access(paddr);

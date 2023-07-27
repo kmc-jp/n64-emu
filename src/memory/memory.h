@@ -13,9 +13,9 @@ namespace Memory {
 constexpr uint32_t RDRAM_MEM_SIZE = 0x03F00000;
 
 class Memory {
-  public:
-    // TODO: 境界チェックをしたいのでprivateにする
     std::vector<uint8_t> rdram;
+
+  public:
     RI ri;
     Rom rom;
 
@@ -29,6 +29,10 @@ class Memory {
     }
 
     static Memory &get_instance() { return instance; }
+
+    std::vector<uint8_t> &get_rdram() {
+        return rdram;
+    }
 
   private:
     static Memory instance;

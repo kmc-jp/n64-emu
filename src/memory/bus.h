@@ -45,7 +45,7 @@ static void write_paddr32(uint32_t paddr, uint32_t value) {
     // TODO: アラインメントのチェック
     if (PHYS_RDRAM_MEM_BASE <= paddr && paddr <= PHYS_RDRAM_MEM_END) {
         uint32_t offs = paddr - PHYS_RDRAM_MEM_BASE;
-        Utils::write_to_byte_array32(&g_memory().rdram[offs], value);
+        Utils::write_to_byte_array32(&g_memory().get_rdram()[offs], value);
     } else if (PHYS_SPDMEM_BASE <= paddr && paddr <= PHYS_SPDMEM_END) {
         uint32_t offs = paddr - PHYS_SPDMEM_BASE;
         Utils::write_to_byte_array32(&g_rsp().sp_dmem[offs], value);
