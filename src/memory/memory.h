@@ -25,7 +25,7 @@ class Memory {
 
     void load_rom(const std::string &rom_filepath) {
         Utils::debug("initializing RDRAM");
-        rom.read_from(rom_filepath);
+        rom.load_file(rom_filepath);
     }
 
     static Memory &get_instance() { return instance; }

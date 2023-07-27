@@ -55,23 +55,34 @@ CicType checksum_to_cic(uint32_t checksum) {
     return result;
 }
 
-void Rom::read_from(const std::string &filepath) {
-
+void Rom::load_file(const std::string &filepath) {
     Utils::debug("reading from ROM");
 
     std::ifstream file(filepath.c_str(), std::ios::in | std::ios::binary);
     if (!file.is_open()) {
         Utils::abort("Could not open ROM file: {}", filepath);
+        exit(-1);
         return;
     }
-    rom = {std::istreambuf_iterator<char>(file),
-           std::istreambuf_iterator<char>()};
-    // cartridge size
-    // https://github.com/SimoneN64/Kaizen/blob/dffd36fc31731a0391a9b90f88ac2e5ed5d3f9ec/src/backend/MemoryRegions.hpp#L18
-    rom.resize(ROM_SIZE);
 
-    if (rom.size() < sizeof(rom_header_t)) {
+    // determine file size
+    uint64_t file_size = file.tellg();
+    // go to the last byte
+    file.seekg(0, std::ios::end);
+    file_size = static_cast<uint64_t>(file.tellg()) - file_size;
+    // go back to the first byte
+    file.clear();
+    file.seekg(0);
+
+    // Read entire ROM data
+    file.read(reinterpret_cast<char *>(rom.data()), 0x10000);
+
+    if (file_size < sizeof(rom_header_t)) {
         Utils::abort("ROM is too small");
+        return;
+    }
+    if (file_size > ROM_SIZE) {
+        Utils::abort("ROM size is huge. exceeds {} bytes.", ROM_SIZE);
         return;
     }
 
@@ -82,7 +93,6 @@ void Rom::read_from(const std::string &filepath) {
     const uint32_t checksum = crc32(0, &rom[0x40], 0x9C0);
     cic = checksum_to_cic(checksum);
 
-    Utils::debug("ROM size\t= {}", rom.size());
     Utils::debug("imageName\t= \"{}\"", std::string(header.image_name));
     Utils::debug("CIC\t= {}", static_cast<int>(cic));
 }

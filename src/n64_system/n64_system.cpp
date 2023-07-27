@@ -10,20 +10,20 @@
 namespace N64 {
 namespace N64System {
 
-void reset_all(Config& config) {
+void reset_all(Config &config) {
     // this is not an actual hardware. but reset here.
     N64::g_scheduler().init();
 
     // reset all hardware
-    N64::g_memory().load_rom(config.rom_filepath);
     N64::g_memory().reset();
+    N64::g_memory().load_rom(config.rom_filepath);
     N64::g_cpu().reset();
     N64::g_rsp().reset();
     N64::g_pi().reset();
     N64::g_si().reset();
 }
 
-void run(Config& config) {
+void run(Config &config) {
     Utils::info("Resetting N64 system");
     N64System::reset_all(config);
 
@@ -49,7 +49,7 @@ void run(Config& config) {
     }
 }
 
-void step(Config& config) {
+void step(Config &config) {
     static int consumed_cpu_cycles = 0;
 
     // CPU step
