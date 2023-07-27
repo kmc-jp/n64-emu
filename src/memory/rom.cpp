@@ -1,4 +1,4 @@
-#include "rom.h"
+﻿#include "rom.h"
 #include "utils.h"
 
 #include <fstream>
@@ -75,7 +75,7 @@ void Rom::load_file(const std::string &filepath) {
     Utils::debug("ROM size\t= {} bytes", file_size);
 
     // Read entire ROM data
-    file.read(reinterpret_cast<char *>(rom.data()), 0x10000);
+    file.read(reinterpret_cast<char *>(rom.data()), file_size);
 
     if (file_size < sizeof(rom_header_t)) {
         Utils::abort("ROM is too small");
