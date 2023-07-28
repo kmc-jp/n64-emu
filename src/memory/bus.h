@@ -41,31 +41,7 @@ uint32_t read_paddr32(uint32_t paddr);
 uint16_t read_paddr16(uint32_t paddr);
 
 // 指定された物理アドレスに32bitを書き込む (big endian)
-static void write_paddr32(uint32_t paddr, uint32_t value) {
-    // TODO: アラインメントのチェック
-    if (PHYS_RDRAM_MEM_BASE <= paddr && paddr <= PHYS_RDRAM_MEM_END) {
-        uint32_t offs = paddr - PHYS_RDRAM_MEM_BASE;
-        Utils::write_to_byte_array32(&g_memory().get_rdram()[offs], value);
-    } else if (PHYS_SPDMEM_BASE <= paddr && paddr <= PHYS_SPDMEM_END) {
-        uint32_t offs = paddr - PHYS_SPDMEM_BASE;
-        Utils::write_to_byte_array32(&g_rsp().sp_dmem[offs], value);
-    } else if (PHYS_SPIMEM_BASE <= paddr && paddr < PHYS_SPIMEM_END) {
-        uint32_t offs = paddr - PHYS_SPIMEM_BASE;
-        Utils::write_to_byte_array32(&g_rsp().sp_imem[offs], value);
-    } else if (PHYS_PI_BASE <= paddr && paddr <= PHYS_PI_END) {
-        g_pi().write_paddr32(paddr, value);
-    } else if (PHYS_RI_BASE <= paddr && paddr <= PHYS_RI_END) {
-        g_memory().ri.write_paddr32(paddr, value);
-    } else if (PHYS_ROM_BASE <= paddr && paddr <= PHYS_ROM_END) {
-        Utils::write_to_byte_array32(
-            &g_memory().rom.raw()[paddr - PHYS_ROM_BASE], value);
-    } else if (PHYS_PIF_RAM_BASE <= paddr && paddr <= PHYS_PIF_RAM_END) {
-        return g_si().write_paddr32(paddr, value);
-    } else {
-        Utils::critical("Unimplemented. access to paddr = {:#010x}", paddr);
-        Utils::abort("aborted");
-    }
-}
+void write_paddr32(uint32_t paddr, uint32_t value);
 
 } // namespace Memory
 } // namespace N64

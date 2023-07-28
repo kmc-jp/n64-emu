@@ -9,6 +9,7 @@ set(PCH_FILES
     <span>
     <string>
     <utility>
+    <array>
     <vector>
     <spdlog/spdlog.h>
     <spdlog/sinks/basic_file_sink.h>)
