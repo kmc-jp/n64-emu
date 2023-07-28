@@ -22,24 +22,9 @@ include_directories(
     rsp
     utils
     n64_system
+    "${CMAKE_SOURCE_DIR}/third_party/spdlog/include"
 )
 
-# Boost
-# set(Boost_DEBUG ON)
-find_package(Boost)
-find_package(Threads)
-include_directories(${Boost_INCLUDE_DIR})
-
-# spdlog
-include_directories("${CMAKE_SOURCE_DIR}/third_party/spdlog/include")
-
-# SDL2
-# find_package(SDL2 REQUIRED CONFIG REQUIRED COMPONENTS SDL2)
-# find_package(SDL2 REQUIRED CONFIG COMPONENTS SDL2main)
-#
-# if(TARGET SDL2::SDL2main)
-# target_link_libraries(n64 PRIVATE SDL2::SDL2main)
-# endif()
 add_executable(n64 main.cpp)
 
 add_subdirectory(cpu)
@@ -51,8 +36,7 @@ add_subdirectory(utils)
 add_subdirectory(n64_system)
 
 target_link_libraries(n64 PUBLIC
-    cpu memory mmio mmu rsp utils n64_system
-    ${Boost_LIBRARIES})
+    cpu memory mmio mmu rsp utils n64_system)
 
 # target_link_libraries(n64 PRIVATE SDL2::SDL2)
 target_precompile_headers(n64
