@@ -1,21 +1,23 @@
 ﻿#include "bus.h"
 #include "cpu/cpu.h"
+#include "memory.h"
 #include "rsp/rsp.h"
 
 namespace N64 {
 namespace Memory {
 
-/* ROMのブートコード(PIF ROM)の副作用をエミュレートする */
-// https://n64.readthedocs.io/#simulating-the-pif-rom
-// FIXME: カートリッジの種類(CIC?)によって、PIF ROMの副作用が異なるっぽい
-void pif_rom_execute() {
+// https://github.com/SimoneN64/Kaizen/blob/dffd36fc31731a0391a9b90f88ac2e5ed5d3f9ec/src/backend/core/mmio/PIF.cpp#L338
+void pif_hle_execute() {
     // https://github.com/SimoneN64/Kaizen/blob/dffd36fc31731a0391a9b90f88ac2e5ed5d3f9ec/src/backend/core/mmio/PIF.cpp#L379
-    bool pal{}; // TODO
+    // FIXME: check PAL
+    bool pal = false;
+
+    // https://github.com/SimoneN64/Kaizen/blob/dffd36fc31731a0391a9b90f88ac2e5ed5d3f9ec/src/backend/core/mmio/PIF.cpp#L606
+    const uint32_t cic_seed = g_memory().rom.get_cic_seed();
+    N64::Memory::write_paddr32(PHYS_PIF_RAM_BASE + 0x24, cic_seed);
 
     switch (g_memory().rom.get_cic()) {
-    case CicType::CIC_UNKNOWN:
-        break;
-    case CicType::CIC_NUS_6101:
+    case CicType::CIC_NUS_6101: {
         g_cpu().gpr.write(0, 0x0000000000000000);
         g_cpu().gpr.write(1, 0x0000000000000000);
         g_cpu().gpr.write(2, 0xFFFFFFFFDF6445CCll);
@@ -47,8 +49,11 @@ void pif_rom_execute() {
         g_cpu().gpr.write(29, 0xFFFFFFFFA4001FF0ll);
         g_cpu().gpr.write(30, 0x0000000000000000);
         g_cpu().gpr.write(31, 0xFFFFFFFFA4001550ll);
-        break;
-    case CicType::CIC_NUS_7102:
+
+        g_cpu().lo = 0xFFFFFFFFBA1A7D4Bll;
+        g_cpu().hi = 0xFFFFFFFF997EC317ll;
+    } break;
+    case CicType::CIC_NUS_7102: {
         g_cpu().gpr.write(0, 0x0000000000000000);
         g_cpu().gpr.write(1, 0x0000000000000001);
         g_cpu().gpr.write(2, 0x000000001E324416);
@@ -81,8 +86,11 @@ void pif_rom_execute() {
         g_cpu().gpr.write(29, 0xFFFFFFFFA4001FF0ll);
         g_cpu().gpr.write(30, 0x0000000000000000);
         g_cpu().gpr.write(31, 0xFFFFFFFFA4001554ll);
-        break;
-    case CicType::CIC_NUS_6102_7101:
+
+        g_cpu().lo = 0xFFFFFFFFF1D30682ll;
+        g_cpu().hi = 0x0000000010054A98;
+    } break;
+    case CicType::CIC_NUS_6102_7101: {
         g_cpu().gpr.write(0, 0x0000000000000000);
         g_cpu().gpr.write(1, 0x0000000000000001);
         g_cpu().gpr.write(2, 0x000000000EBDA536);
@@ -115,13 +123,16 @@ void pif_rom_execute() {
         g_cpu().gpr.write(30, 0x0000000000000000);
         g_cpu().gpr.write(31, 0xFFFFFFFFA4001550ll);
 
+        g_cpu().hi = 0x000000003FC18657;
+        g_cpu().lo = 0x000000003103E121;
+
         if (pal) {
             g_cpu().gpr.write(20, 0x0000000000000000);
             g_cpu().gpr.write(23, 0x0000000000000006);
             g_cpu().gpr.write(31, 0xFFFFFFFFA4001554ll);
         }
-        break;
-    case CicType::CIC_NUS_6103_7103:
+    } break;
+    case CicType::CIC_NUS_6103_7103: {
         g_cpu().gpr.write(0, 0x0000000000000000);
         g_cpu().gpr.write(1, 0x0000000000000001);
         g_cpu().gpr.write(2, 0x0000000049A5EE96);
@@ -159,8 +170,11 @@ void pif_rom_execute() {
             g_cpu().gpr.write(23, 0x0000000000000006);
             g_cpu().gpr.write(31, 0xFFFFFFFFA4001554ll);
         }
-        break;
-    case CicType::CIC_NUS_6105_7105:
+
+        g_cpu().lo = 0x0000000018B63D28;
+        g_cpu().hi = 0x00000000625C2BBE;
+    } break;
+    case CicType::CIC_NUS_6105_7105: {
         g_cpu().gpr.write(0, 0x0000000000000000);
         g_cpu().gpr.write(1, 0x0000000000000000);
         g_cpu().gpr.write(2, 0xFFFFFFFFF58B0FBFll);
@@ -193,6 +207,9 @@ void pif_rom_execute() {
         g_cpu().gpr.write(30, 0x0000000000000000);
         g_cpu().gpr.write(31, 0xFFFFFFFFA4001550ll);
 
+        g_cpu().lo = 0x0000000056584D60;
+        g_cpu().hi = 0x000000004BE35D1F;
+
         if (pal) {
             g_cpu().gpr.write(20, 0x0000000000000000);
             g_cpu().gpr.write(23, 0x0000000000000006);
@@ -208,8 +225,8 @@ void pif_rom_execute() {
         write_paddr32(PHYS_SPIMEM_BASE + 0x18, 0x8DA80024);
         write_paddr32(PHYS_SPIMEM_BASE + 0x1C, 0x3C0BB000);
 
-        break;
-    case CicType::CIC_NUS_6106_7106:
+    } break;
+    case CicType::CIC_NUS_6106_7106: {
         g_cpu().gpr.write(0, 0x0000000000000000);
         g_cpu().gpr.write(1, 0x0000000000000000);
         g_cpu().gpr.write(2, 0xFFFFFFFFA95930A4ll);
@@ -242,16 +259,21 @@ void pif_rom_execute() {
         g_cpu().gpr.write(30, 0x0000000000000000);
         g_cpu().gpr.write(31, 0xFFFFFFFFA4001550ll);
 
+        g_cpu().lo = 0x000000007A3C07F4;
+        g_cpu().hi = 0x0000000023953898;
+
         if (pal) {
             g_cpu().gpr.write(20, 0x0000000000000000);
             g_cpu().gpr.write(23, 0x0000000000000006);
             g_cpu().gpr.write(31, 0xFFFFFFFFA4001554ll);
         }
-        break;
-    default:
+    } break;
+    default: {
         Utils::abort("Could not boot. Unsupported CIC type.");
-        break;
+    } break;
     }
+
+    g_cpu().gpr.write(22, (cic_seed >> 8) & 0xFF);
 
     // PCの初期化
     g_cpu().set_pc64(0xA4000040);
@@ -263,11 +285,36 @@ void pif_rom_execute() {
     g_cpu().cop0.reg.prid = 0x00000B00;
     g_cpu().cop0.reg.config = 0x0006E463;
 
+    // FIXME: correct?
+    N64::Memory::write_paddr32(0x04300004, 0x01010101);
+
     // ROMの最初0x1000バイトをSP DMEMにコピー
     //   i.e. 0xB0000000 から 0xA4000000 に0x1000バイトをコピー
     // https://github.com/Dillonb/n64/blob/6502f7d2f163c3f14da5bff8cd6d5ccc47143156/src/mem/pif.c#L358
     memcpy(g_rsp().get_sp_dmem().data(), g_memory().rom.raw(),
            sizeof(uint8_t) * 0x1000);
+}
+
+// ROMのブートコード(PIF ROM)の副作用をエミュレートする
+void pif_rom_execute() {
+
+    switch (g_memory().rom.get_cic()) {
+    case CicType::CIC_UNKNOWN: {
+        Utils::abort("Unknown CIC type");
+    } break;
+    case CicType::CIC_NUS_6101:
+    case CicType::CIC_NUS_7102:
+    case CicType::CIC_NUS_6102_7101:
+    case CicType::CIC_NUS_6103_7103: {
+        N64::Memory::write_paddr32(0x318, RDRAM_MEM_SIZE);
+    } break;
+    case CicType::CIC_NUS_6105_7105: {
+        N64::Memory::write_paddr32(0x3F0, RDRAM_MEM_SIZE);
+    } break;
+    case CicType::CIC_NUS_6106_7106:
+        break;
+    }
+    pif_hle_execute();
 }
 
 } // namespace Memory

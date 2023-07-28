@@ -33,14 +33,14 @@ typedef struct RomHeader {
     };
 } rom_header_t;
 
-enum class CicType {
-    CIC_UNKNOWN,
-    CIC_NUS_6101,
-    CIC_NUS_7102,
-    CIC_NUS_6102_7101,
-    CIC_NUS_6103_7103,
-    CIC_NUS_6105_7105,
-    CIC_NUS_6106_7106
+enum class CicType : uint32_t {
+    CIC_UNKNOWN = 0,
+    CIC_NUS_6101 = 1,
+    CIC_NUS_7102 = 2,
+    CIC_NUS_6102_7101 = 3,
+    CIC_NUS_6103_7103 = 4,
+    CIC_NUS_6105_7105 = 5,
+    CIC_NUS_6106_7106 = 6
 };
 
 class Rom {
@@ -51,13 +51,26 @@ class Rom {
     CicType cic{};
 
   public:
-    Rom() : rom({}) {
-        rom.assign(ROM_SIZE, 0);
-    }
+    Rom() : rom({}) { rom.assign(ROM_SIZE, 0); }
 
     void load_file(const std::string &filepath);
 
     CicType get_cic() const { return cic; }
+
+    uint32_t get_cic_seed() const {
+        // TODO: switch文にする
+        // https://github.com/SimoneN64/Kaizen/blob/dffd36fc31731a0391a9b90f88ac2e5ed5d3f9ec/src/backend/core/mmio/PIF.hpp#L84
+        uint32_t CIC_SEEDS[] = {
+            0x0,
+            0x00043F3F, // CIC_NUS_6101
+            0x00043F3F, // CIC_NUS_7102
+            0x00043F3F, // CIC_NUS_6102_7101
+            0x00047878, // CIC_NUS_6103_7103
+            0x00049191, // CIC_NUS_6105_7105
+            0x00048585, // CIC_NUS_6106_7106
+        };
+        return CIC_SEEDS[static_cast<uint32_t>(cic)];
+    }
 
     // ROMの生データの先頭へのポインタを返す
     // FIXME: 生ポインタは使いたくない, read_offset8, read_offset32,

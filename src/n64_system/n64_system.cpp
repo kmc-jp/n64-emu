@@ -52,6 +52,15 @@ void run(Config &config) {
 void step(Config &config) {
     static int consumed_cpu_cycles = 0;
 
+    // TODO: refine
+    // breakpoint うちたいときはとりあえずここを使う
+    /*
+    if ((N64::g_cpu().get_pc64()) == 0xffffffff800000dc - 1) {
+        stop = true;
+        Utils::abort("Reached break point 1");
+    }
+    */
+
     // CPU step
     N64::g_cpu().step();
     consumed_cpu_cycles += Cpu::CPU_CYCLES_PER_INST;

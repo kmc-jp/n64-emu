@@ -14,12 +14,15 @@ namespace Memory {
 // clang-format off
 // RDRAM with extension pack
 constexpr uint32_t PHYS_RDRAM_MEM_BASE  = 0x00000000;
-constexpr uint32_t PHYS_RDRAM_MEM_END   = 0x03EFFFFF;
+constexpr uint32_t PHYS_RDRAM_MEM_END   = 0x007FFFFF;
 
 constexpr uint32_t PHYS_SPDMEM_BASE = 0x04000000;
 constexpr uint32_t PHYS_SPDMEM_END  = 0x04000FFF;
 constexpr uint32_t PHYS_SPIMEM_BASE = 0x04001000;
 constexpr uint32_t PHYS_SPIMEM_END  = 0x04001FFF;
+
+constexpr uint32_t PHYS_MI_BASE     = 0x04300000;
+constexpr uint32_t PHYS_MI_END      = 0x043FFFFF;
 
 constexpr uint32_t PHYS_PI_BASE     = 0x04600000;
 constexpr uint32_t PHYS_PI_END      = 0x046FFFFF;
@@ -40,6 +43,7 @@ uint64_t read_paddr64(uint32_t paddr);
 uint32_t read_paddr32(uint32_t paddr);
 uint16_t read_paddr16(uint32_t paddr);
 
+// TODO: Memoryクラスに移動
 // 指定された物理アドレスに32bitを書き込む (big endian)
 void write_paddr32(uint32_t paddr, uint32_t value);
 
