@@ -46,6 +46,9 @@ template <typename Wire> Wire read_paddr(uint32_t paddr) {
         } else {
             static_assert(false);
         }
+    } else if (PHYS_MI_BASE <= paddr && paddr <= PHYS_MI_END) {
+        Utils::critical("Unimplemented. read from MI, ignored");
+        return 0xdeadbeef;
     } else if (PHYS_PI_BASE <= paddr && paddr <= PHYS_PI_END) {
         if constexpr (wire16) {
             abort_unimplemented_access(paddr);
@@ -106,6 +109,8 @@ void write_paddr32(uint32_t paddr, uint32_t value) {
     } else if (PHYS_SPIMEM_BASE <= paddr && paddr < PHYS_SPIMEM_END) {
         uint32_t offs = paddr - PHYS_SPIMEM_BASE;
         Utils::write_to_byte_array32(&g_rsp().get_sp_imem()[offs], value);
+    } else if (PHYS_MI_BASE <= paddr && paddr <= PHYS_MI_END) {
+        Utils::critical("Unimplemented. write to MI, ignored");
     } else if (PHYS_PI_BASE <= paddr && paddr <= PHYS_PI_END) {
         g_pi().write_paddr32(paddr, value);
     } else if (PHYS_RI_BASE <= paddr && paddr <= PHYS_RI_END) {

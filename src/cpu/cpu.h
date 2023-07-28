@@ -16,16 +16,18 @@ class Cpu {
     // program counter
     uint64_t pc;
     uint64_t next_pc;
+
+    static Cpu instance;
+
+  public:
+    Gpr gpr;
+
     // special registers
     // 1.3
     // https://ultra64.ca/files/documentation/silicon-graphics/SGI_R4300_RISC_Processor_Specification_REV2.2.pdf
     uint64_t lo;
     uint64_t hi;
 
-    static Cpu instance;
-
-  public:
-    Gpr gpr;
     // branch delay slot?
     bool delay_slot;
     bool prev_delay_slot;

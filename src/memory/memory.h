@@ -10,7 +10,7 @@
 namespace N64 {
 namespace Memory {
 
-constexpr uint32_t RDRAM_MEM_SIZE = 0x03F00000;
+constexpr uint32_t RDRAM_MEM_SIZE = 0x800000;
 
 class Memory {
     std::vector<uint8_t> rdram;
