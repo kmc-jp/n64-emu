@@ -67,6 +67,7 @@ inline Wire read_from_byte_array(std::span<const uint8_t> span,
 }
 
 /* 指定されたポインタに4byte分を書き込む (big endian) */
+// FIXME: spanに変える
 void write_to_byte_array32(uint8_t *ptr, uint32_t value);
 
 void core_dump();

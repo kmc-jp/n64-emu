@@ -8,7 +8,6 @@ namespace N64 {
 namespace Mmio {
 namespace PI {
 
-// https://n64brew.dev/wiki/Peripheral_Interface
 const uint32_t PADDR_DRAM_ADDR = 0x04600000;
 const uint32_t PADDR_CART_ADDR = 0x04600004;
 const uint32_t PADDR_RD_LEN = 0x04600008;
@@ -21,6 +20,8 @@ void on_dma_write_completed();
 
 }
 
+// Peripheral Interface
+// https://n64brew.dev/wiki/Peripheral_Interface
 class PI {
     // DMA write完了時の処理
     friend void PIScheduler::on_dma_write_completed();

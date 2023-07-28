@@ -1,9 +1,10 @@
 ﻿#include "bus.h"
 #include "memory.h"
 #include "memory_map.h"
-#include "pi.h"
+#include "mmio/mi.h"
+#include "mmio/pi.h"
+#include "mmio/si.h"
 #include "rsp.h"
-#include "si.h"
 #include "utils.h"
 #include <cstdint>
 #include <utility>
@@ -53,8 +54,15 @@ template <typename Wire> Wire read_paddr(uint32_t paddr) {
             static_assert(false);
         }
     } else if (PHYS_MI_BASE <= paddr && paddr <= PHYS_MI_END) {
-        Utils::critical("Unimplemented. read from MI, ignored");
-        return 0xdeadbeef;
+        if constexpr (wire16) {
+            abort_unimplemented_access(paddr);
+        } else if constexpr (wire32) {
+            return g_mi().read_paddr32(paddr);
+        } else if constexpr (wire64) {
+            abort_unimplemented_access(paddr);
+        } else {
+            static_assert(false);
+        }
     } else if (PHYS_PI_BASE <= paddr && paddr <= PHYS_PI_END) {
         if constexpr (wire16) {
             abort_unimplemented_access(paddr);
@@ -116,7 +124,7 @@ void write_paddr32(uint32_t paddr, uint32_t value) {
         uint32_t offs = paddr - PHYS_SPIMEM_BASE;
         Utils::write_to_byte_array32(&g_rsp().get_sp_imem()[offs], value);
     } else if (PHYS_MI_BASE <= paddr && paddr <= PHYS_MI_END) {
-        Utils::critical("Unimplemented. write to MI, ignored");
+        g_mi().write_paddr32(paddr, value);
     } else if (PHYS_PI_BASE <= paddr && paddr <= PHYS_PI_END) {
         g_pi().write_paddr32(paddr, value);
     } else if (PHYS_RI_BASE <= paddr && paddr <= PHYS_RI_END) {

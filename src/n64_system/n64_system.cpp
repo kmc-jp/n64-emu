@@ -3,7 +3,9 @@
 #include "cpu/cpu.h"
 #include "memory/memory.h"
 #include "memory/pif.h"
+#include "mmio/mi.h"
 #include "mmio/pi.h"
+#include "mmio/si.h"
 #include "rsp/rsp.h"
 #include "scheduler.h"
 #include "si.h"
@@ -22,6 +24,7 @@ void reset_all(Config &config) {
     N64::g_rsp().reset();
     N64::g_pi().reset();
     N64::g_si().reset();
+    N64::g_mi().reset();
 }
 
 void run(Config &config) {
