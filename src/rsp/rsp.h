@@ -10,11 +10,12 @@ namespace Rsp {
 #define SP_IMEM_SIZE 0x1000
 
 class Rsp {
-  public:
-    // TODO: レジスタを追加
-
+  private:
     std::array<uint8_t, SP_DMEM_SIZE> sp_dmem{};
     std::array<uint8_t, SP_IMEM_SIZE> sp_imem{};
+
+  public:
+    // TODO: レジスタを追加
 
     Rsp() {}
 
@@ -28,6 +29,10 @@ class Rsp {
     }
 
     inline static Rsp &get_instance() { return instance; }
+
+    std::array<uint8_t, SP_DMEM_SIZE> &get_sp_dmem() { return sp_dmem; }
+
+    std::array<uint8_t, SP_IMEM_SIZE> &get_sp_imem() { return sp_imem; }
 
   private:
     static Rsp instance;
