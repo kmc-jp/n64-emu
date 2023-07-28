@@ -1,7 +1,7 @@
 ﻿#include "pi.h"
-#include "n64_system/scheduler.h"
-#include "memory_map.h"
 #include "memory.h"
+#include "memory_map.h"
+#include "n64_system/scheduler.h"
 #include "utils.h"
 #include <cstdint>
 
@@ -37,7 +37,7 @@ uint32_t PI::read_paddr32(uint32_t paddr) const {
     case PADDR_STATUS:
         return reg_status;
     default: {
-        Utils::critical("Unimplemented. Access to PI paddr = {:#010x}", paddr);
+        Utils::critical("Unimplemented. Read from PI paddr = {:#010x}", paddr);
         Utils::abort("Aborted");
     } break;
     }
@@ -71,7 +71,7 @@ void PI::write_paddr32(uint32_t paddr, uint32_t value) {
         // do not write to register
     } break;
     default: {
-        Utils::critical("Unimplemented. Access to PI paddr = {:#010x}", paddr);
+        Utils::critical("Unimplemented. Write to PI paddr = {:#010x}", paddr);
         Utils::abort("Aborted");
     } break;
     }
@@ -93,9 +93,9 @@ void PI::dma_write() {
         reg_status |= PI_STATUS_DMA_BUSY;
         reg_status |= PI_STATUS_IO_BUSY;
 
-        Utils::debug(
-            "DMA Write: Cart {:#010x} -> dram {:#010x} (len = {:#010x})",
-            cart_addr, dram_addr, transfer_len);
+        Utils::debug("DMA Write: cart offset {:#010x} -> dram offset {:#010x} "
+                     "(len = {:#010x})",
+                     cart_addr, dram_addr, transfer_len);
         // Timerの値は以下を参考
         // https://github.com/project64/project64/blob/353ef5ed897cb72a8904603feddbdc649dff9eca/Source/Project64-core/N64System/MemoryHandler/PeripheralInterfaceHandler.cpp#L460
         g_scheduler().set_timer(

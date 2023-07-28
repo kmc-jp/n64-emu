@@ -17,13 +17,6 @@ const uint32_t PADDR_RI_REFRESH = 0x0470001;
 // https://n64brew.dev/wiki/RDRAM_Interface
 class RI {
   private:
-    enum Reg {
-        MODE = 0,
-        CONFIG = 1,
-        SELECT = 3,
-        REFLESH = 4,
-    };
-
     uint32_t reg_mode;
     uint32_t reg_config;
     uint32_t reg_current_load;

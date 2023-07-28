@@ -2,6 +2,7 @@
 #define SI_H
 
 #include "memory_map.h"
+#include <array>
 #include <cstdint>
 
 namespace N64 {
@@ -10,7 +11,7 @@ namespace SI {
 
 // SI External Bus
 class SI {
-    uint8_t pif_ram[PIF_RAM_SIZE];
+    std::array<uint8_t, PIF_RAM_SIZE> pif_ram;
 
     static SI instance;
 
