@@ -1,6 +1,7 @@
 ﻿#ifndef MEMORY_H
 #define MEMORY_H
 
+#include "memory_map.h"
 #include "ri.h"
 #include "rom.h"
 #include <cstdint>
@@ -9,8 +10,6 @@
 
 namespace N64 {
 namespace Memory {
-
-constexpr uint32_t RDRAM_MEM_SIZE = 0x800000;
 
 class Memory {
     std::vector<uint8_t> rdram;
@@ -30,9 +29,7 @@ class Memory {
 
     static Memory &get_instance() { return instance; }
 
-    std::vector<uint8_t> &get_rdram() {
-        return rdram;
-    }
+    std::vector<uint8_t> &get_rdram() { return rdram; }
 
   private:
     static Memory instance;

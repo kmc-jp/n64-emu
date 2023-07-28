@@ -1,5 +1,11 @@
 ﻿#include "bus.h"
+#include "memory.h"
+#include "memory_map.h"
+#include "pi.h"
+#include "rsp.h"
+#include "si.h"
 #include "utils.h"
+#include <cstdint>
 #include <utility>
 
 namespace N64 {

@@ -1,7 +1,9 @@
 ﻿#include "bus.h"
 #include "cpu/cpu.h"
 #include "memory.h"
+#include "memory_map.h"
 #include "rsp/rsp.h"
+#include <cstdint>
 
 namespace N64 {
 namespace Memory {

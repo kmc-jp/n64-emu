@@ -2,6 +2,7 @@
 #define CPU_COP0_H
 
 #include "utils/utils.h"
+#include <cstdint>
 #include <spdlog/spdlog.h>
 
 namespace N64 {

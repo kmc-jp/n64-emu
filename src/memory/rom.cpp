@@ -2,6 +2,7 @@
 #include "utils.h"
 
 #include <fstream>
+#include <cstdint>
 
 namespace N64 {
 namespace Memory {

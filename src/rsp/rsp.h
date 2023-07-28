@@ -2,6 +2,8 @@
 #define RSP_H
 
 #include "utils/utils.h"
+#include <array>
+#include <cstdint>
 
 namespace N64 {
 namespace Rsp {

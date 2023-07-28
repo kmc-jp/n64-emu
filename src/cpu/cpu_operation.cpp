@@ -2,6 +2,7 @@
 #include "bus.h"
 #include "mmu.h"
 #include "utils.h"
+#include <cstdint>
 
 namespace N64 {
 namespace Cpu {

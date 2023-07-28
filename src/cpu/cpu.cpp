@@ -5,6 +5,7 @@
 #include "memory/bus.h"
 #include "mmu/mmu.h"
 #include "utils/utils.h"
+#include <cstdint>
 
 namespace N64 {
 namespace Cpu {
@@ -54,13 +55,11 @@ void Cpu::step() {
                 "Unimplemented. interruption IP = {:#010b} mask = {:#010b}",
                 static_cast<uint32_t>(cop0.reg.cause.interrupt_pending),
                 static_cast<uint32_t>(cop0.reg.status.im));
-            Utils::core_dump();
-            exit(-1);
+            Utils::abort("Aborted");
         } break;
         default: {
             Utils::critical("Unimplemented. exception code = {}", exc_code);
-            Utils::core_dump();
-            exit(-1);
+            Utils::abort("Aborted");
         } break;
         }
     }
