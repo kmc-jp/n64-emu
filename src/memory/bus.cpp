@@ -5,6 +5,7 @@
 #include "rsp.h"
 #include "si.h"
 #include "utils.h"
+#include <cstdint>
 #include <utility>
 
 namespace N64 {

@@ -2,6 +2,7 @@
 #define INSTRUCTION_H
 
 #include "utils/utils.h"
+#include <cstdint>
 
 namespace N64 {
 namespace Cpu {

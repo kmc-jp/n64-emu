@@ -5,6 +5,7 @@
 #include "memory/bus.h"
 #include "mmu/mmu.h"
 #include "utils/utils.h"
+#include <cstdint>
 
 namespace N64 {
 namespace Cpu {

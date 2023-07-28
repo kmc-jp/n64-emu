@@ -1,6 +1,7 @@
 #include "si.h"
 #include "memory_map.h"
 #include "utils.h"
+#include <cstdint>
 
 namespace N64 {
 namespace Mmio {

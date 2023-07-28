@@ -1,6 +1,8 @@
 ﻿#ifndef MEMORY_MAP_H
 #define MEMORY_MAP_H
 
+#include <cstdint>
+
 namespace N64 {
 
 // physical memory map

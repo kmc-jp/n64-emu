@@ -1,6 +1,8 @@
 ﻿#ifndef BUS_H
 #define BUS_H
 
+#include <cstdint>
+
 namespace N64 {
 namespace Memory {
 

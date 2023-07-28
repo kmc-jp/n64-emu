@@ -1,4 +1,5 @@
 ﻿#include "cop0.h"
+#include <cstdint>
 
 namespace N64 {
 namespace Cpu {

@@ -1,5 +1,6 @@
 #include "memory/ri.h"
 #include "utils/utils.h"
+#include <cstdint>
 
 namespace N64 {
 namespace Memory {

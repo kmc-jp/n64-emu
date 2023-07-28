@@ -3,6 +3,7 @@
 #include "memory_map.h"
 #include "memory.h"
 #include "utils.h"
+#include <cstdint>
 
 namespace N64 {
 namespace Mmio {
