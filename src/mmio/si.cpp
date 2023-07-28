@@ -1,4 +1,5 @@
 #include "si.h"
+#include "memory_map.h"
 #include "utils.h"
 
 namespace N64 {
@@ -11,22 +12,20 @@ void SI::reset() {
 }
 
 uint32_t SI::read_paddr32(uint32_t paddr) const {
-    if (PADDR_PIF_RAM_BASE <= paddr && paddr <= PADDR_PIF_RAM_END) {
-        return pif_ram[paddr - PADDR_PIF_RAM_BASE];
+    if (PHYS_PIF_RAM_BASE <= paddr && paddr <= PHYS_PIF_RAM_END) {
+        return pif_ram[paddr - PHYS_PIF_RAM_BASE];
     } else {
         Utils::critical("SI: Access to paddr: {:#010x}", paddr);
-        Utils::core_dump();
-        exit(-1);
+        Utils::abort("Aborted");
     }
 }
 
 void SI::write_paddr32(uint32_t paddr, uint32_t value) {
-    if (PADDR_PIF_RAM_BASE <= paddr && paddr <= PADDR_PIF_RAM_END) {
-        pif_ram[paddr - PADDR_PIF_RAM_BASE] = value;
+    if (PHYS_PIF_RAM_BASE <= paddr && paddr <= PHYS_PIF_RAM_END) {
+        pif_ram[paddr - PHYS_PIF_RAM_BASE] = value;
     } else {
         Utils::critical("SI: Access to paddr: {:#010x}", paddr);
-        Utils::core_dump();
-        exit(-1);
+        Utils::abort("Aborted");
     }
 }
 

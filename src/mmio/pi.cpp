@@ -1,6 +1,7 @@
 ﻿#include "pi.h"
-#include "memory.h"
 #include "n64_system/scheduler.h"
+#include "memory_map.h"
+#include "memory.h"
 #include "utils.h"
 
 namespace N64 {
@@ -36,8 +37,7 @@ uint32_t PI::read_paddr32(uint32_t paddr) const {
         return reg_status;
     default: {
         Utils::critical("Unimplemented. Access to PI paddr = {:#010x}", paddr);
-        Utils::core_dump();
-        exit(-1);
+        Utils::abort("Aborted");
     } break;
     }
 }
@@ -71,8 +71,7 @@ void PI::write_paddr32(uint32_t paddr, uint32_t value) {
     } break;
     default: {
         Utils::critical("Unimplemented. Access to PI paddr = {:#010x}", paddr);
-        Utils::core_dump();
-        exit(-1);
+        Utils::abort("Aborted");
     } break;
     }
 }

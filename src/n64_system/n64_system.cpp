@@ -6,6 +6,7 @@
 #include "mmio/pi.h"
 #include "rsp/rsp.h"
 #include "scheduler.h"
+#include "si.h"
 
 namespace N64 {
 namespace N64System {

@@ -58,8 +58,7 @@ uint64_t Cpu::Cop0::Reg::read(uint8_t reg_num) const {
     default: {
         spdlog::info("Unimplemented; Access to COP0 {}th reg",
                      (uint32_t)reg_num);
-        Utils::core_dump();
-        exit(-1);
+        Utils::abort("Aborted");
     } break;
     }
 }
@@ -144,8 +143,7 @@ void Cpu::Cop0::Reg::write(uint8_t reg_num, uint64_t value) {
     default: {
         spdlog::info("Unimplemented; Access to COP0 {}th reg",
                      (uint32_t)reg_num);
-        Utils::core_dump();
-        exit(-1);
+        Utils::abort("Aborted");
     } break;
     }
 }

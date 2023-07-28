@@ -50,7 +50,8 @@ inline uint16_t read_from_byte_array16(std::span<const uint8_t> span,
 
 /* 指定された配列からWire分を読み込む (big endian) */
 template <typename Wire>
-inline Wire read_from_byte_array(std::span<const uint8_t> span, uint64_t offset) {
+inline Wire read_from_byte_array(std::span<const uint8_t> span,
+                                 uint64_t offset) {
     static_assert(std::is_same<Wire, uint32_t>::value ||
                   std::is_same<Wire, uint16_t>::value ||
                   std::is_same<Wire, uint64_t>::value);
@@ -110,7 +111,8 @@ inline void info(fmt::format_string<Args...> fmt, Args &&...args) {
 }
 
 template <typename... Args>
-void abort(fmt::format_string<Args...> fmt, Args &&...args) {
+[[noreturn]] inline void abort(fmt::format_string<Args...> fmt,
+                               Args &&...args) {
     spdlog::critical(fmt, std::forward<Args>(args)...);
     spdlog::dump_backtrace();
     core_dump();

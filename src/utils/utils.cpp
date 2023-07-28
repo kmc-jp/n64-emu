@@ -19,7 +19,8 @@ void write_to_byte_array32(uint8_t *ptr, uint32_t value) {
 
 void core_dump() { N64::g_cpu().dump(); }
 
-void unimplemented(const std::string what, const std::source_location loc) {
+[[noreturn]] void unimplemented(const std::string what,
+                                const std::source_location loc) {
     spdlog::critical("Unimplemented. {}", what);
     spdlog::critical("In `{}` at {}:({},{})", loc.function_name(),
                      loc.file_name(), loc.line(), loc.column());
