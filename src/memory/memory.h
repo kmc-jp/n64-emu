@@ -20,10 +20,12 @@ class Memory {
 
     Memory() : rdram({}) { rdram.assign(RDRAM_MEM_SIZE, 0); }
 
-    void reset() { ri.reset(); }
+    void reset() {
+        Utils::debug("Resetting Memory (RDRAM)");
+        ri.reset();
+    }
 
     void load_rom(const std::string &rom_filepath) {
-        Utils::debug("initializing RDRAM");
         rom.load_file(rom_filepath);
     }
 

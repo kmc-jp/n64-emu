@@ -13,7 +13,7 @@ namespace Cpu {
 Cpu Cpu::instance{};
 
 void Cpu::reset() {
-    Utils::info("resetting CPU");
+    Utils::debug("Resetting CPU");
     delay_slot = false;
     prev_delay_slot = false;
     cop0.reset();

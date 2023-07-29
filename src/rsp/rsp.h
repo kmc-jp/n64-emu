@@ -22,7 +22,7 @@ class Rsp {
     Rsp() {}
 
     void reset() {
-        Utils::info("resetting RSP");
+        Utils::debug("Resetting RSP");
         // TODO: what should be done?
     }
 
