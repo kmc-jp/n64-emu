@@ -22,6 +22,7 @@ void Cpu::reset() {
 void Cpu::dump() {
     Utils::info("======= Core dump =======");
     Utils::info("PC\t= {:#x}", pc);
+    Utils::info("hi\t= {:#018x}\tlo\t={:#018x}", hi, lo);
     for (int i = 0; i < 16; i++) {
         Utils::info("{}\t= {:#018x}\t{}\t= {:#018x}", GPR_NAMES[i], gpr.read(i),
                     GPR_NAMES[i + 16], gpr.read(i + 16));

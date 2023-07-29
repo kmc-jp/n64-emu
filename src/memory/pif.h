@@ -3,7 +3,7 @@
 
 #include "bus.h"
 #include "cpu/cpu.h"
-#include "rsp/rsp.h"
+#include "rcp/rsp.h"
 
 namespace N64 {
 namespace Memory {

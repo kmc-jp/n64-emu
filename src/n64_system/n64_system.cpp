@@ -6,7 +6,7 @@
 #include "mmio/mi.h"
 #include "mmio/pi.h"
 #include "mmio/si.h"
-#include "rsp/rsp.h"
+#include "rcp/rsp.h"
 #include "scheduler.h"
 #include "si.h"
 
