@@ -16,6 +16,9 @@ constexpr uint32_t PHYS_SPDMEM_END  = 0x04000FFF;
 constexpr uint32_t PHYS_SPIMEM_BASE = 0x04001000;
 constexpr uint32_t PHYS_SPIMEM_END  = 0x04001FFF;
 
+constexpr uint32_t PHYS_RSP_REG_BASE = 0x04040000;
+constexpr uint32_t PHYS_RSP_REG_END = 0x040BFFFF;
+
 constexpr uint32_t PHYS_MI_BASE     = 0x04300000;
 constexpr uint32_t PHYS_MI_END      = 0x043FFFFF;
 
