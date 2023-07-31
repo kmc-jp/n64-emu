@@ -38,15 +38,15 @@ enum {
 };
 }
 
-// FIXME: packedいる?
+// FIXME: bit fieldの順番があってるか確認
 typedef union cp0_cause {
     uint32_t raw;
-    struct {
+    PACK(struct {
         unsigned : 8;
         unsigned interrupt_pending : 8;
         unsigned : 16;
-    };
-    struct {
+    });
+    PACK(struct {
         unsigned : 2;
         unsigned exception_code : 5;
         unsigned : 1;
@@ -62,23 +62,32 @@ typedef union cp0_cause {
         unsigned coprocessor_error : 2;
         unsigned : 1;
         unsigned branch_delay : 1;
-    };
+    });
 } cop0_cause_t;
 
+static_assert(sizeof(cop0_cause_t) == 4, "cop0_cause_t must be 32bit");
+
+// FIXME: bit fieldの順番があってるか確認
 typedef union cop0_x_context {
     uint64_t raw;
-    struct {
+    /* FIXME: MSVCだとrでワード境界を超えて、16bytesになってしまう
+    https://learn.microsoft.com/en-us/cpp/cpp/cpp-bit-fields?view=msvc-170
+    PACK(struct {
         unsigned : 4;
         unsigned badvpn2 : 27;
         unsigned r : 2;
         unsigned ptebase : 31;
-    };
+    });
+    */
+
 } cop0_x_context_t;
 
-// FIXME: packedいる?
+static_assert(sizeof(cop0_x_context_t) == 8, "cop0_x_context_t must be 64bit");
+
+// FIXME: bit fieldの順番があってるか確認
 typedef union cp0_status {
     uint32_t raw;
-    struct {
+    PACK(struct {
         unsigned ie : 1;
         unsigned exl : 1;
         unsigned erl : 1;
@@ -95,8 +104,8 @@ typedef union cp0_status {
         unsigned cu1 : 1;
         unsigned cu2 : 1;
         unsigned cu3 : 1;
-    };
-    struct {
+    });
+    struct PACK({
         unsigned : 16;
         unsigned de : 1;
         unsigned ce : 1;
@@ -108,8 +117,10 @@ typedef union cp0_status {
         unsigned : 1;
         unsigned its : 1;
         unsigned : 7;
-    };
+    });
 } cop0_status_t;
+
+static_assert(sizeof(cop0_status_t) == 4, "cop0_status_t must be 32bit");
 
 class Cop0 {
     class Reg {

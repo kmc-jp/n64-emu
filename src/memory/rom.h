@@ -12,19 +12,21 @@ namespace Memory {
 // https://github.com/SimoneN64/Kaizen/blob/dffd36fc31731a0391a9b90f88ac2e5ed5d3f9ec/src/backend/MemoryRegions.hpp#L18
 constexpr uint32_t ROM_SIZE = 0xF000'0000;
 
-typedef struct RomHeader {
+// https://www.romhacking.net/forum/index.php?topic=19524.0
+// https://github.com/saneki/n64rom-rs/blob/757e34e039acd96a630348801a7435b16be59df0/src/header.rs#L143
+typedef struct rom_header {
     uint8_t initial_values[4];
     uint32_t clock_rate;
     uint32_t program_counter;
     uint32_t release;
     uint32_t crc1;
     uint32_t crc2;
-    uint32_t unknown1;
-    uint32_t unknown2;
-
+    char unknown1[4];
+    char unknown2[4];
+    // 32 bit before here
     char image_name[20];
-    uint32_t unknown5;
-    uint32_t unknown6;
+    // FIXME: これ以降はあっているか不明
+    char unknown5[4];
     uint32_t manufacturer_id;
     uint16_t cartridge_id;
     union {
@@ -32,6 +34,8 @@ typedef struct RomHeader {
         uint16_t country_code_int;
     };
 } rom_header_t;
+
+static_assert(sizeof(rom_header_t) == 0x40, "rom_header_t size must be 0x40 bytes");
 
 enum class CicType : uint32_t {
     CIC_UNKNOWN = 0,
