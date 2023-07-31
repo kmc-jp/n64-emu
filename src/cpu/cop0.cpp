@@ -150,7 +150,7 @@ void Cpu::Cop0::Reg::write(uint8_t reg_num, uint64_t value) {
 }
 
 void Cpu::Cop0::reset() {
-    spdlog::debug("initializing CPU COP0");
+    spdlog::debug("Resetting CPU COP0");
     // https://github.com/SimoneN64/Kaizen/blob/dffd36fc31731a0391a9b90f88ac2e5ed5d3f9ec/src/backend/core/registers/Cop0.cpp#L11
     reg.cause.raw = 0xB000007C;
     reg.status.raw = 0;

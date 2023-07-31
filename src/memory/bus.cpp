@@ -42,7 +42,7 @@ template <typename Wire> Wire read_paddr(uint32_t paddr) {
         } else {
             static_assert(false);
         }
-    } else if (PHYS_SPIMEM_BASE <= paddr && paddr < PHYS_SPIMEM_END) {
+    } else if (PHYS_SPIMEM_BASE <= paddr && paddr <= PHYS_SPIMEM_END) {
         const uint32_t offs = paddr - PHYS_SPIMEM_BASE;
         if constexpr (wire16) {
             abort_unimplemented_access(paddr);
@@ -53,7 +53,19 @@ template <typename Wire> Wire read_paddr(uint32_t paddr) {
         } else {
             static_assert(false);
         }
-    } else if (PHYS_MI_BASE <= paddr && paddr <= PHYS_MI_END) {
+    } else if (PHYS_RSP_REG_BASE <= paddr && paddr <= PHYS_RSP_REG_END) {
+        if constexpr (wire16) {
+            abort_unimplemented_access(paddr);
+        } else if constexpr (wire32) {
+            return g_rsp().read_paddr32(paddr);
+        } else if constexpr (wire64) {
+            abort_unimplemented_access(paddr);
+        } else {
+            static_assert(false);
+        }
+    }
+
+    else if (PHYS_MI_BASE <= paddr && paddr <= PHYS_MI_END) {
         if constexpr (wire16) {
             abort_unimplemented_access(paddr);
         } else if constexpr (wire32) {
@@ -120,9 +132,11 @@ void write_paddr32(uint32_t paddr, uint32_t value) {
     } else if (PHYS_SPDMEM_BASE <= paddr && paddr <= PHYS_SPDMEM_END) {
         uint32_t offs = paddr - PHYS_SPDMEM_BASE;
         Utils::write_to_byte_array32(&g_rsp().get_sp_dmem()[offs], value);
-    } else if (PHYS_SPIMEM_BASE <= paddr && paddr < PHYS_SPIMEM_END) {
+    } else if (PHYS_SPIMEM_BASE <= paddr && paddr <= PHYS_SPIMEM_END) {
         uint32_t offs = paddr - PHYS_SPIMEM_BASE;
         Utils::write_to_byte_array32(&g_rsp().get_sp_imem()[offs], value);
+    } else if (PHYS_RSP_REG_BASE <= paddr && paddr <= PHYS_RSP_REG_END) {
+        g_rsp().write_paddr32(paddr, value);
     } else if (PHYS_MI_BASE <= paddr && paddr <= PHYS_MI_END) {
         g_mi().write_paddr32(paddr, value);
     } else if (PHYS_PI_BASE <= paddr && paddr <= PHYS_PI_END) {

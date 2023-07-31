@@ -2,7 +2,7 @@
 #include "cpu/cpu.h"
 #include "memory.h"
 #include "memory_map.h"
-#include "rsp/rsp.h"
+#include "rcp/rsp.h"
 #include <cstdint>
 
 namespace N64 {

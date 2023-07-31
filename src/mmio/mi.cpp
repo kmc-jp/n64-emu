@@ -7,7 +7,7 @@ namespace Mmio {
 namespace MI {
 
 void MI::reset() {
-    Utils::info("resetting MI");
+    Utils::debug("Resetting MI");
     // TODO: what to do?
 }
 

@@ -18,7 +18,7 @@ constexpr uint32_t PI_STATUS_DMA_BUSY = 0b0001;
 constexpr uint32_t PI_STATUS_IO_BUSY = 0b0010;
 
 void PI::reset() {
-    Utils::info("resetting PI");
+    Utils::debug("Resetting PI");
     // https://github.com/project64/project64/blob/353ef5ed897cb72a8904603feddbdc649dff9eca/Source/Project64-core/N64System/MemoryHandler/PeripheralInterfaceHandler.cpp#L177
     reg_rd_len = 0x7f;
     reg_wr_len = 0x7f;

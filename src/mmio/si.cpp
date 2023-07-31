@@ -8,7 +8,7 @@ namespace Mmio {
 namespace SI {
 
 void SI::reset() {
-    Utils::info("resetting SI");
+    Utils::debug("Resetting SI");
     // TODO: what to do?
 }
 

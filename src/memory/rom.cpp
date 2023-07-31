@@ -1,8 +1,8 @@
 ﻿#include "rom.h"
 #include "utils.h"
 
-#include <fstream>
 #include <cstdint>
+#include <fstream>
 
 namespace N64 {
 namespace Memory {
@@ -57,7 +57,7 @@ CicType checksum_to_cic(uint32_t checksum) {
 }
 
 void Rom::load_file(const std::string &filepath) {
-    Utils::debug("reading from ROM");
+    Utils::debug("Loading ROM: {}", filepath);
 
     std::ifstream file(filepath.c_str(), std::ios::in | std::ios::binary);
     if (!file.is_open()) {

@@ -6,7 +6,7 @@
 #include "mmio/mi.h"
 #include "mmio/pi.h"
 #include "mmio/si.h"
-#include "rsp/rsp.h"
+#include "rcp/rsp.h"
 #include "scheduler.h"
 #include "si.h"
 
@@ -28,7 +28,7 @@ void reset_all(Config &config) {
 }
 
 void run(Config &config) {
-    Utils::info("Resetting N64 system");
+    Utils::info("Starting N64 system");
     N64System::reset_all(config);
 
     if (config.test_mode) {
@@ -42,11 +42,9 @@ void run(Config &config) {
         Utils::info("Skipped Bootcode");
     } else {
         // PIF ROM execution
-        Utils::info("Executing PIF ROM");
+        Utils::debug("Executing PIF ROM");
         Memory::pif_rom_execute();
     }
-
-    Utils::info("Starting N64 system");
 
     while (true) {
         N64System::step(config);
