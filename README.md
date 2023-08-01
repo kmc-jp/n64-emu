@@ -1,9 +1,14 @@
 # n64-emu
 An experimental Nintendo 64 emulator.
 
+#### Status
+
+n64-emu is in a very early stage of development now.
+No commercial ROM can run on it.
+
 ## Build (Linux/Windows/macOS)
 
-We do not distribute pre-build binaries now. 
+We do not distribute pre-build binaries. 
 You need to build from source to use the emulator.
 
 ### Prerequisites
