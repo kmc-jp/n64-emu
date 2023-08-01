@@ -1,6 +1,7 @@
 ﻿#include "pi.h"
 #include "memory.h"
 #include "memory_map.h"
+#include "n64_system/interrupt.h"
 #include "n64_system/scheduler.h"
 #include "utils.h"
 #include <cstdint>
@@ -103,15 +104,14 @@ void PI::dma_write() {
 
 void PIScheduler::on_dma_write_completed() {
     // https://github.com/project64/project64/blob/353ef5ed897cb72a8904603feddbdc649dff9eca/Source/Project64-core/N64System/Mips/SystemTiming.cpp#L210
-    // FIXME: correct?
     g_pi().reg_status &= ~PI_STATUS_DMA_BUSY;
     g_pi().reg_status |= PI_STATUS_INTERRUPT;
+    N64System::check_interrupt();
     Utils::debug("DMA Write completed");
 }
 
 void PI::dma_read() {
-    // TODO: statusレジスタのセット
-    // TODO: DMAエンジン
+    // TODO: implement
     Utils::unimplemented("DMA Transfer by RI");
 }
 
