@@ -10,6 +10,7 @@ namespace Cpu {
 // rawはbig endianなので、逆順(opが最後)になる.
 // 命令形式は以下のURLを参照
 // https://hack64.net/docs/VR43XX.pdf
+// NOTE: reverse order when using big endian machine!
 typedef union {
     uint32_t raw;
     // 1.4.3 CPU Instruction Set Overview

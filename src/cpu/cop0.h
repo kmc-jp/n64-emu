@@ -39,7 +39,7 @@ enum {
 }
 
 // FIXME: bit fieldの順番があってるか確認
-typedef union cp0_cause {
+typedef union cop0_cause {
     uint32_t raw;
     PACK(struct {
         unsigned : 8;
