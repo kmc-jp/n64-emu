@@ -57,6 +57,7 @@ class MI {
     uint32_t reg_mode;
     uint32_t reg_version;
     uint32_t reg_interrupt;
+    // FIXME: MIで管理すべき?
     mi_intr_mask_t reg_mask;
 
     static MI instance;
