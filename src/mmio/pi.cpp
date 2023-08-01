@@ -9,16 +9,9 @@ namespace N64 {
 namespace Mmio {
 namespace PI {
 
-// https://n64brew.dev/wiki/Peripheral_Interface#Domains
-constexpr uint32_t POS_ROM_START = 0x1000'0000;
-constexpr uint32_t POS_ROM_END = 0x1FFF'FFFF;
-
-// https://n64brew.dev/wiki/Peripheral_Interface#0x0460_0010_-_PI_STATUS
-constexpr uint32_t PI_STATUS_DMA_BUSY = 0b0001;
-constexpr uint32_t PI_STATUS_IO_BUSY = 0b0010;
-
 void PI::reset() {
     Utils::debug("Resetting PI");
+    // https://github.com/project64/project64/blob/353ef5ed897cb72a8904603feddbdc649dff9eca/Source/Project64-core/N64System/MemoryHandler/PeripheralInterfaceHandler.cpp#L177
     // https://github.com/project64/project64/blob/353ef5ed897cb72a8904603feddbdc649dff9eca/Source/Project64-core/N64System/MemoryHandler/PeripheralInterfaceHandler.cpp#L177
     reg_rd_len = 0x7f;
     reg_wr_len = 0x7f;
@@ -60,11 +53,11 @@ void PI::write_paddr32(uint32_t paddr, uint32_t value) {
         dma_write();
     } break;
     case PADDR_STATUS: {
-        if (value & 0b001) {
+        if (value & PI_STATUS_WRITE_SET_RESET) {
             // Reset DMA controller and stop any transfer being done
             Utils::unimplemented("Reset DMA by RI");
         }
-        if (value & 0b0010) {
+        if (value & PI_STATUS_WRITE_CLR_INTR) {
             // Clear interrupt
             Utils::unimplemented("Clear interrupt by RI");
         }
@@ -91,7 +84,6 @@ void PI::dma_write() {
         }
 
         reg_status |= PI_STATUS_DMA_BUSY;
-        reg_status |= PI_STATUS_IO_BUSY;
 
         Utils::debug("DMA Write: cart offset {:#010x} -> dram offset {:#010x} "
                      "(len = {:#010x})",
@@ -110,9 +102,10 @@ void PI::dma_write() {
 }
 
 void PIScheduler::on_dma_write_completed() {
-    // TODO: cart_addrの範囲によってセットするレジスタが異なる
+    // https://github.com/project64/project64/blob/353ef5ed897cb72a8904603feddbdc649dff9eca/Source/Project64-core/N64System/Mips/SystemTiming.cpp#L210
+    // FIXME: correct?
     g_pi().reg_status &= ~PI_STATUS_DMA_BUSY;
-    g_pi().reg_status &= ~PI_STATUS_IO_BUSY;
+    g_pi().reg_status |= PI_STATUS_INTERRUPT;
     Utils::debug("DMA Write completed");
 }
 

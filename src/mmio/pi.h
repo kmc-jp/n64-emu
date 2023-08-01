@@ -14,10 +14,21 @@ const uint32_t PADDR_RD_LEN = 0x04600008;
 const uint32_t PADDR_WR_LEN = 0x0460000C;
 const uint32_t PADDR_STATUS = 0x04600010;
 
+// https://n64brew.dev/wiki/Peripheral_Interface#Domains
+constexpr uint32_t POS_ROM_START = 0x1000'0000;
+constexpr uint32_t POS_ROM_END = 0x1FFF'FFFF;
+
+// https://n64brew.dev/wiki/Peripheral_Interface#0x0460_0010_-_PI_STATUS
+constexpr uint32_t PI_STATUS_DMA_BUSY = 1;
+constexpr uint32_t PI_STATUS_IO_BUSY = 2;
+constexpr uint32_t PI_STATUS_ERROR = 4;
+constexpr uint32_t PI_STATUS_INTERRUPT = 8;
+
+constexpr uint32_t PI_STATUS_WRITE_SET_RESET = 1;
+constexpr uint32_t PI_STATUS_WRITE_CLR_INTR = 2;
+
 namespace PIScheduler {
-
 void on_dma_write_completed();
-
 }
 
 // Peripheral Interface
