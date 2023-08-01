@@ -19,8 +19,9 @@ uint32_t MI::read_paddr32(uint32_t paddr) const {
         return reg_version;
     case PADDR_INTERRUPT:
         return reg_interrupt;
-    case PADDR_MASK:
-        return reg_mask;
+    case PADDR_MASK: {
+        Utils::unimplemented("Read from MI MASK");
+    } break;
     default: {
         Utils::critical("Unimplemented. Read from MI paddr = {:#010x}", paddr);
         Utils::abort("Aborted");
@@ -33,6 +34,9 @@ void MI::write_paddr32(uint32_t paddr, uint32_t value) {
     case PADDR_VERSION: {
         // FIXME: correct? そもそもこのレジスタはreadされない?
         reg_version = value;
+    } break;
+    case PADDR_MASK: {
+        Utils::unimplemented("Write to MI MASK");
     } break;
     default: {
         Utils::critical("Unimplemented. Write to MI paddr = {:#010x}", paddr);

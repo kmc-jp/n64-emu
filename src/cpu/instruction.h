@@ -10,44 +10,51 @@ namespace Cpu {
 // rawはbig endianなので、逆順(opが最後)になる.
 // 命令形式は以下のURLを参照
 // https://hack64.net/docs/VR43XX.pdf
+// NOTE: reverse order when using big endian machine!
 typedef union {
     uint32_t raw;
     // 1.4.3 CPU Instruction Set Overview
     // https://hack64.net/docs/VR43XX.pdf
-    struct {
+    PACK(struct {
         unsigned : 26;
         unsigned op : 6;
-    };
+    });
 
-    struct {
+    PACK(struct {
         unsigned imm : 16;
         unsigned rt : 5;
         unsigned rs : 5;
         unsigned op : 6;
-    } i_type;
+    })
+    i_type;
 
-    struct {
+    PACK(struct {
         unsigned target : 26;
         unsigned op : 6;
-    } j_type;
+    })
+    j_type;
 
-    struct {
+    PACK(struct {
         unsigned funct : 6;
         unsigned sa : 5;
         unsigned rd : 5;
         unsigned rt : 5;
         unsigned rs : 5;
         unsigned op : 6;
-    } r_type;
+    })
+    r_type;
 
-    struct {
+    PACK(struct {
         unsigned should_be_zero : 11;
         unsigned rd : 5;
         unsigned rt : 5;
         unsigned sub : 5;
         unsigned op : 6;
-    } copz_type1;
+    })
+    copz_type1;
 } instruction_t;
+
+static_assert(sizeof(instruction_t) == 4, "instruction_t size is not 4");
 
 // MIPS instructions
 constexpr uint8_t OPCODE_SPECIAL = 0b000000;
