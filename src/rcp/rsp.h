@@ -84,16 +84,15 @@ class Rsp {
     uint16_t pc, next_pc;
     sp_status_t status_reg;
 
-  public:
     // TODO: add more registers
 
+  public:
     Rsp() {}
 
     // https://github.com/SimoneN64/Kaizen/blob/dffd36fc31731a0391a9b90f88ac2e5ed5d3f9ec/src/backend/core/RSP.cpp#L11
     void reset() {
         Utils::debug("Resetting RSP");
-        pc = 0;
-        next_pc = 4;
+        set_pc(0);
         status_reg.raw = 0;
         status_reg.halt = 1;
         // TODO: add more registers
@@ -104,10 +103,16 @@ class Rsp {
         if (status_reg.halt)
             return;
 
+        if (status_reg.single_step)
+            Utils::unimplemented("RSP single step");
+
         Utils::unimplemented("RSP step");
     }
 
-    inline static Rsp &get_instance() { return instance; }
+    void set_pc(uint16_t value) {
+        pc = value;
+        next_pc = value + 4;
+    }
 
     std::array<uint8_t, SP_DMEM_SIZE> &get_sp_dmem() { return sp_dmem; }
 
@@ -191,6 +196,8 @@ class Rsp {
                 ? 0
                 : (write.set_signal_7 ? 1 : status_reg.signal_7);
     }
+
+    inline static Rsp &get_instance() { return instance; }
 
   private:
     static Rsp instance;
