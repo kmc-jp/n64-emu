@@ -57,8 +57,8 @@ uint64_t Cpu::Cop0::Reg::read(uint8_t reg_num) const {
     case Cop0Reg::ERROR_EPC:
         return error_epc;
     default: {
-        spdlog::info("Unimplemented; Access to COP0 {}th reg",
-                     (uint32_t)reg_num);
+        spdlog::info("Unimplemented; Access to COP0 {} register",
+                     COP0_REG_NAMES[reg_num]);
         Utils::abort("Aborted");
     } break;
     }
@@ -164,6 +164,10 @@ void Cpu::Cop0::reset() {
     reg.wired = 0;
     reg.index = 63;
     reg.bad_vaddr = 0xFFFFFFFFFFFFFFFF;
+
+    // FIXME: necessary?
+    // https://github.com/project64/project64/blob/353ef5ed897cb72a8904603feddbdc649dff9eca/Source/Project64-core/N64System/N64System.cpp#L855
+    // reg.cause.ip4 = 1;
 }
 
 void Cpu::Cop0::dump() {
@@ -173,30 +177,33 @@ void Cpu::Cop0::dump() {
                                            ((21 <= i + 16) && (i + 16 <= 25)) ||
                                            (i + 16) == 31;
         const uint64_t UNKNOWN_VAL = 0xccccdeadbeefcccc;
-        spdlog::info("CP0[{}]\t= {:#018x}\tCP0[{}]\t= {:#018x}", i,
-                     i_th_reg_is_unknwon ? UNKNOWN_VAL : reg.read(i), i + 16,
+        spdlog::info("{}\t= {:#018x}\t{}\t= {:#018x}", COP0_REG_NAMES[i],
+                     i_th_reg_is_unknwon ? UNKNOWN_VAL : reg.read(i),
+                     COP0_REG_NAMES[i + 16],
                      i_plus_16_th_reg_is_unknwon ? UNKNOWN_VAL
                                                  : reg.read(i + 16));
     }
-    spdlog::info("global interrupt enabled; ie\t= {}",
-                 reg.status.ie ? "enabled" : "disabled");
-    spdlog::info("exception level; exl\t= {:d}", (uint32_t)reg.status.exl);
-    spdlog::info("error level; erl\t= {:d}", (uint32_t)reg.status.erl);
-    spdlog::info("execution mode; ksu\t= {:d}", (uint32_t)reg.status.ksu);
-    spdlog::info("64bit addressing in user mode; ux\t= {}",
-                 reg.status.ux ? "yes" : "no");
-    spdlog::info("64bit addressing in supervisor mode; sx\t= {}",
-                 reg.status.sx ? "yes" : "no");
-    spdlog::info("64bit addressing in kernel mode; kx\t= {}",
-                 reg.status.kx ? "yes" : "no");
-    spdlog::info("interrupt mask; im\t= {:#010b}", (uint32_t)reg.status.im);
-    // TODO: add more
-    spdlog::info("cu0\t= {}\tcu2\t= {}",
-                 reg.status.cu0 ? "enabled" : "disabled",
-                 reg.status.cu2 ? "enabled" : "disabled");
-    spdlog::info("cu1\t= {}\tcu3\t= {}",
-                 reg.status.cu1 ? "enabled" : "disabled",
-                 reg.status.cu3 ? "enabled" : "disabled");
+    Utils::info("global interrupt enabled (ie) ? {}",
+                reg.status.ie ? "Enabled" : "Disabled");
+    Utils::info("interrupt mask (im) = {:#010b}", (uint32_t)reg.status.im);
+    Utils::info(
+        "interrupt is pending ? {}",
+        reg.cause.interrupt_pending
+            ? ((reg.cause.interrupt_pending & reg.status.im) ? "Yes" : "Masked")
+            : "No");
+    Utils::info("exception level (exl) = {:d}", (uint32_t)reg.status.exl);
+    Utils::info("error level (erl) = {:d}", (uint32_t)reg.status.erl);
+    Utils::info("execution mode (ksu) = {:d}", (uint32_t)reg.status.ksu);
+    Utils::info("64bit addressing in user mode (ux) ? {}",
+                reg.status.ux ? "Yes" : "No");
+    Utils::info("64bit addressing in supervisor mode (sx) ? {}",
+                reg.status.sx ? "Yes" : "No");
+    Utils::info("64bit addressing in kernel mode (kx) ? {}",
+                reg.status.kx ? "Yes" : "No");
+    Utils::info("cu0 = {}\tcu2 = {}", reg.status.cu0 ? "Enabled" : "Disabled",
+                reg.status.cu2 ? "Enabled" : "Disabled");
+    Utils::info("cu1 = {}\tcu3 = {}", reg.status.cu1 ? "Enabled" : "Disabled",
+                reg.status.cu3 ? "Enabled" : "Disabled");
 }
 
 } // namespace Cpu

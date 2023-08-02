@@ -19,9 +19,9 @@ uint32_t MI::read_paddr32(uint32_t paddr) const {
         Utils::abort("Correct? Read from MI version");
         return reg_version;
     case PADDR_INTERRUPT:
-        return reg_interrupt;
+        return reg_intr.raw;
     case PADDR_MASK: {
-        return reg_mask.raw;
+        return reg_intr_mask.raw;
     } break;
     default: {
         Utils::critical("Unimplemented. Read from MI paddr = {:#010x}", paddr);
@@ -39,40 +39,40 @@ void MI::write_paddr32(uint32_t paddr, uint32_t value) {
     case PADDR_MASK: {
         if (value & 1)
             // clear sp interrupt mask
-            reg_mask.sp = 0;
+            reg_intr_mask.sp = 0;
         if (value & 2)
             // set sp interrupt mask
-            reg_mask.sp = 1;
+            reg_intr_mask.sp = 1;
         if (value & 4)
             // clear si interrupt mask
-            reg_mask.si = 0;
+            reg_intr_mask.si = 0;
         if (value & 8)
             // set si interrupt mask
-            reg_mask.si = 1;
+            reg_intr_mask.si = 1;
         if (value & 16)
             // clear ai interrupt mask
-            reg_mask.ai = 0;
+            reg_intr_mask.ai = 0;
         if (value & 32)
             // set ai interrupt mask
-            reg_mask.ai = 1;
+            reg_intr_mask.ai = 1;
         if (value & 64)
             // clear vi interrupt mask
-            reg_mask.vi = 0;
+            reg_intr_mask.vi = 0;
         if (value & 128)
             // set vi interrupt mask
-            reg_mask.vi = 1;
+            reg_intr_mask.vi = 1;
         if (value & 256)
             // clear pi interrupt mask
-            reg_mask.pi = 0;
+            reg_intr_mask.pi = 0;
         if (value & 512)
             // set pi interrupt mask
-            reg_mask.pi = 1;
+            reg_intr_mask.pi = 1;
         if (value & 1024)
             // clear dp interrupt mask
-            reg_mask.dp = 0;
+            reg_intr_mask.dp = 0;
         if (value & 2048)
             // set dp interrupt mask
-            reg_mask.dp = 1;
+            reg_intr_mask.dp = 1;
     } break;
     default: {
         Utils::critical("Unimplemented. Write to MI paddr = {:#010x}", paddr);

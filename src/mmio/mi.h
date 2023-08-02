@@ -56,9 +56,8 @@ class MI {
   private:
     uint32_t reg_mode;
     uint32_t reg_version;
-    uint32_t reg_interrupt;
-    // FIXME: MIで管理すべき?
-    mi_intr_mask_t reg_mask;
+    mi_intr_t reg_intr;
+    mi_intr_mask_t reg_intr_mask;
 
     static MI instance;
 
@@ -71,7 +70,9 @@ class MI {
 
     void write_paddr32(uint32_t paddr, uint32_t value);
 
-    mi_intr_t intr;
+    mi_intr_t &get_reg_intr() { return reg_intr; }
+
+    mi_intr_mask_t &get_reg_intr_mask() { return reg_intr_mask; }
 
     inline static MI &get_instance() { return instance; }
 };

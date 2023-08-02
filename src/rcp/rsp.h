@@ -1,7 +1,8 @@
 ﻿#ifndef RSP_H
 #define RSP_H
 
-#include "mi.h"
+#include "mmio/mi.h"
+#include "n64_system/interrupt.h"
 #include "utils/utils.h"
 #include <array>
 #include <cstdint>
@@ -142,6 +143,7 @@ class Rsp {
     }
 
     void status_reg_write(uint32_t value) {
+        // https://github.com/project64/project64/blob/353ef5ed897cb72a8904603feddbdc649dff9eca/Source/Project64-core/N64System/MemoryHandler/SPRegistersHandler.cpp#L147
         // https://github.com/Dillonb/n64/blob/6502f7d2f163c3f14da5bff8cd6d5ccc47143156/src/cpu/rsp_interface.c#L46
         sp_status_write_t write;
         write.raw = value;
@@ -150,10 +152,14 @@ class Rsp {
         if (write.clear_broke)
             status_reg.broke = false;
 
-        if (write.clear_intr)
-            g_mi().intr.sp = false;
-        if (write.set_intr)
-            g_mi().intr.sp = true;
+        if (write.clear_intr) {
+            g_mi().get_reg_intr().sp = false;
+            N64System::check_interrupt();
+        }
+        if (write.set_intr) {
+            g_mi().get_reg_intr().sp = true;
+            N64System::check_interrupt();
+        }
 
         status_reg.single_step =
             write.clear_sstep ? 0

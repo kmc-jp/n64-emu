@@ -24,6 +24,7 @@ void core_dump() { N64::g_cpu().dump(); }
     spdlog::critical("Unimplemented. {}", what);
     spdlog::critical("In `{}` at {}:({},{})", loc.function_name(),
                      loc.file_name(), loc.line(), loc.column());
+    spdlog::dump_backtrace();
     core_dump();
     exit(-1);
 }
