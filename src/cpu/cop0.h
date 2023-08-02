@@ -39,12 +39,12 @@ enum {
 }
 
 constexpr std::array<std::string_view, 32> COP0_REG_NAMES = {
-    "Index",    "Random",  "EntryLo0", "EntryLo1", "Context", "PageMask",
-    "Wired",    "unused",  "BadVAddr", "Count",    "EntryHi", "Compare",
-    "Status",   "Cause",   "EPC",      "PRId",     "Config",  "LLAddr",
-    "WatchLo",  "WatchHi", "XContext", "unused",   "unused",  "unused",
-    "unused24", "unused",  "ECC",      "CacheErr", "TagLo",   "TagHi",
-    "ErrEPC",   "unused",
+    "Index",   "Random",  "EntryLo0", "EntryLo1", "Context", "PageMask",
+    "Wired",   "unused",  "BadVAddr", "Count",    "EntryHi", "Compare",
+    "Status",  "Cause",   "EPC",      "PRId",     "Config",  "LLAddr",
+    "WatchLo", "WatchHi", "XContext", "unused",   "unused",  "unused",
+    "unused",  "unused",  "ECC",      "CacheErr", "TagLo",   "TagHi",
+    "ErrEPC",  "unused",
 };
 
 // FIXME: bit fieldの順番があってるか確認
