@@ -293,7 +293,7 @@ void pif_hle_execute() {
     // ROMの最初0x1000バイトをSP DMEMにコピー
     //   i.e. 0xB0000000 から 0xA4000000 に0x1000バイトをコピー
     // https://github.com/Dillonb/n64/blob/6502f7d2f163c3f14da5bff8cd6d5ccc47143156/src/mem/pif.c#L358
-    memcpy(g_rsp().get_sp_dmem().data(), g_memory().rom.raw(),
+    memcpy(g_rsp().get_sp_dmem().data(), g_memory().rom.get_raw_data().data(),
            sizeof(uint8_t) * 0x1000);
 }
 

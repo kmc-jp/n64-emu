@@ -35,7 +35,8 @@ typedef struct rom_header {
     };
 } rom_header_t;
 
-static_assert(sizeof(rom_header_t) == 0x40, "rom_header_t size must be 0x40 bytes");
+static_assert(sizeof(rom_header_t) == 0x40,
+              "rom_header_t size must be 0x40 bytes");
 
 enum class CicType : uint32_t {
     CIC_UNKNOWN = 0,
@@ -76,10 +77,7 @@ class Rom {
         return CIC_SEEDS[static_cast<uint32_t>(cic)];
     }
 
-    // ROMの生データの先頭へのポインタを返す
-    // FIXME: 生ポインタは使いたくない, read_offset8, read_offset32,
-    // write_offset8, write_offset32を使う
-    uint8_t *raw() { return reinterpret_cast<uint8_t *>(rom.data()); }
+    std::vector<uint8_t> &get_raw_data() { return rom; }
 
     uint8_t read_offset8(uint32_t offset) const { return rom.at(offset); }
 

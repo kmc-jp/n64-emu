@@ -1,5 +1,7 @@
 #include "si.h"
 #include "memory_map.h"
+#include "mi.h"
+#include "n64_system/interrupt.h"
 #include "utils.h"
 #include <cstdint>
 
@@ -13,22 +15,20 @@ void SI::reset() {
 }
 
 uint32_t SI::read_paddr32(uint32_t paddr) const {
-    if (PHYS_PIF_RAM_BASE <= paddr && paddr <= PHYS_PIF_RAM_END) {
-        uint64_t offset = paddr - PHYS_PIF_RAM_BASE;
-        return Utils::read_from_byte_array32(pif_ram, offset);
-    } else {
-        Utils::critical("SI: Access to paddr: {:#010x}", paddr);
-        Utils::abort("Aborted");
-    }
+    Utils::critical("SI: Read from paddr: {:#010x}", paddr);
+    Utils::abort("Aborted");
 }
 
 void SI::write_paddr32(uint32_t paddr, uint32_t value) {
-    if (PHYS_PIF_RAM_BASE <= paddr && paddr <= PHYS_PIF_RAM_END) {
-        Utils::write_to_byte_array32(&pif_ram[paddr - PHYS_PIF_RAM_BASE],
-                                     value);
-    } else {
+    switch (paddr) {
+    case PADDR_SI_STATUS: {
+        g_mi().get_reg_intr().si = 1;
+        N64System::check_interrupt();
+    } break;
+    default: {
         Utils::critical("SI: Access to paddr: {:#010x}", paddr);
         Utils::abort("Aborted");
+    } break;
     }
 }
 

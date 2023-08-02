@@ -1,6 +1,7 @@
 ﻿#ifndef UTILS_H
 #define UTILS_H
 
+#include <cassert>
 #include <cstdint>
 #include <source_location>
 #include <span>
@@ -24,6 +25,7 @@ constexpr int NUM_BACKTRACE_LOG = 32;
 /* 指定された配列から8byte分を読み込む (big endian) */
 inline uint64_t read_from_byte_array64(std::span<const uint8_t> span,
                                        uint64_t offset) {
+    assert(offset + 8 <= span.size());
     return (static_cast<uint64_t>(span[offset + 0]) << 56) +
            (static_cast<uint64_t>(span[offset + 1]) << 48) +
            (static_cast<uint64_t>(span[offset + 2]) << 40) +
@@ -37,6 +39,7 @@ inline uint64_t read_from_byte_array64(std::span<const uint8_t> span,
 /* 指定された配列から4byte分を読み込む (big endian) */
 inline uint32_t read_from_byte_array32(std::span<const uint8_t> span,
                                        uint64_t offset) {
+    assert(offset + 4 <= span.size());
     return (span[offset + 0] << 24) + (span[offset + 1] << 16) +
            (span[offset + 2] << 8) + (span[offset + 3] << 0);
 }
@@ -44,6 +47,7 @@ inline uint32_t read_from_byte_array32(std::span<const uint8_t> span,
 /* 指定された配列から2byte分を読み込む (big endian) */
 inline uint16_t read_from_byte_array16(std::span<const uint8_t> span,
                                        uint64_t offset) {
+    assert(offset + 2 <= span.size());
     return (static_cast<uint16_t>(span[offset + 0] << 8)) +
            (static_cast<uint16_t>(span[offset + 1] << 0));
 }
@@ -66,9 +70,9 @@ inline Wire read_from_byte_array(std::span<const uint8_t> span,
     }
 }
 
-/* 指定されたポインタに4byte分を書き込む (big endian) */
-// FIXME: spanに変える
-void write_to_byte_array32(uint8_t *ptr, uint32_t value);
+/* 指定された配列に4byte分を書き込む (big endian) */
+void write_to_byte_array32(std::span<uint8_t> span, uint64_t offset,
+                           uint32_t value);
 
 void core_dump();
 
