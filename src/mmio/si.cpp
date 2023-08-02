@@ -9,7 +9,7 @@ namespace SI {
 
 void SI::reset() {
     Utils::debug("Resetting SI");
-    // TODO: what to do?
+    // TODO: reset registers
 }
 
 uint32_t SI::read_paddr32(uint32_t paddr) const {

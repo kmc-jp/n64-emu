@@ -37,6 +37,42 @@ enum {
     ERROR_EPC = 30,
 };
 }
+constexpr std::string_view UNUSED_COP0_REG_NAME = "unused";
+
+constexpr std::array<std::string_view, 32> COP0_REG_NAMES = {
+    "Index",
+    "Random",
+    "EntryLo0",
+    "EntryLo1",
+    "Context",
+    "PageMask",
+    "Wired",
+    UNUSED_COP0_REG_NAME,
+    "BadVAddr",
+    "Count",
+    "EntryHi",
+    "Compare",
+    "Status",
+    "Cause",
+    "EPC",
+    "PRId",
+    "Config",
+    "LLAddr",
+    "WatchLo",
+    "WatchHi",
+    "XContext",
+    UNUSED_COP0_REG_NAME,
+    UNUSED_COP0_REG_NAME,
+    UNUSED_COP0_REG_NAME,
+    UNUSED_COP0_REG_NAME,
+    UNUSED_COP0_REG_NAME,
+    "ECC",
+    "CacheErr",
+    "TagLo",
+    "TagHi",
+    "ErrEPC",
+    UNUSED_COP0_REG_NAME,
+};
 
 // FIXME: bit fieldの順番があってるか確認
 typedef union cop0_cause {
@@ -95,7 +131,7 @@ typedef union cp0_status {
         unsigned ux : 1;
         unsigned sx : 1;
         unsigned kx : 1;
-        unsigned im : 8;
+        unsigned im : 8; // interrupt mask
         unsigned ds : 9;
         unsigned re : 1;
         unsigned fr : 1;

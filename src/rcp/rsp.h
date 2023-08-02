@@ -1,7 +1,8 @@
 ﻿#ifndef RSP_H
 #define RSP_H
 
-#include "mi.h"
+#include "mmio/mi.h"
+#include "n64_system/interrupt.h"
 #include "utils/utils.h"
 #include <array>
 #include <cstdint>
@@ -84,16 +85,15 @@ class Rsp {
     uint16_t pc, next_pc;
     sp_status_t status_reg;
 
-  public:
     // TODO: add more registers
 
+  public:
     Rsp() {}
 
     // https://github.com/SimoneN64/Kaizen/blob/dffd36fc31731a0391a9b90f88ac2e5ed5d3f9ec/src/backend/core/RSP.cpp#L11
     void reset() {
         Utils::debug("Resetting RSP");
-        pc = 0;
-        next_pc = 4;
+        set_pc(0);
         status_reg.raw = 0;
         status_reg.halt = 1;
         // TODO: add more registers
@@ -104,10 +104,16 @@ class Rsp {
         if (status_reg.halt)
             return;
 
+        if (status_reg.single_step)
+            Utils::unimplemented("RSP single step");
+
         Utils::unimplemented("RSP step");
     }
 
-    inline static Rsp &get_instance() { return instance; }
+    void set_pc(uint16_t value) {
+        pc = value;
+        next_pc = value + 4;
+    }
 
     std::array<uint8_t, SP_DMEM_SIZE> &get_sp_dmem() { return sp_dmem; }
 
@@ -137,6 +143,7 @@ class Rsp {
     }
 
     void status_reg_write(uint32_t value) {
+        // https://github.com/project64/project64/blob/353ef5ed897cb72a8904603feddbdc649dff9eca/Source/Project64-core/N64System/MemoryHandler/SPRegistersHandler.cpp#L147
         // https://github.com/Dillonb/n64/blob/6502f7d2f163c3f14da5bff8cd6d5ccc47143156/src/cpu/rsp_interface.c#L46
         sp_status_write_t write;
         write.raw = value;
@@ -145,10 +152,14 @@ class Rsp {
         if (write.clear_broke)
             status_reg.broke = false;
 
-        if (write.clear_intr)
-            g_mi().intr.sp = false;
-        if (write.set_intr)
-            g_mi().intr.sp = true;
+        if (write.clear_intr) {
+            g_mi().get_reg_intr().sp = false;
+            N64System::check_interrupt();
+        }
+        if (write.set_intr) {
+            g_mi().get_reg_intr().sp = true;
+            N64System::check_interrupt();
+        }
 
         status_reg.single_step =
             write.clear_sstep ? 0
@@ -191,6 +202,8 @@ class Rsp {
                 ? 0
                 : (write.set_signal_7 ? 1 : status_reg.signal_7);
     }
+
+    inline static Rsp &get_instance() { return instance; }
 
   private:
     static Rsp instance;

@@ -9,39 +9,11 @@
 namespace N64 {
 namespace Cpu {
 
+// https://github.com/project64/project64/blob/353ef5ed897cb72a8904603feddbdc649dff9eca/Source/Project64-core/N64System/Mips/Register.cpp#L9
 constexpr std::array<std::string_view, 32> GPR_NAMES = {
-    "zero", // 0
-    "at",   // 1
-    "v0",   // 2
-    "v1",   // 3
-    "a0",   // 4
-    "a1",   // 5
-    "a2",   // 6
-    "a3",   // 7
-    "t0",   // 8
-    "t1",   // 9
-    "t2",   // 10
-    "t3",   // 11
-    "t4",   // 12
-    "t5",   // 13
-    "t6",   // 14
-    "t7",   // 15
-    "s0",   // 16
-    "s1",   // 17
-    "s2",   // 18
-    "s3",   // 19
-    "s4",   // 20
-    "s5",   // 21
-    "s6",   // 22
-    "s7",   // 23
-    "t8",   // 24
-    "t9",   // 25
-    "k0",   // 26
-    "k1",   // 27
-    "gp",   // 28
-    "sp",   // 29
-    "s8",   // 30
-    "ra"    // 31
+    "R0", "AT", "V0", "V1", "A0", "A1", "A2", "A3", "T0", "T1", "T2",
+    "T3", "T4", "T5", "T6", "T7", "S0", "S1", "S2", "S3", "S4", "S5",
+    "S6", "S7", "T8", "T9", "K0", "K1", "GP", "SP", "FP", "RA",
 };
 
 class Gpr {
