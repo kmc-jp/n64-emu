@@ -57,7 +57,7 @@ uint64_t Cpu::Cop0::Reg::read(uint8_t reg_num) const {
     case Cop0Reg::ERROR_EPC:
         return error_epc;
     default: {
-        spdlog::info("Unimplemented; Access to COP0 {} register",
+        Utils::info("Unimplemented; Access to COP0 {} register",
                      COP0_REG_NAMES[reg_num]);
         Utils::abort("Aborted");
     } break;
@@ -142,7 +142,7 @@ void Cpu::Cop0::Reg::write(uint8_t reg_num, uint64_t value) {
         error_epc = value;
     } break;
     default: {
-        spdlog::info("Unimplemented; Access to COP0 {}th reg",
+        Utils::info("Unimplemented; Access to COP0 {}th reg",
                      (uint32_t)reg_num);
         Utils::abort("Aborted");
     } break;
@@ -150,7 +150,7 @@ void Cpu::Cop0::Reg::write(uint8_t reg_num, uint64_t value) {
 }
 
 void Cpu::Cop0::reset() {
-    spdlog::debug("Resetting CPU COP0");
+    Utils::debug("Resetting CPU COP0");
     // https://github.com/SimoneN64/Kaizen/blob/dffd36fc31731a0391a9b90f88ac2e5ed5d3f9ec/src/backend/core/registers/Cop0.cpp#L11
     reg.cause.raw = 0xB000007C;
     reg.status.raw = 0;
@@ -176,7 +176,7 @@ void Cpu::Cop0::dump() {
         bool i_plus_16_th_reg_is_unknwon =
             COP0_REG_NAMES[i + 16] == UNUSED_COP0_REG_NAME;
         const uint64_t UNKNOWN_VAL = 0xccccdeadbeefcccc;
-        spdlog::info("{}\t= {:#018x}\t{}\t= {:#018x}", COP0_REG_NAMES[i],
+        Utils::info("{}\t= {:#018x}\t{}\t= {:#018x}", COP0_REG_NAMES[i],
                      i_th_reg_is_unknwon ? UNKNOWN_VAL : reg.read(i),
                      COP0_REG_NAMES[i + 16],
                      i_plus_16_th_reg_is_unknwon ? UNKNOWN_VAL
