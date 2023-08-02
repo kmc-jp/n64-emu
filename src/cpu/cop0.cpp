@@ -167,15 +167,14 @@ void Cpu::Cop0::reset() {
 
     // FIXME: necessary?
     // https://github.com/project64/project64/blob/353ef5ed897cb72a8904603feddbdc649dff9eca/Source/Project64-core/N64System/N64System.cpp#L855
-    // reg.cause.ip4 = 1;
+    reg.cause.ip4 = 1;
 }
 
 void Cpu::Cop0::dump() {
     for (int i = 0; i < 16; i++) {
-        bool i_th_reg_is_unknwon = i == 7 || (21 <= i && i <= 25) || i == 31;
-        bool i_plus_16_th_reg_is_unknwon = (i + 16) == 7 ||
-                                           ((21 <= i + 16) && (i + 16 <= 25)) ||
-                                           (i + 16) == 31;
+        bool i_th_reg_is_unknwon = COP0_REG_NAMES[i] == UNUSED_COP0_REG_NAME;
+        bool i_plus_16_th_reg_is_unknwon =
+            COP0_REG_NAMES[i + 16] == UNUSED_COP0_REG_NAME;
         const uint64_t UNKNOWN_VAL = 0xccccdeadbeefcccc;
         spdlog::info("{}\t= {:#018x}\t{}\t= {:#018x}", COP0_REG_NAMES[i],
                      i_th_reg_is_unknwon ? UNKNOWN_VAL : reg.read(i),

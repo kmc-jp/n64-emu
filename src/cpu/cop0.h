@@ -37,14 +37,41 @@ enum {
     ERROR_EPC = 30,
 };
 }
+constexpr std::string_view UNUSED_COP0_REG_NAME = "unused";
 
 constexpr std::array<std::string_view, 32> COP0_REG_NAMES = {
-    "Index",   "Random",  "EntryLo0", "EntryLo1", "Context", "PageMask",
-    "Wired",   "unused",  "BadVAddr", "Count",    "EntryHi", "Compare",
-    "Status",  "Cause",   "EPC",      "PRId",     "Config",  "LLAddr",
-    "WatchLo", "WatchHi", "XContext", "unused",   "unused",  "unused",
-    "unused",  "unused",  "ECC",      "CacheErr", "TagLo",   "TagHi",
-    "ErrEPC",  "unused",
+    "Index",
+    "Random",
+    "EntryLo0",
+    "EntryLo1",
+    "Context",
+    "PageMask",
+    "Wired",
+    UNUSED_COP0_REG_NAME,
+    "BadVAddr",
+    "Count",
+    "EntryHi",
+    "Compare",
+    "Status",
+    "Cause",
+    "EPC",
+    "PRId",
+    "Config",
+    "LLAddr",
+    "WatchLo",
+    "WatchHi",
+    "XContext",
+    UNUSED_COP0_REG_NAME,
+    UNUSED_COP0_REG_NAME,
+    UNUSED_COP0_REG_NAME,
+    UNUSED_COP0_REG_NAME,
+    UNUSED_COP0_REG_NAME,
+    "ECC",
+    "CacheErr",
+    "TagLo",
+    "TagHi",
+    "ErrEPC",
+    UNUSED_COP0_REG_NAME,
 };
 
 // FIXME: bit fieldの順番があってるか確認

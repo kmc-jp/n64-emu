@@ -46,8 +46,8 @@ void Cpu::step() {
     delay_slot = false;
 
     // check for interrupt/exception
-    // TODO: implement MI_INTR_MASK_REG?
     if (cop0.reg.cause.interrupt_pending & cop0.reg.status.im) {
+        Utils::unimplemented("Interrupt occured!");
         uint8_t exc_code = cop0.reg.cause.exception_code;
         switch (exc_code) {
         case 0: // interrupt
