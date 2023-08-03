@@ -3,12 +3,12 @@
 #include "cpu/cpu.h"
 #include "memory/memory.h"
 #include "memory/pif.h"
+#include "mmio/ai.h"
 #include "mmio/mi.h"
 #include "mmio/pi.h"
 #include "mmio/si.h"
 #include "rcp/rsp.h"
 #include "scheduler.h"
-#include "si.h"
 
 namespace N64 {
 namespace N64System {
@@ -25,6 +25,7 @@ void reset_all(Config &config) {
     N64::g_pi().reset();
     N64::g_si().reset();
     N64::g_mi().reset();
+    N64::g_ai().reset();
 }
 
 void run(Config &config) {
