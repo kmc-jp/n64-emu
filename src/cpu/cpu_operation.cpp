@@ -360,9 +360,25 @@ class Cpu::Operation::Impl {
                      offset, GPR_NAMES[inst.r_type.rt]);
         uint64_t vaddr = cpu.gpr.read(inst.i_type.rs);
         vaddr += offset;
-        uint32_t paddr = Mmu::resolve_vaddr(vaddr);
         uint32_t word = cpu.gpr.read(inst.r_type.rt);
+
+        uint32_t paddr = Mmu::resolve_vaddr(vaddr);
+
         Memory::write_paddr32(paddr, word);
+    }
+
+    static void op_sd(Cpu &cpu, instruction_t inst) {
+        // https://github.com/Dillonb/n64/blob/6502f7d2f163c3f14da5bff8cd6d5ccc47143156/src/cpu/mips_instructions.c#L402
+        // TODO: TLB excepion
+        int16_t offset = inst.i_type.imm;
+        Utils::trace("SD: *({} + {:#x}) <= {}", GPR_NAMES[inst.i_type.rs],
+                     offset, GPR_NAMES[inst.r_type.rt]);
+        uint64_t vaddr = cpu.gpr.read(inst.i_type.rs);
+        vaddr += offset;
+        uint64_t dword = cpu.gpr.read(inst.r_type.rt);
+
+        uint32_t paddr = Mmu::resolve_vaddr(vaddr);
+        Memory::write_paddr64(paddr, dword);
     }
 
     static void op_addi(Cpu &cpu, instruction_t inst) {
@@ -614,6 +630,8 @@ void Cpu::Operation::execute(Cpu &cpu, instruction_t inst) {
         return Impl::op_ld(cpu, inst);
     case OPCODE_SW: // SW (I format)
         return Impl::op_sw(cpu, inst);
+    case OPCODE_SD: // SD (I format)
+        return Impl::op_sd(cpu, inst);
     case OPCODE_ADDI: // ADDI (I format)
         return Impl::op_addi(cpu, inst);
     case OPCODE_ADDIU: // ADDIU (I format)
