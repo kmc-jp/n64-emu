@@ -26,6 +26,8 @@ constexpr uint32_t PHYS_PI_BASE     = 0x04600000;
 constexpr uint32_t PHYS_PI_END      = 0x046FFFFF;
 constexpr uint32_t PHYS_RI_BASE     = 0x04700000;
 constexpr uint32_t PHYS_RI_END      = 0x047FFFFF;
+constexpr uint32_t PHYS_SI_BASE     = 0x04800000;
+constexpr uint32_t PHYS_SI_END      = 0x048FFFFF;
 
 constexpr uint32_t PHYS_ROM_BASE    = 0x10000000;
 constexpr uint32_t PHYS_ROM_END     = 0x1FBFFFFF;

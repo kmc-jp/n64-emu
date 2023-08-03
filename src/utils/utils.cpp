@@ -1,4 +1,5 @@
 ﻿#include "cpu/cpu.h"
+#include <cassert>
 #include <cstdint>
 #include <source_location>
 #include <spdlog/sinks/basic_file_sink.h>
@@ -6,15 +7,17 @@
 
 namespace Utils {
 
-void write_to_byte_array32(uint8_t *ptr, uint32_t value) {
+void write_to_byte_array32(std::span<uint8_t> span, uint64_t offset,
+                           uint32_t value) {
+    assert(offset + 4 <= span.size());
     uint8_t b1 = value & 0xFF;
     uint8_t b2 = (value & 0xFF00) >> 8;
     uint8_t b3 = (value & 0xFF0000) >> 16;
     uint8_t b4 = (value & 0xFF000000) >> 24;
-    ptr[0] = b4;
-    ptr[1] = b3;
-    ptr[2] = b2;
-    ptr[3] = b1;
+    span[offset + 0] = b4;
+    span[offset + 1] = b3;
+    span[offset + 2] = b2;
+    span[offset + 3] = b1;
 }
 
 void core_dump() { N64::g_cpu().dump(); }

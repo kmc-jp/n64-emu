@@ -3,7 +3,7 @@ project(n64-emu)
 set(CMAKE_CXX_STANDARD 20)
 
 if(MSVC)
-    set(CMAKE_CXX_FLAGS_DEBUG "/O2")
+    set(CMAKE_CXX_FLAGS_DEBUG "/O2 /Z7")
 else()
     set(CMAKE_CXX_FLAGS_DEBUG "-O0")
 endif()

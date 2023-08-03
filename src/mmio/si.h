@@ -9,6 +9,8 @@ namespace N64 {
 namespace Mmio {
 namespace SI {
 
+constexpr uint32_t PADDR_SI_STATUS = 0x04800018;
+
 // SI External Bus
 class SI {
     std::array<uint8_t, PIF_RAM_SIZE> pif_ram;
@@ -19,6 +21,8 @@ class SI {
     SI() {}
 
     void reset();
+
+    std::array<uint8_t, PIF_RAM_SIZE> &get_pif_ram() { return pif_ram; }
 
     uint32_t read_paddr32(uint32_t paddr) const;
 
