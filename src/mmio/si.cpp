@@ -15,14 +15,19 @@ void SI::reset() {
 }
 
 uint32_t SI::read_paddr32(uint32_t paddr) const {
-    Utils::critical("SI: Read from paddr: {:#010x}", paddr);
-    Utils::abort("Aborted");
+    switch (paddr) {
+    default: {
+        Utils::critical("SI: Read from paddr: {:#010x}", paddr);
+        Utils::abort("Aborted");
+    } break;
+    }
 }
 
 void SI::write_paddr32(uint32_t paddr, uint32_t value) {
     switch (paddr) {
     case PADDR_SI_STATUS: {
-        g_mi().get_reg_intr().si = 1;
+        // https://github.com/project64/project64/blob/353ef5ed897cb72a8904603feddbdc649dff9eca/Source/Project64-core/N64System/MemoryHandler/SerialInterfaceHandler.cpp#L98
+        g_mi().get_reg_intr().si = 0;
         N64System::check_interrupt();
     } break;
     default: {

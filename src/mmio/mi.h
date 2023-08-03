@@ -10,10 +10,10 @@ namespace N64 {
 namespace Mmio {
 namespace MI {
 
-const uint32_t PADDR_MODE = 0x04300000;
-const uint32_t PADDR_VERSION = 0x04300004;
-const uint32_t PADDR_INTERRUPT = 0x04300008;
-const uint32_t PADDR_MASK = 0x0430000c;
+const uint32_t PADDR_MI_MODE = 0x04300000;
+const uint32_t PADDR_MI_VERSION = 0x04300004;
+const uint32_t PADDR_MI_INTERRUPT = 0x04300008;
+const uint32_t PADDR_MI_MASK = 0x0430000c;
 
 // https://github.com/Dillonb/n64/blob/6502f7d2f163c3f14da5bff8cd6d5ccc47143156/src/system/n64system.h#L64
 // TODO: big endian?
@@ -34,6 +34,7 @@ static_assert(sizeof(mi_intr_t) == 4, "mi_intr_t size is not 4 bytes");
 
 // https://github.com/Dillonb/n64/blob/6502f7d2f163c3f14da5bff8cd6d5ccc47143156/src/system/n64system.h#L51
 // TODO: big endian?
+// FIXME: do not use bit field
 typedef union mi_intr_mask {
     uint32_t raw;
     PACK(struct {
@@ -49,6 +50,26 @@ typedef union mi_intr_mask {
 
 static_assert(sizeof(mi_intr_mask_t) == 4,
               "mi_intr_mask_t size is not 4 bytes");
+
+namespace MiModeFlag {
+enum MiModeFlag : uint32_t {
+    INIT = 0x0080,  // Bit  7: Initialization mode
+    EBUS = 0x0100,  // Bit  8: EBUS test mode
+    RDRAM = 0x0200, // Bit  9: RDRAM register mode
+};
+}
+
+namespace MiModeWriteFlag {
+enum MiModeWriteFlag : uint32_t {
+    CLR_INIT = 0x0080,    // Bit  7: Clear initialization mode
+    SET_INIT = 0x0100,    // Bit  8: Set initialization mode
+    CLR_EBUS = 0x0200,    // Bit  9: Clear EBUS test
+    SET_EBUS = 0x0400,    // Bit 10: Set EBUS test mode
+    CLR_DP_INTR = 0x0800, // Bit 11: Clear DP interrupt
+    CLR_RDRAM = 0x1000,   // Bit 12: Clear RDRAM register
+    SET_RDRAM = 0x2000,   // Bit 13: Set RDRAM register mode
+};
+}
 
 // MIPS Interface
 // https://n64brew.dev/wiki/MIPS_Interface

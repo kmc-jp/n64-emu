@@ -1,4 +1,5 @@
 ﻿#include "mi.h"
+#include "n64_system/interrupt.h"
 #include "utils.h"
 #include <cstdint>
 
@@ -13,14 +14,14 @@ void MI::reset() {
 
 uint32_t MI::read_paddr32(uint32_t paddr) const {
     switch (paddr) {
-    case PADDR_MODE:
+    case PADDR_MI_MODE:
         return reg_mode;
-    case PADDR_VERSION:
+    case PADDR_MI_VERSION:
         Utils::abort("Correct? Read from MI version");
         return reg_version;
-    case PADDR_INTERRUPT:
+    case PADDR_MI_INTERRUPT:
         return reg_intr.raw;
-    case PADDR_MASK: {
+    case PADDR_MI_MASK: {
         return reg_intr_mask.raw;
     } break;
     default: {
@@ -32,11 +33,34 @@ uint32_t MI::read_paddr32(uint32_t paddr) const {
 
 void MI::write_paddr32(uint32_t paddr, uint32_t value) {
     switch (paddr) {
-    case PADDR_VERSION: {
+    case PADDR_MI_VERSION: {
         // FIXME: correct? そもそもこのレジスタはreadされない?
         reg_version = value;
     } break;
-    case PADDR_MASK: {
+    case PADDR_MI_MODE: {
+        // https://github.com/project64/project64/blob/353ef5ed897cb72a8904603feddbdc649dff9eca/Source/Project64-core/N64System/MemoryHandler/MIPSInterfaceHandler.cpp#L79
+        // https://github.com/Dillonb/n64/blob/6502f7d2f163c3f14da5bff8cd6d5ccc47143156/src/mem/n64bus.c#L190
+        reg_mode &= ~0x7f;
+        reg_mode |= value & 0x7f;
+
+        if (value & MiModeWriteFlag::CLR_INIT)
+            reg_mode &= ~MiModeFlag::INIT;
+        if (value & MiModeWriteFlag::SET_INIT)
+            reg_mode |= MiModeFlag::INIT;
+        if (value & MiModeWriteFlag::CLR_EBUS)
+            reg_mode &= ~MiModeFlag::EBUS;
+        if (value & MiModeWriteFlag::SET_EBUS)
+            reg_mode |= MiModeFlag::EBUS;
+        if (value & MiModeWriteFlag::CLR_DP_INTR) {
+            reg_intr.dp = 0;
+            N64System::check_interrupt();
+        }
+        if (value & MiModeWriteFlag::CLR_RDRAM)
+            reg_mode &= ~MiModeFlag::RDRAM;
+        if (value & MiModeWriteFlag::SET_RDRAM)
+            reg_mode |= MiModeFlag::RDRAM;
+    } break;
+    case PADDR_MI_MASK: {
         if (value & 1)
             // clear sp interrupt mask
             reg_intr_mask.sp = 0;
@@ -75,7 +99,9 @@ void MI::write_paddr32(uint32_t paddr, uint32_t value) {
             reg_intr_mask.dp = 1;
     } break;
     default: {
-        Utils::critical("Unimplemented. Write to MI paddr = {:#010x}", paddr);
+        Utils::critical(
+            "Unimplemented. Write to MI paddr = {:#010x} Value = {:#010x}",
+            paddr, value);
         Utils::abort("Aborted");
     } break;
     }

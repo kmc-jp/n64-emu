@@ -13,6 +13,7 @@ constexpr uint32_t PADDR_SI_STATUS = 0x04800018;
 
 // SI External Bus
 class SI {
+  private:
     std::array<uint8_t, PIF_RAM_SIZE> pif_ram;
 
     static SI instance;

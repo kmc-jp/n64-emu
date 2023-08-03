@@ -54,11 +54,11 @@ void PI::write_paddr32(uint32_t paddr, uint32_t value) {
         dma_write();
     } break;
     case PADDR_STATUS: {
-        if (value & PI_STATUS_WRITE_SET_RESET) {
+        if (value & PiStatusWriteFlags::RESET_DMA) {
             // Reset DMA controller and stop any transfer being done
             Utils::unimplemented("Reset DMA by RI");
         }
-        if (value & PI_STATUS_WRITE_CLR_INTR) {
+        if (value & PiStatusWriteFlags::CLR_INTR) {
             // Clear interrupt
             Utils::unimplemented("Clear interrupt by RI");
         }
