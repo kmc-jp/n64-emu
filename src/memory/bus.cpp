@@ -15,19 +15,17 @@ namespace Memory {
 
 void abort_unimplemented_access(uint32_t paddr) {
     Utils::critical("Unimplemented access to paddr = {:#010x}", paddr);
-    Utils::abort("aborted");
+    Utils::abort("Aborted");
 }
 
 // Do not use this function directly. Use read_paddr64, read_paddr32,
 // read_paddr16 instead.
+// TODO: check alignment
 template <typename Wire> Wire read_paddr(uint32_t paddr) {
     constexpr bool wire64 = std::is_same<Wire, uint64_t>::value;
     constexpr bool wire32 = std::is_same<Wire, uint32_t>::value;
     constexpr bool wire16 = std::is_same<Wire, uint16_t>::value;
     static_assert(wire64 || wire32 || wire16);
-
-    // TODO: アラインメントのチェック
-    // TODO: uint16_t, uint_64_tにちゃんと対応
 
     if (PHYS_RDRAM_MEM_BASE <= paddr && paddr <= PHYS_RDRAM_MEM_END) {
         const uint32_t offs = paddr - PHYS_RDRAM_MEM_BASE;
@@ -144,40 +142,145 @@ uint64_t read_paddr64(uint32_t paddr) { return read_paddr<uint64_t>(paddr); }
 uint32_t read_paddr32(uint32_t paddr) { return read_paddr<uint32_t>(paddr); }
 uint16_t read_paddr16(uint32_t paddr) { return read_paddr<uint16_t>(paddr); }
 
-void write_paddr32(uint32_t paddr, uint32_t value) {
-    // TODO: アラインメントのチェック
+// Do not use this function directly. Use write_paddr64, write_paddr32,
+// write_paddr16 instead.
+// TODO: check alignment
+template <typename Wire> void write_paddr(uint32_t paddr, Wire value) {
+    constexpr bool wire64 = std::is_same<Wire, uint64_t>::value;
+    constexpr bool wire32 = std::is_same<Wire, uint32_t>::value;
+    constexpr bool wire16 = std::is_same<Wire, uint16_t>::value;
+    static_assert(wire64 || wire32 || wire16);
+
     if (PHYS_RDRAM_MEM_BASE <= paddr && paddr <= PHYS_RDRAM_MEM_END) {
-        uint32_t offs = paddr - PHYS_RDRAM_MEM_BASE;
-        Utils::write_to_byte_array32(g_memory().get_rdram(), offs, value);
+        if constexpr (wire16) {
+            abort_unimplemented_access(paddr);
+        } else if constexpr (wire32) {
+            uint32_t offs = paddr - PHYS_RDRAM_MEM_BASE;
+            Utils::write_to_byte_array32(g_memory().get_rdram(), offs, value);
+        } else if constexpr (wire64) {
+            abort_unimplemented_access(paddr);
+        } else {
+            static_assert(false);
+        }
     } else if (PHYS_SPDMEM_BASE <= paddr && paddr <= PHYS_SPDMEM_END) {
-        uint32_t offs = paddr - PHYS_SPDMEM_BASE;
-        Utils::write_to_byte_array32(g_rsp().get_sp_dmem(), offs, value);
+        if constexpr (wire16) {
+            abort_unimplemented_access(paddr);
+        } else if constexpr (wire32) {
+            uint32_t offs = paddr - PHYS_SPDMEM_BASE;
+            Utils::write_to_byte_array32(g_rsp().get_sp_dmem(), offs, value);
+        } else if constexpr (wire64) {
+            abort_unimplemented_access(paddr);
+        } else {
+            static_assert(false);
+        }
     } else if (PHYS_SPIMEM_BASE <= paddr && paddr <= PHYS_SPIMEM_END) {
-        uint32_t offs = paddr - PHYS_SPIMEM_BASE;
-        Utils::write_to_byte_array32(g_rsp().get_sp_imem(), offs, value);
+        if constexpr (wire16) {
+            abort_unimplemented_access(paddr);
+        } else if constexpr (wire32) {
+            uint32_t offs = paddr - PHYS_SPIMEM_BASE;
+            Utils::write_to_byte_array32(g_rsp().get_sp_imem(), offs, value);
+        } else if constexpr (wire64) {
+            abort_unimplemented_access(paddr);
+        } else {
+            static_assert(false);
+        }
     } else if (PHYS_RSP_REG_BASE <= paddr && paddr <= PHYS_RSP_REG_END) {
-        g_rsp().write_paddr32(paddr, value);
+        if constexpr (wire16) {
+            abort_unimplemented_access(paddr);
+        } else if constexpr (wire32) {
+            g_rsp().write_paddr32(paddr, value);
+        } else if constexpr (wire64) {
+            abort_unimplemented_access(paddr);
+        } else {
+            static_assert(false);
+        }
     } else if (PHYS_AI_BASE <= paddr && paddr <= PHYS_AI_END) {
-        g_ai().write_paddr32(paddr, value);
+        if constexpr (wire16) {
+            abort_unimplemented_access(paddr);
+        } else if constexpr (wire32) {
+            g_ai().write_paddr32(paddr, value);
+        } else if constexpr (wire64) {
+            abort_unimplemented_access(paddr);
+        } else {
+            static_assert(false);
+        }
     } else if (PHYS_MI_BASE <= paddr && paddr <= PHYS_MI_END) {
-        g_mi().write_paddr32(paddr, value);
+        if constexpr (wire16) {
+            abort_unimplemented_access(paddr);
+        } else if constexpr (wire32) {
+            g_mi().write_paddr32(paddr, value);
+        } else if constexpr (wire64) {
+            abort_unimplemented_access(paddr);
+        } else {
+            static_assert(false);
+        }
     } else if (PHYS_PI_BASE <= paddr && paddr <= PHYS_PI_END) {
-        g_pi().write_paddr32(paddr, value);
+        if constexpr (wire16) {
+            abort_unimplemented_access(paddr);
+        } else if constexpr (wire32) {
+            g_pi().write_paddr32(paddr, value);
+        } else if constexpr (wire64) {
+            abort_unimplemented_access(paddr);
+        } else {
+            static_assert(false);
+        }
     } else if (PHYS_RI_BASE <= paddr && paddr <= PHYS_RI_END) {
-        g_memory().ri.write_paddr32(paddr, value);
+        if constexpr (wire16) {
+            abort_unimplemented_access(paddr);
+        } else if constexpr (wire32) {
+            g_memory().ri.write_paddr32(paddr, value);
+        } else if constexpr (wire64) {
+            abort_unimplemented_access(paddr);
+        } else {
+            static_assert(false);
+        }
     } else if (PHYS_SI_BASE <= paddr && paddr <= PHYS_SI_END) {
-        g_si().write_paddr32(paddr, value);
+        if constexpr (wire16) {
+            abort_unimplemented_access(paddr);
+        } else if constexpr (wire32) {
+            g_si().write_paddr32(paddr, value);
+        } else if constexpr (wire64) {
+            abort_unimplemented_access(paddr);
+        } else {
+            static_assert(false);
+        }
     } else if (PHYS_ROM_BASE <= paddr && paddr <= PHYS_ROM_END) {
-        uint32_t offs = paddr - PHYS_ROM_BASE;
-        Utils::write_to_byte_array32(g_memory().rom.get_raw_data(), offs,
-                                     value);
+        if constexpr (wire16) {
+            abort_unimplemented_access(paddr);
+        } else if constexpr (wire32) {
+            uint32_t offs = paddr - PHYS_ROM_BASE;
+            Utils::write_to_byte_array32(g_memory().rom.get_raw_data(), offs,
+                                         value);
+        } else if constexpr (wire64) {
+            abort_unimplemented_access(paddr);
+        } else {
+            static_assert(false);
+        }
     } else if (PHYS_PIF_RAM_BASE <= paddr && paddr <= PHYS_PIF_RAM_END) {
-        uint64_t offs = paddr - PHYS_PIF_RAM_BASE;
-        Utils::write_to_byte_array32(g_si().get_pif_ram(), offs, value);
+        if constexpr (wire16) {
+            abort_unimplemented_access(paddr);
+        } else if constexpr (wire32) {
+            uint64_t offs = paddr - PHYS_PIF_RAM_BASE;
+            Utils::write_to_byte_array32(g_si().get_pif_ram(), offs, value);
+
+        } else if constexpr (wire64) {
+            abort_unimplemented_access(paddr);
+        } else {
+            static_assert(false);
+        }
     } else {
-        Utils::critical("Unimplemented. access to paddr = {:#010x}", paddr);
-        Utils::abort("aborted");
+        abort_unimplemented_access(paddr);
     }
+}
+
+void write_paddr64(uint32_t paddr, uint64_t value) {
+    write_paddr<uint64_t>(paddr, value);
+}
+void write_paddr32(uint32_t paddr, uint32_t value) {
+    write_paddr<uint32_t>(paddr, value);
+}
+void write_paddr16(uint32_t paddr, uint16_t value) {
+    write_paddr<uint16_t>(paddr, value);
 }
 
 } // namespace Memory
