@@ -58,4 +58,6 @@ test/test_runner
 **/*.z64
 !tests/**/*.z64
 
+*.txt
+
 .vscode
