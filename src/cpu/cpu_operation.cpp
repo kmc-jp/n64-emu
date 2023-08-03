@@ -1,8 +1,10 @@
 ﻿#include "cpu_operation.h"
-#include "bus.h"
-#include "mmu.h"
-#include "utils.h"
+#include "memory/bus.h"
+#include "memory/tlb.h"
+#include "mmu/mmu.h"
+#include "utils/utils.h"
 #include <cstdint>
+#include <optional>
 
 namespace N64 {
 namespace Cpu {
@@ -301,84 +303,103 @@ class Cpu::Operation::Impl {
 
     static void op_lw(Cpu &cpu, instruction_t inst) {
         // https://github.com/Dillonb/n64/blob/6502f7d2f163c3f14da5bff8cd6d5ccc47143156/src/cpu/mips_instructions.c#L317
-        // TODO: TLB exception
         int16_t offset = inst.i_type.imm;
         Utils::trace("LW: {} <= *({} + {:#x})", GPR_NAMES[inst.i_type.rt],
                      GPR_NAMES[inst.i_type.rs], offset);
         uint64_t vaddr = cpu.gpr.read(inst.i_type.rs) + offset;
-        uint32_t paddr = Mmu::resolve_vaddr(vaddr);
-        int32_t word = Memory::read_paddr32(paddr);
-        cpu.gpr.write(inst.i_type.rt, (int64_t)word); // sext
+        std::optional<uint32_t> paddr = Mmu::resolve_vaddr(vaddr);
+
+        if (paddr.has_value()) {
+            int32_t word = Memory::read_paddr32(paddr.value());
+            cpu.gpr.write(inst.i_type.rt, (int64_t)word); // sext
+        } else {
+            g_tlb().generate_exception(vaddr);
+        }
     }
 
     static void op_lwu(Cpu &cpu, instruction_t inst) {
         // https://github.com/Dillonb/n64/blob/6502f7d2f163c3f14da5bff8cd6d5ccc47143156/src/cpu/mips_instructions.c#L336
-        // TODO: TLB exception
         int16_t offset = inst.i_type.imm;
         Utils::trace("LWU: {} <= *({} + {:#x})", GPR_NAMES[inst.i_type.rt],
                      GPR_NAMES[inst.i_type.rs], offset);
         uint64_t vaddr = cpu.gpr.read(inst.i_type.rs) + offset;
-        uint32_t paddr = Mmu::resolve_vaddr(vaddr);
-        uint32_t word = Memory::read_paddr32(paddr);
-        cpu.gpr.write(inst.i_type.rt, (uint64_t)word); // zext
+        std::optional<uint32_t> paddr = Mmu::resolve_vaddr(vaddr);
+
+        if (paddr.has_value()) {
+            uint32_t word = Memory::read_paddr32(paddr.value());
+            cpu.gpr.write(inst.i_type.rt, (uint64_t)word); // zext
+        } else {
+            g_tlb().generate_exception(vaddr);
+        }
     }
 
     static void op_lhu(Cpu &cpu, instruction_t inst) {
         // https://hack64.net/docs/VR43XX.pdf p.451
         // https://github.com/Dillonb/n64/blob/6502f7d2f163c3f14da5bff8cd6d5ccc47143156/src/cpu/mips_instructions.c#L282
-        // TODO: TLB exception
         int16_t offset = inst.i_type.imm;
         Utils::trace("LHU: {} <= *({} + {:#x})", GPR_NAMES[inst.i_type.rt],
                      GPR_NAMES[inst.i_type.rs], offset);
-        const uint64_t vaddr = cpu.gpr.read(inst.i_type.rs) + offset;
-        // FIXME: address check and throw an address error?
-        const uint32_t paddr = Mmu::resolve_vaddr(vaddr);
-        const uint16_t value = Memory::read_paddr16(paddr);
-        cpu.gpr.write(inst.i_type.rt, static_cast<uint64_t>(value)); // zext
+        uint64_t vaddr = cpu.gpr.read(inst.i_type.rs) + offset;
+        std::optional<uint32_t> paddr = Mmu::resolve_vaddr(vaddr);
+
+        if (paddr.has_value()) {
+            const uint16_t value = Memory::read_paddr16(paddr.value());
+            cpu.gpr.write(inst.i_type.rt, static_cast<uint64_t>(value)); // zext
+
+        } else {
+            g_tlb().generate_exception(vaddr);
+        }
     }
 
     static void op_ld(Cpu &cpu, instruction_t inst) {
         // https://hack64.net/docs/VR43XX.pdf p.441
         // https://github.com/Dillonb/n64/blob/6502f7d2f163c3f14da5bff8cd6d5ccc47143156/src/cpu/mips_instructions.c#L282
-        // TODO: TLB exception
         int16_t offset = inst.i_type.imm;
         Utils::trace("LD: {} <= *({} + {:#x})", GPR_NAMES[inst.i_type.rt],
                      GPR_NAMES[inst.i_type.rs], offset);
-        const uint64_t vaddr = cpu.gpr.read(inst.i_type.rs) + offset;
-        // FIXME: address check and throw an address error
+        uint64_t vaddr = cpu.gpr.read(inst.i_type.rs) + offset;
+        std::optional<uint32_t> paddr = Mmu::resolve_vaddr(vaddr);
 
-        const uint32_t paddr = Mmu::resolve_vaddr(vaddr);
-        const uint64_t value = Memory::read_paddr64(paddr);
-        cpu.gpr.write(inst.i_type.rt, value);
+        if (paddr.has_value()) {
+            uint64_t value = Memory::read_paddr64(paddr.value());
+            cpu.gpr.write(inst.i_type.rt, value);
+        } else {
+            g_tlb().generate_exception(vaddr);
+        }
     }
 
     static void op_sw(Cpu &cpu, instruction_t inst) {
         // https://github.com/Dillonb/n64/blob/6502f7d2f163c3f14da5bff8cd6d5ccc47143156/src/cpu/mips_instructions.c#L382
-        // TODO: TLB excepion
         int16_t offset = inst.i_type.imm;
         Utils::trace("SW: *({} + {:#x}) <= {}", GPR_NAMES[inst.i_type.rs],
                      offset, GPR_NAMES[inst.r_type.rt]);
         uint64_t vaddr = cpu.gpr.read(inst.i_type.rs);
         vaddr += offset;
-        uint32_t word = cpu.gpr.read(inst.r_type.rt);
+        std::optional<uint32_t> paddr = Mmu::resolve_vaddr(vaddr);
 
-        uint32_t paddr = Mmu::resolve_vaddr(vaddr);
-
-        Memory::write_paddr32(paddr, word);
+        if (paddr.has_value()) {
+            uint32_t word = cpu.gpr.read(inst.r_type.rt);
+            Memory::write_paddr32(paddr.value(), word);
+        } else {
+            g_tlb().generate_exception(vaddr);
+        }
     }
 
     static void op_sd(Cpu &cpu, instruction_t inst) {
         // https://github.com/Dillonb/n64/blob/6502f7d2f163c3f14da5bff8cd6d5ccc47143156/src/cpu/mips_instructions.c#L402
-        // TODO: TLB excepion
         int16_t offset = inst.i_type.imm;
         Utils::trace("SD: *({} + {:#x}) <= {}", GPR_NAMES[inst.i_type.rs],
                      offset, GPR_NAMES[inst.r_type.rt]);
         uint64_t vaddr = cpu.gpr.read(inst.i_type.rs);
         vaddr += offset;
-        uint64_t dword = cpu.gpr.read(inst.r_type.rt);
+        std::optional<uint32_t> paddr = Mmu::resolve_vaddr(vaddr);
 
-        uint32_t paddr = Mmu::resolve_vaddr(vaddr);
-        Memory::write_paddr64(paddr, dword);
+        if (paddr.has_value()) {
+            uint64_t dword = cpu.gpr.read(inst.r_type.rt);
+            Memory::write_paddr64(paddr.value(), dword);
+        } else {
+            g_tlb().generate_exception(vaddr);
+        }
     }
 
     static void op_addi(Cpu &cpu, instruction_t inst) {

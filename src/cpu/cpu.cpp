@@ -3,6 +3,7 @@
 #include "cpu_operation.h"
 #include "instruction.h"
 #include "memory/bus.h"
+#include "memory/tlb.h"
 #include "mmu/mmu.h"
 #include "utils/utils.h"
 #include <cstdint>
@@ -66,9 +67,16 @@ void Cpu::step() {
     }
 
     // instruction fetch
-    uint32_t paddr_of_pc = Mmu::resolve_vaddr(pc);
+    std::optional<uint32_t> paddr_of_pc = Mmu::resolve_vaddr(pc);
+    if (!paddr_of_pc.has_value()) {
+        // FIXME: what if IF causes TLB miss?
+        Utils::critical("PC fetch causes TLB miss");
+        Utils::abort("Aborted");
+        g_tlb().generate_exception(pc);
+    }
+
     instruction_t inst;
-    inst.raw = {Memory::read_paddr32(paddr_of_pc)};
+    inst.raw = {Memory::read_paddr32(paddr_of_pc.value())};
     Utils::trace("fetched inst = {:#010x} from pc = {:#018x}", inst.raw, pc);
 
     pc = next_pc;

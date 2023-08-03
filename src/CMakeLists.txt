@@ -11,6 +11,7 @@ set(PCH_FILES
     <utility>
     <array>
     <vector>
+    <optional>
     <spdlog/spdlog.h>
     <spdlog/sinks/basic_file_sink.h>)
 

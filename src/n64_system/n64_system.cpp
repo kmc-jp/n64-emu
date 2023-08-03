@@ -3,6 +3,7 @@
 #include "cpu/cpu.h"
 #include "memory/memory.h"
 #include "memory/pif.h"
+#include "memory/tlb.h"
 #include "mmio/ai.h"
 #include "mmio/mi.h"
 #include "mmio/pi.h"
@@ -20,6 +21,7 @@ void reset_all(Config &config) {
     // reset all hardware
     N64::g_memory().reset();
     N64::g_memory().load_rom(config.rom_filepath);
+    N64::g_tlb().reset();
     N64::g_cpu().reset();
     N64::g_rsp().reset();
     N64::g_pi().reset();

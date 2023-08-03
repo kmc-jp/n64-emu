@@ -4,5 +4,6 @@ add_library(memory
     pif.h pif.cpp
     rom.h rom.cpp
     ri.h ri.cpp
+    tlb.h tlb.cpp
     memory_map.h)
 target_precompile_headers(memory PRIVATE ${PCH_FILES})
