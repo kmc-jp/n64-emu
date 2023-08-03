@@ -1,6 +1,7 @@
 ﻿#include "pi.h"
-#include "memory.h"
-#include "memory_map.h"
+#include "memory/memory.h"
+#include "memory/memory_map.h"
+#include "mi.h"
 #include "n64_system/interrupt.h"
 #include "n64_system/scheduler.h"
 #include "utils.h"
@@ -59,10 +60,10 @@ void PI::write_paddr32(uint32_t paddr, uint32_t value) {
             Utils::unimplemented("Reset DMA by RI");
         }
         if (value & PiStatusWriteFlags::CLR_INTR) {
-            // Clear interrupt
-            Utils::unimplemented("Clear interrupt by RI");
+            g_mi().get_reg_intr().pi = 0;
+            reg_status &= ~PiStatusFlags::INTERRUPT;
+            N64System::check_interrupt();
         }
-        // do not write to register
     } break;
     default: {
         Utils::critical("Unimplemented. Write to PI paddr = {:#010x}", paddr);
@@ -84,7 +85,7 @@ void PI::dma_write() {
                 g_memory().rom.read_offset8(cart_addr + i);
         }
 
-        reg_status |= PI_STATUS_DMA_BUSY;
+        reg_status |= PiStatusFlags::DMA_BUSY;
 
         Utils::debug("DMA Write: cart offset {:#010x} -> dram offset {:#010x} "
                      "(len = {:#010x})",
@@ -104,8 +105,8 @@ void PI::dma_write() {
 
 void PIScheduler::on_dma_write_completed() {
     // https://github.com/project64/project64/blob/353ef5ed897cb72a8904603feddbdc649dff9eca/Source/Project64-core/N64System/Mips/SystemTiming.cpp#L210
-    g_pi().reg_status &= ~PI_STATUS_DMA_BUSY;
-    g_pi().reg_status |= PI_STATUS_INTERRUPT;
+    g_pi().reg_status &= ~PiStatusFlags::DMA_BUSY;
+    g_pi().reg_status |= PiStatusFlags::INTERRUPT;
     N64System::check_interrupt();
     Utils::debug("DMA Write completed");
 }

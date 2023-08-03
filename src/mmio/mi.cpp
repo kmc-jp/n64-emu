@@ -17,7 +17,6 @@ uint32_t MI::read_paddr32(uint32_t paddr) const {
     case PADDR_MI_MODE:
         return reg_mode;
     case PADDR_MI_VERSION:
-        Utils::abort("Correct? Read from MI version");
         return reg_version;
     case PADDR_MI_INTERRUPT:
         return reg_intr.raw;

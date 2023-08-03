@@ -16,6 +16,8 @@ class AI {
   private:
     static AI instance;
 
+    uint32_t reg_status;
+
   public:
     AI() {}
 

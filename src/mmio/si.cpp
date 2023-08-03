@@ -28,6 +28,7 @@ void SI::write_paddr32(uint32_t paddr, uint32_t value) {
     case PADDR_SI_STATUS: {
         // https://github.com/project64/project64/blob/353ef5ed897cb72a8904603feddbdc649dff9eca/Source/Project64-core/N64System/MemoryHandler/SerialInterfaceHandler.cpp#L98
         g_mi().get_reg_intr().si = 0;
+        reg_status &= ~SiStatusFlags::INTERRUPT;
         N64System::check_interrupt();
     } break;
     default: {

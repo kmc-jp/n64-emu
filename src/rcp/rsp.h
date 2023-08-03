@@ -153,11 +153,11 @@ class Rsp {
             status_reg.broke = false;
 
         if (write.clear_intr) {
-            g_mi().get_reg_intr().sp = false;
+            g_mi().get_reg_intr().sp = 0;
             N64System::check_interrupt();
         }
         if (write.set_intr) {
-            g_mi().get_reg_intr().sp = true;
+            g_mi().get_reg_intr().sp = 1;
             N64System::check_interrupt();
         }
 
