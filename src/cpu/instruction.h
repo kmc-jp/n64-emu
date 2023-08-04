@@ -59,9 +59,11 @@ static_assert(sizeof(instruction_t) == 4, "instruction_t size is not 4");
 // MIPS instructions
 constexpr uint8_t OPCODE_SPECIAL = 0b000000;
 constexpr uint8_t OPCODE_REGIMM = 0b000001;
+constexpr uint8_t OPCODE_CP0 = 0b010000;
+constexpr uint8_t OPCODE_CP1 = 0b010001;
+
 constexpr uint8_t OPCODE_J = 0b000010;
 constexpr uint8_t OPCODE_JAL = 0b000011;
-constexpr uint8_t OPCODE_COP0 = 0b010000;
 constexpr uint8_t OPCODE_ADDI = 0b001000;
 constexpr uint8_t OPCODE_ADDIU = 0b001001;
 constexpr uint8_t OPCODE_DADDI = 0b011000;
@@ -97,8 +99,8 @@ constexpr uint8_t SPECIAL_FUNCT_SUB = 0b100010;   // SUB
 constexpr uint8_t SPECIAL_FUNCT_SUBU = 0b100011;  // SUBU
 constexpr uint8_t SPECIAL_FUNCT_MULT = 0b011000;  // MULT
 constexpr uint8_t SPECIAL_FUNCT_MULTU = 0b011001; // MULTU
-constexpr uint8_t SPECIAL_FUNCT_DIV = 0b011010;  // DIV
-constexpr uint8_t SPECIAL_FUNCT_DIVU = 0b011011; // DIVU
+constexpr uint8_t SPECIAL_FUNCT_DIV = 0b011010;   // DIV
+constexpr uint8_t SPECIAL_FUNCT_DIVU = 0b011011;  // DIVU
 constexpr uint8_t SPECIAL_FUNCT_SLL = 0b000000;   // SLL
 constexpr uint8_t SPECIAL_FUNCT_SRL = 0b000010;   // SRL
 constexpr uint8_t SPECIAL_FUNCT_SRA = 0b000011;   // SRA
@@ -123,10 +125,12 @@ constexpr uint8_t REGIMM_RT_BGEZL = 0b00011;  // BGEZL
 constexpr uint8_t REGIMM_RT_BLTZAL = 0b10000; // BLTZAL
 constexpr uint8_t REGIMM_RT_BGEZAL = 0b10001; // BGEZAL
 
-constexpr uint8_t CP0_SUB_MFC0 = 0b00000;  // MFC0
-constexpr uint8_t CP0_SUB_DMFC0 = 0b00001; // DMFC0
-constexpr uint8_t CP0_SUB_MTC0 = 0b00100;  // MTC0
-constexpr uint8_t CP0_SUB_DMTC0 = 0b00101; // DMT
+// COP
+constexpr uint8_t COP_MFC = 0b00000;  // MFC
+constexpr uint8_t COP_DMFC = 0b00001; // DMFC
+constexpr uint8_t COP_MTC = 0b00100;  // MTC
+constexpr uint8_t COP_DMTC = 0b00101; // DMT
+constexpr uint8_t COP_CFC = 0b00010;  // CFC
 
 } // namespace Cpu
 } // namespace N64

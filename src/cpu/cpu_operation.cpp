@@ -687,6 +687,11 @@ class Cpu::Operation::Impl {
         // FIXME: T+1 (delay)
         cpu.cop0.reg.write(inst.copz_type1.rd, tmp);
     }
+
+    // TODO: move to another file
+    static void op_cfc1(Cpu &cpu, instruction_t inst) {
+        Utils::abort("CFC1: not implemented");
+    }
 };
 
 void Cpu::Operation::execute(Cpu &cpu, instruction_t inst) {
@@ -741,9 +746,10 @@ void Cpu::Operation::execute(Cpu &cpu, instruction_t inst) {
             return Impl::op_mfhi(cpu, inst);
         case SPECIAL_FUNCT_MFLO: // MFLO
             return Impl::op_mflo(cpu, inst);
-        default:
+        default: {
             Utils::abort("Unimplemented funct = {:#08b} for opcode = SPECIAL.",
                          static_cast<uint32_t>(inst.r_type.funct));
+        } break;
         }
     } break;
     case OPCODE_REGIMM: {
@@ -760,9 +766,10 @@ void Cpu::Operation::execute(Cpu &cpu, instruction_t inst) {
             return Impl::op_bltzal(cpu, inst);
         case REGIMM_RT_BGEZAL: // BGEZAL
             return Impl::op_bgezal(cpu, inst);
-        default:
+        default: {
             Utils::abort("Unimplemented rt = {:#07b} for opcode = REGIMM.",
                          static_cast<uint32_t>(inst.i_type.rt));
+        } break;
         }
     } break;
     case OPCODE_J: // J (J format)
@@ -817,29 +824,39 @@ void Cpu::Operation::execute(Cpu &cpu, instruction_t inst) {
         return Impl::op_slti(cpu, inst);
     case OPCODE_SLTIU: // SLTIU
         return Impl::op_sltiu(cpu, inst);
-    case OPCODE_COP0: // CP0 instructions
+    case OPCODE_CP0: // CP0 instructions
     {
         // https://hack64.net/docs/VR43XX.pdf p.86
         assert_encoding_is_valid(inst.copz_type1.should_be_zero == 0);
         switch (inst.copz_type1.sub) {
-        case CP0_SUB_MFC0: // MFC0 (COPZ format)
+        case COP_MFC: // MFC0 (COPZ format)
             return Impl::op_mfc0(cpu, inst);
-        case CP0_SUB_MTC0: // MTC0 (COPZ format)
+        case COP_MTC: // MTC0 (COPZ format)
             return Impl::op_mtc0(cpu, inst);
-        case CP0_SUB_DMFC0: // DMFC0 (COPZ format)
+        case COP_DMFC: // DMFC0 (COPZ format)
             return Impl::op_dmfc0(cpu, inst);
-        case CP0_SUB_DMTC0: // DMTC0 (COPZ format)
+        case COP_DMTC: // DMTC0 (COPZ format)
             return Impl::op_dmtc0(cpu, inst);
-        default:
+        default: {
             Utils::abort("Unimplemented CP0 inst. sub = {:07b}",
                          static_cast<uint8_t>(inst.copz_type1.sub));
-            return;
+        } break;
+        }
+    } break;
+    case OPCODE_CP1: // CP1 instructions
+    {
+        switch (inst.r_type.rs) {
+        case COP_CFC: // CFC1
+            return Impl::op_cfc1(cpu, inst);
+        default: {
+            Utils::abort("Unimplemented rs = {:#07b} for opcode = CP1.",
+                         static_cast<uint32_t>(inst.r_type.rs));
+        } break;
         }
     } break;
     default: {
         Utils::abort("Unimplemented opcode = {:#04x} ({:#08b})", op, op);
-        return;
-    }
+    } break;
     }
 }
 
