@@ -33,13 +33,6 @@ class Gpr {
 };
 
 class Cpu {
-  private:
-    // program counter
-    uint64_t pc;
-    uint64_t next_pc;
-
-    static Cpu instance;
-
   public:
     Gpr gpr;
 
@@ -63,12 +56,9 @@ class Cpu {
 
     void dump();
 
-    void set_pc64(uint64_t value) {
-        pc = value;
-        next_pc = value + 4;
-    }
+    void set_pc64(uint64_t value);
 
-    uint64_t get_pc64() const { return pc; }
+    uint64_t get_pc64() const;
 
     // CPUの1ステップを実行する
     // https://github.com/Dillonb/n64/blob/6502f7d2f163c3f14da5bff8cd6d5ccc47143156/src/cpu/r4300i.c#L758
@@ -79,6 +69,14 @@ class Cpu {
     inline static Cpu &get_instance() { return instance; }
 
   private:
+    // program counter
+    uint64_t pc;
+    uint64_t next_pc;
+
+    // global instance
+    static Cpu instance;
+
+    // impl pattern
     class CpuImpl;
     class FpuImpl;
 };

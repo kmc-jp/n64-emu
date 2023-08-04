@@ -32,6 +32,13 @@ void Cpu::dump() {
     Utils::info("=========================");
 }
 
+void Cpu::set_pc64(uint64_t value) {
+    pc = value;
+    next_pc = value + 4;
+}
+
+uint64_t Cpu::get_pc64() const { return pc; }
+
 void Cpu::step() {
     Utils::trace("");
     Utils::trace("CPU cycle starts PC={:#018x}", pc);
