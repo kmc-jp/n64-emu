@@ -1,8 +1,9 @@
-﻿#ifndef CPU_INSTRUCTION_CPP
-#define CPU_INSTRUCTION_CPP
+﻿#ifndef CPU_INSTRUCTIONS_CPP
+#define CPU_INSTRUCTIONS_CPP
 
 #include "cop0.h"
 #include "cpu.h"
+#include "cpu_operation.h"
 #include "instruction.h"
 #include "memory/bus.h"
 #include "memory/tlb.h"
@@ -16,7 +17,7 @@ namespace Cpu {
 
 constexpr uint8_t RA = 31;
 
-class Cpu::CpuImpl {
+class Cpu::Instruction::CpuImpl {
   public:
     static void branch_likely_addr64(Cpu &cpu, bool cond, uint64_t vaddr) {
         // 分岐成立時のみ遅延スロットを実行する
@@ -686,6 +687,11 @@ class Cpu::CpuImpl {
         const uint64_t tmp = cpu.gpr.read(inst.copz_type1.rt);
         // FIXME: T+1 (delay)
         cpu.cop0.reg.write(inst.copz_type1.rd, tmp);
+    }
+
+    // TODO: move to another file
+    static void op_cfc1(Cpu &cpu, instruction_t inst) {
+        Utils::abort("CFC1: not CpuImplemented");
     }
 };
 

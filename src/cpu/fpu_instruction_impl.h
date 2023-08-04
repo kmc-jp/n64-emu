@@ -3,7 +3,6 @@
 
 #include "cop0.h"
 #include "cpu.h"
-#include "gpr.h"
 #include "instruction.h"
 #include "memory/bus.h"
 #include "memory/tlb.h"
