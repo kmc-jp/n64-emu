@@ -59,6 +59,7 @@ class Cpu {
 
   private:
     class CpuImpl;
+    class FpuImpl;
 };
 
 } // namespace Cpu

@@ -3,7 +3,8 @@ add_library(cpu
     cop0.h cop0.cpp
     instruction.h
     gpr.h
-    cpu_instruction_impl.h
     instruction_execute.cpp
+    cpu_instruction_impl.h
+    fpu_instruction_impl.h
 )
 target_precompile_headers(cpu PRIVATE ${PCH_FILES})

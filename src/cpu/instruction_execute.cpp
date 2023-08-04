@@ -1,10 +1,10 @@
 ﻿#include "cpu_instruction_impl.h"
+#include "fpu_instruction_impl.h"
 #include "memory/bus.h"
 #include "memory/tlb.h"
 #include "mmu/mmu.h"
 #include "utils/utils.h"
 #include <cstdint>
-#include <optional>
 
 namespace N64 {
 namespace Cpu {
@@ -162,7 +162,7 @@ void Cpu::execute_instruction(instruction_t inst) {
     {
         switch (inst.r_type.rs) {
         case COP_CFC: // CFC1
-            return CpuImpl::op_cfc1(*this, inst);
+            return FpuImpl::op_cfc1(*this, inst);
         default: {
             Utils::abort("Unimplemented rs = {:#07b} for opcode = CP1.",
                          static_cast<uint32_t>(inst.r_type.rs));

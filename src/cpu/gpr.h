@@ -1,8 +1,7 @@
 ﻿#ifndef GPR_H
 #define GPR_H
 
-#include "../memory/rom.h"
-
+#include "memory/rom.h"
 #include <cassert>
 #include <cstdint>
 
