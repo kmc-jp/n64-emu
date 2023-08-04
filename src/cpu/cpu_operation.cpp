@@ -194,6 +194,34 @@ class Cpu::Operation::Impl {
         cpu.gpr.write(inst.r_type.rd, (int64_t)res);
     }
 
+    static void op_srl(Cpu &cpu, instruction_t inst) {
+        // https://github.com/Dillonb/n64/blob/6502f7d2f163c3f14da5bff8cd6d5ccc47143156/src/cpu/mips_instructions.c#L703
+        uint32_t value = cpu.gpr.read(inst.r_type.rt);
+        int32_t res = value >> inst.r_type.sa;
+        cpu.gpr.write(inst.r_type.rd, (int64_t)res);
+        Utils::trace("SRL {} {} {}", GPR_NAMES[inst.r_type.rd],
+                     GPR_NAMES[inst.r_type.rt], (uint8_t)inst.r_type.sa);
+    }
+
+    static void op_sra(Cpu &cpu, instruction_t inst) {
+        // https://github.com/Dillonb/n64/blob/6502f7d2f163c3f14da5bff8cd6d5ccc47143156/src/cpu/mips_instructions.c#L709
+        int64_t value = cpu.gpr.read(inst.r_type.rt);
+        int32_t res = (int64_t)(value >> (uint64_t)inst.r_type.sa);
+        cpu.gpr.write(inst.r_type.rd, (int64_t)res);
+        Utils::trace("SRA {} {} {}", GPR_NAMES[inst.r_type.rd],
+                     GPR_NAMES[inst.r_type.rt], (uint8_t)inst.r_type.sa);
+    }
+
+    static void op_srav(Cpu &cpu, instruction_t inst) {
+        // https://github.com/Dillonb/n64/blob/6502f7d2f163c3f14da5bff8cd6d5ccc47143156/src/cpu/mips_instructions.c#L715
+        int64_t value = cpu.gpr.read(inst.r_type.rt);
+        int32_t res =
+            (int64_t)(value >> (cpu.gpr.read(inst.r_type.rs) & 0b11111));
+        cpu.gpr.write(inst.r_type.rd, (int64_t)res);
+        Utils::trace("SRAV {}, {}, {}", GPR_NAMES[inst.r_type.rd],
+                     GPR_NAMES[inst.r_type.rt], GPR_NAMES[inst.r_type.rs]);
+    }
+
     static void op_sllv(Cpu &cpu, instruction_t inst) {
         // https://github.com/Dillonb/n64/blob/6502f7d2f163c3f14da5bff8cd6d5ccc47143156/src/cpu/mips_instructions.c#L721
         assert_encoding_is_valid(inst.r_type.sa == 0);
@@ -685,6 +713,12 @@ void Cpu::Operation::execute(Cpu &cpu, instruction_t inst) {
             return Impl::op_divu(cpu, inst);
         case SPECIAL_FUNCT_SLL: // SLL
             return Impl::op_sll(cpu, inst);
+        case SPECIAL_FUNCT_SRL: // SRL
+            return Impl::op_srl(cpu, inst);
+        case SPECIAL_FUNCT_SRA: // SRA
+            return Impl::op_sra(cpu, inst);
+        case SPECIAL_FUNCT_SRAV: // SRAV
+            return Impl::op_srav(cpu, inst);
         case SPECIAL_FUNCT_SLLV: // SLLV
             return Impl::op_sllv(cpu, inst);
         case SPECIAL_FUNCT_SRLV: // SRLV
