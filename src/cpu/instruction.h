@@ -132,6 +132,11 @@ constexpr uint8_t COP_MTC = 0b00100;  // MTC
 constexpr uint8_t COP_DMTC = 0b00101; // DMT
 constexpr uint8_t COP_CFC = 0b00010;  // CFC
 
+static void assert_encoding_is_valid(bool validity) {
+    // should be able to ignore?
+    assert(validity);
+}
+
 } // namespace Cpu
 } // namespace N64
 

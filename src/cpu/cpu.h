@@ -57,7 +57,8 @@ class Cpu {
 
     inline static Cpu &get_instance() { return instance; }
 
-    class Instruction;
+  private:
+    class CpuImpl;
 };
 
 } // namespace Cpu
