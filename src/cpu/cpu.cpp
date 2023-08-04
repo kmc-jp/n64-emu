@@ -1,6 +1,5 @@
 ﻿#include "cpu.h"
 #include "cop0.h"
-#include "cpu_operation.h"
 #include "instruction.h"
 #include "memory/bus.h"
 #include "memory/tlb.h"
@@ -32,6 +31,13 @@ void Cpu::dump() {
     cop0.dump();
     Utils::info("=========================");
 }
+
+void Cpu::set_pc64(uint64_t value) {
+    pc = value;
+    next_pc = value + 4;
+}
+
+uint64_t Cpu::get_pc64() const { return pc; }
 
 void Cpu::step() {
     Utils::trace("");
@@ -86,10 +92,6 @@ void Cpu::step() {
 
     cop0.reg.count += CPU_CYCLES_PER_INST;
     cop0.reg.count &= 0x1FFFFFFFF;
-}
-
-void Cpu::execute_instruction(instruction_t inst) {
-    Operation::execute(*this, inst);
 }
 
 } // namespace Cpu

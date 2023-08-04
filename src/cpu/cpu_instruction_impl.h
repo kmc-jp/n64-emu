@@ -1,4 +1,9 @@
-﻿#include "cpu_operation.h"
+﻿#ifndef CPU_INSTRUCTION_CPP
+#define CPU_INSTRUCTION_CPP
+
+#include "cop0.h"
+#include "cpu.h"
+#include "instruction.h"
 #include "memory/bus.h"
 #include "memory/tlb.h"
 #include "mmu/mmu.h"
@@ -9,56 +14,8 @@
 namespace N64 {
 namespace Cpu {
 
-constexpr uint8_t RA = 31;
-
-void assert_encoding_is_valid(bool validity) {
-    // should be able to ignore?
-    assert(validity);
-}
-
-class Cpu::Operation::Impl {
+class Cpu::CpuImpl {
   public:
-    static void branch_likely_addr64(Cpu &cpu, bool cond, uint64_t vaddr) {
-        // 分岐成立時のみ遅延スロットを実行する
-        cpu.delay_slot = true; // FIXME: correct?
-        if (cond) {
-            Utils::trace("branch likely taken");
-            cpu.next_pc = vaddr;
-        } else {
-            Utils::trace("branch likely not taken");
-            cpu.set_pc64(cpu.pc + 4);
-        }
-    }
-
-    static void branch_addr64(Cpu &cpu, bool cond, uint64_t vaddr) {
-        cpu.delay_slot = true;
-        if (cond) {
-            Utils::trace("branch taken");
-            cpu.next_pc = vaddr;
-        } else {
-            Utils::trace("branch not taken");
-        }
-    }
-
-    static void branch_likely_offset16(Cpu &cpu, bool cond,
-                                       instruction_t inst) {
-        int64_t offset = (int16_t)inst.i_type.imm; // sext
-        // 負数の左シフトはUBなので乗算で実装
-        offset *= 4;
-        Utils::trace("pc <= pc {:+#x}?", (int64_t)offset);
-        branch_likely_addr64(cpu, cond, cpu.pc + offset);
-    }
-
-    static void branch_offset16(Cpu &cpu, bool cond, instruction_t inst) {
-        int64_t offset = (int16_t)inst.i_type.imm; // sext
-        // 負数の左シフトはUBなので乗算で実装
-        offset *= 4;
-        Utils::trace("pc <= pc {:+#x}?", (int64_t)offset);
-        branch_addr64(cpu, cond, cpu.pc + offset);
-    }
-
-    static void link(Cpu &cpu, uint8_t reg) { cpu.gpr.write(reg, cpu.pc + 4); }
-
     static void op_add(Cpu &cpu, instruction_t inst) {
         // TODO: throw exception
         // https://github.com/Dillonb/n64/blob/6502f7d2f163c3f14da5bff8cd6d5ccc47143156/src/cpu/mips_instructions.c#L903
@@ -687,178 +644,9 @@ class Cpu::Operation::Impl {
         // FIXME: T+1 (delay)
         cpu.cop0.reg.write(inst.copz_type1.rd, tmp);
     }
-
-    // TODO: move to another file
-    static void op_cfc1(Cpu &cpu, instruction_t inst) {
-        Utils::abort("CFC1: not implemented");
-    }
 };
-
-void Cpu::Operation::execute(Cpu &cpu, instruction_t inst) {
-    uint8_t op = inst.op;
-    switch (op) {
-    case OPCODE_SPECIAL: // various operations (R format)
-    {
-        switch (inst.r_type.funct) {
-        case SPECIAL_FUNCT_ADD: // ADD
-            return Impl::op_add(cpu, inst);
-        case SPECIAL_FUNCT_ADDU: // ADDU
-            return Impl::op_addu(cpu, inst);
-        case SPECIAL_FUNCT_SUB: // SUB
-            return Impl::op_sub(cpu, inst);
-        case SPECIAL_FUNCT_SUBU: // SUBU
-            return Impl::op_subu(cpu, inst);
-        case SPECIAL_FUNCT_MULT: // MULT
-            return Impl::op_mult(cpu, inst);
-        case SPECIAL_FUNCT_MULTU: // MULTU
-            return Impl::op_multu(cpu, inst);
-        case SPECIAL_FUNCT_DIV: // DIV
-            return Impl::op_div(cpu, inst);
-        case SPECIAL_FUNCT_DIVU: // DIVU
-            return Impl::op_divu(cpu, inst);
-        case SPECIAL_FUNCT_SLL: // SLL
-            return Impl::op_sll(cpu, inst);
-        case SPECIAL_FUNCT_SRL: // SRL
-            return Impl::op_srl(cpu, inst);
-        case SPECIAL_FUNCT_SRA: // SRA
-            return Impl::op_sra(cpu, inst);
-        case SPECIAL_FUNCT_SRAV: // SRAV
-            return Impl::op_srav(cpu, inst);
-        case SPECIAL_FUNCT_SLLV: // SLLV
-            return Impl::op_sllv(cpu, inst);
-        case SPECIAL_FUNCT_SRLV: // SRLV
-            return Impl::op_srlv(cpu, inst);
-        case SPECIAL_FUNCT_SLT: // SLT
-            return Impl::op_slt(cpu, inst);
-        case SPECIAL_FUNCT_SLTU: // SLTU
-            return Impl::op_sltu(cpu, inst);
-        case SPECIAL_FUNCT_AND: // AND
-            return Impl::op_and(cpu, inst);
-        case SPECIAL_FUNCT_OR: // OR
-            return Impl::op_or(cpu, inst);
-        case SPECIAL_FUNCT_XOR: // XOR
-            return Impl::op_xor(cpu, inst);
-        case SPECIAL_FUNCT_JR: // JR
-            return Impl::op_jr(cpu, inst);
-        case SPECIAL_FUNCT_JALR: // JALR
-            return Impl::op_jalr(cpu, inst);
-        case SPECIAL_FUNCT_MFHI: // MFHI
-            return Impl::op_mfhi(cpu, inst);
-        case SPECIAL_FUNCT_MFLO: // MFLO
-            return Impl::op_mflo(cpu, inst);
-        default: {
-            Utils::abort("Unimplemented funct = {:#08b} for opcode = SPECIAL.",
-                         static_cast<uint32_t>(inst.r_type.funct));
-        } break;
-        }
-    } break;
-    case OPCODE_REGIMM: {
-        switch (inst.i_type.rt) {
-        case REGIMM_RT_BLTZ: // BLTZ
-            return Impl::op_bltz(cpu, inst);
-        case REGIMM_RT_BLTZL: // BLTZL
-            return Impl::op_bltzl(cpu, inst);
-        case REGIMM_RT_BGEZ: // BGEZ
-            return Impl::op_bgez(cpu, inst);
-        case REGIMM_RT_BGEZL: // BGEZL
-            return Impl::op_bgezl(cpu, inst);
-        case REGIMM_RT_BLTZAL: // BLTZAL
-            return Impl::op_bltzal(cpu, inst);
-        case REGIMM_RT_BGEZAL: // BGEZAL
-            return Impl::op_bgezal(cpu, inst);
-        default: {
-            Utils::abort("Unimplemented rt = {:#07b} for opcode = REGIMM.",
-                         static_cast<uint32_t>(inst.i_type.rt));
-        } break;
-        }
-    } break;
-    case OPCODE_J: // J (J format)
-        return Impl::op_j(cpu, inst);
-    case OPCODE_JAL: // JAL (J format)
-        return Impl::op_jal(cpu, inst);
-    case OPCODE_LUI: // LUI (I format)
-        return Impl::op_lui(cpu, inst);
-    case OPCODE_LW: // LW (I format)
-        return Impl::op_lw(cpu, inst);
-    case OPCODE_LWU: // LWU (I format)
-        return Impl::op_lwu(cpu, inst);
-    case OPCODE_LHU: // LHU (I format)
-        return Impl::op_lhu(cpu, inst);
-    case OPCODE_LD: // LD (I format)
-        return Impl::op_ld(cpu, inst);
-    case OPCODE_SW: // SW (I format)
-        return Impl::op_sw(cpu, inst);
-    case OPCODE_SD: // SD (I format)
-        return Impl::op_sd(cpu, inst);
-    case OPCODE_ADDI: // ADDI (I format)
-        return Impl::op_addi(cpu, inst);
-    case OPCODE_ADDIU: // ADDIU (I format)
-        return Impl::op_addiu(cpu, inst);
-    case OPCODE_DADDI: // DADDI (I format)
-        return Impl::op_daddi(cpu, inst);
-    case OPCODE_ANDI: // ANDI (I format)
-        return Impl::op_andi(cpu, inst);
-    case OPCODE_ORI: // ORI (I format)
-        return Impl::op_ori(cpu, inst);
-    case OPCODE_XORI: // XORI (I format)
-        return Impl::op_xori(cpu, inst);
-    case OPCODE_BEQ: // BEQ (I format)
-        return Impl::op_beq(cpu, inst);
-    case OPCODE_BEQL: // BEQL (I format)
-        return Impl::op_beql(cpu, inst);
-    case OPCODE_BNE: // BNE (I format)
-        return Impl::op_bne(cpu, inst);
-    case OPCODE_BNEL: // BNEL (I format)
-        return Impl::op_bnel(cpu, inst);
-    case OPCODE_BLEZ: // BLEZ (I format)
-        return Impl::op_blez(cpu, inst);
-    case OPCODE_BLEZL: // BLEZL (I format)
-        return Impl::op_blezl(cpu, inst);
-    case OPCODE_BGTZ: // BGTZ (I format)
-        return Impl::op_bgtz(cpu, inst);
-    case OPCODE_BGTZL: // BGTZL (I format)
-        return Impl::op_bgtzl(cpu, inst);
-    case OPCODE_CACHE: // CACHE
-        return Impl::op_cache();
-    case OPCODE_SLTI: // SLTI
-        return Impl::op_slti(cpu, inst);
-    case OPCODE_SLTIU: // SLTIU
-        return Impl::op_sltiu(cpu, inst);
-    case OPCODE_CP0: // CP0 instructions
-    {
-        // https://hack64.net/docs/VR43XX.pdf p.86
-        assert_encoding_is_valid(inst.copz_type1.should_be_zero == 0);
-        switch (inst.copz_type1.sub) {
-        case COP_MFC: // MFC0 (COPZ format)
-            return Impl::op_mfc0(cpu, inst);
-        case COP_MTC: // MTC0 (COPZ format)
-            return Impl::op_mtc0(cpu, inst);
-        case COP_DMFC: // DMFC0 (COPZ format)
-            return Impl::op_dmfc0(cpu, inst);
-        case COP_DMTC: // DMTC0 (COPZ format)
-            return Impl::op_dmtc0(cpu, inst);
-        default: {
-            Utils::abort("Unimplemented CP0 inst. sub = {:07b}",
-                         static_cast<uint8_t>(inst.copz_type1.sub));
-        } break;
-        }
-    } break;
-    case OPCODE_CP1: // CP1 instructions
-    {
-        switch (inst.r_type.rs) {
-        case COP_CFC: // CFC1
-            return Impl::op_cfc1(cpu, inst);
-        default: {
-            Utils::abort("Unimplemented rs = {:#07b} for opcode = CP1.",
-                         static_cast<uint32_t>(inst.r_type.rs));
-        } break;
-        }
-    } break;
-    default: {
-        Utils::abort("Unimplemented opcode = {:#04x} ({:#08b})", op, op);
-    } break;
-    }
-}
 
 } // namespace Cpu
 } // namespace N64
+
+#endif
