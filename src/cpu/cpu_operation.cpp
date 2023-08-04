@@ -256,6 +256,34 @@ class Cpu::Operation::Impl {
         cpu.gpr.write(inst.r_type.rd, cpu.lo);
     }
 
+    static void op_bltz(Cpu &cpu, instruction_t inst) {
+        // https://github.com/Dillonb/n64/blob/6502f7d2f163c3f14da5bff8cd6d5ccc47143156/src/cpu/mips_instructions.c#L1113
+        int64_t rs = cpu.gpr.read(inst.i_type.rs);
+        Utils::trace("BLTZ {}", GPR_NAMES[inst.i_type.rs]);
+        branch_offset16(cpu, rs < 0, inst);
+    }
+
+    static void op_bltzl(Cpu &cpu, instruction_t inst) {
+        // https://github.com/Dillonb/n64/blob/6502f7d2f163c3f14da5bff8cd6d5ccc47143156/src/cpu/mips_instructions.c#L1118
+        int64_t rs = cpu.gpr.read(inst.i_type.rs);
+        Utils::trace("BLTZL {}", GPR_NAMES[inst.i_type.rs]);
+        branch_likely_offset16(cpu, rs < 0, inst);
+    }
+
+    static void op_bgez(Cpu &cpu, instruction_t inst) {
+        // https://github.com/Dillonb/n64/blob/6502f7d2f163c3f14da5bff8cd6d5ccc47143156/src/cpu/mips_instructions.c#L1123
+        int64_t rs = cpu.gpr.read(inst.i_type.rs);
+        Utils::trace("BGEZ {}", GPR_NAMES[inst.i_type.rs]);
+        branch_offset16(cpu, rs >= 0, inst);
+    }
+
+    static void op_bgezl(Cpu &cpu, instruction_t inst) {
+        // https://github.com/Dillonb/n64/blob/6502f7d2f163c3f14da5bff8cd6d5ccc47143156/src/cpu/mips_instructions.c#L1128
+        int64_t rs = cpu.gpr.read(inst.i_type.rs);
+        Utils::trace("BGEZL {}", GPR_NAMES[inst.i_type.rs]);
+        branch_likely_offset16(cpu, rs >= 0, inst);
+    }
+
     static void op_bltzal(Cpu &cpu, instruction_t inst) {
         // https://github.com/Dillonb/n64/blob/6502f7d2f163c3f14da5bff8cd6d5ccc47143156/src/cpu/mips_instructions.c#L1133
         int64_t rs = cpu.gpr.read(inst.i_type.rs);
@@ -626,6 +654,14 @@ void Cpu::Operation::execute(Cpu &cpu, instruction_t inst) {
     } break;
     case OPCODE_REGIMM: {
         switch (inst.i_type.rt) {
+        case REGIMM_RT_BLTZ: // BLTZ
+            return Impl::op_bltz(cpu, inst);
+        case REGIMM_RT_BLTZL: // BLTZL
+            return Impl::op_bltzl(cpu, inst);
+        case REGIMM_RT_BGEZ: // BGEZ
+            return Impl::op_bgez(cpu, inst);
+        case REGIMM_RT_BGEZL: // BGEZL
+            return Impl::op_bgezl(cpu, inst);
         case REGIMM_RT_BLTZAL: // BLTZAL
             return Impl::op_bltzal(cpu, inst);
         case REGIMM_RT_BGEZAL: // BGEZAL
