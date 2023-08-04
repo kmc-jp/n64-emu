@@ -1,6 +1,6 @@
 ﻿#include "cpu.h"
 #include "cop0.h"
-#include "cpu_operation.h"
+#include "cpu_instruction.h"
 #include "instruction.h"
 #include "memory/bus.h"
 #include "memory/tlb.h"
@@ -89,7 +89,7 @@ void Cpu::step() {
 }
 
 void Cpu::execute_instruction(instruction_t inst) {
-    Operation::execute(*this, inst);
+    Instruction::execute(*this, inst);
 }
 
 } // namespace Cpu

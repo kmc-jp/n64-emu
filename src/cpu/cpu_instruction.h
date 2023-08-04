@@ -6,7 +6,7 @@
 namespace N64 {
 namespace Cpu {
 
-class Cpu::Operation {
+class Cpu::Instruction {
   public:
     static void assert_encoding_is_valid(bool validity) {
         // should be able to ignore?

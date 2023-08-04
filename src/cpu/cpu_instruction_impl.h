@@ -3,7 +3,7 @@
 
 #include "cop0.h"
 #include "cpu.h"
-#include "cpu_operation.h"
+#include "cpu_instruction.h"
 #include "gpr.h"
 #include "instruction.h"
 #include "memory/bus.h"
@@ -18,7 +18,7 @@ namespace Cpu {
 
 constexpr uint8_t RA = 31;
 
-class Cpu::Operation::CpuImpl {
+class Cpu::Instruction::CpuImpl {
   public:
     static void branch_likely_addr64(Cpu &cpu, bool cond, uint64_t vaddr) {
         // 分岐成立時のみ遅延スロットを実行する

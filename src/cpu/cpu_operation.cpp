@@ -1,5 +1,5 @@
-﻿#include "cpu_operation.h"
-#include "cpu_instructions.h"
+﻿#include "cpu_instruction.h"
+#include "cpu_instruction_impl.h"
 #include "memory/bus.h"
 #include "memory/tlb.h"
 #include "mmu/mmu.h"
@@ -10,7 +10,7 @@
 namespace N64 {
 namespace Cpu {
 
-void Cpu::Operation::execute(Cpu &cpu, instruction_t inst) {
+void Cpu::Instruction::execute(Cpu &cpu, instruction_t inst) {
     uint8_t op = inst.op;
     switch (op) {
     case OPCODE_SPECIAL: // various operations (R format)
