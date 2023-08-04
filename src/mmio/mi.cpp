@@ -17,7 +17,7 @@ uint32_t MI::read_paddr32(uint32_t paddr) const {
     case PADDR_MI_MODE:
         return reg_mode;
     case PADDR_MI_VERSION:
-        return reg_version;
+        return 0x02020102;
     case PADDR_MI_INTERRUPT:
         return reg_intr.raw;
     case PADDR_MI_MASK: {
@@ -33,8 +33,7 @@ uint32_t MI::read_paddr32(uint32_t paddr) const {
 void MI::write_paddr32(uint32_t paddr, uint32_t value) {
     switch (paddr) {
     case PADDR_MI_VERSION: {
-        // FIXME: correct? そもそもこのレジスタはreadされない?
-        reg_version = value;
+        Utils::critical("Write to MI_VERSION, ignored.");
     } break;
     case PADDR_MI_MODE: {
         // https://github.com/project64/project64/blob/353ef5ed897cb72a8904603feddbdc649dff9eca/Source/Project64-core/N64System/MemoryHandler/MIPSInterfaceHandler.cpp#L79
