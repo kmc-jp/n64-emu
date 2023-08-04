@@ -8,10 +8,15 @@ namespace Cpu {
 
 class Cpu::Operation {
   public:
+    static void assert_encoding_is_valid(bool validity) {
+        // should be able to ignore?
+        assert(validity);
+    }
+
     static void execute(Cpu &cpu, instruction_t inst);
 
   private:
-    class Impl;
+    class CpuImpl;
 };
 
 } // namespace Cpu
