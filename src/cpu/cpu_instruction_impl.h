@@ -14,51 +14,8 @@
 namespace N64 {
 namespace Cpu {
 
-constexpr uint8_t RA = 31;
-
 class Cpu::CpuImpl {
   public:
-    static void branch_likely_addr64(Cpu &cpu, bool cond, uint64_t vaddr) {
-        // 分岐成立時のみ遅延スロットを実行する
-        cpu.delay_slot = true; // FIXME: correct?
-        if (cond) {
-            Utils::trace("branch likely taken");
-            cpu.next_pc = vaddr;
-        } else {
-            Utils::trace("branch likely not taken");
-            cpu.set_pc64(cpu.pc + 4);
-        }
-    }
-
-    static void branch_addr64(Cpu &cpu, bool cond, uint64_t vaddr) {
-        cpu.delay_slot = true;
-        if (cond) {
-            Utils::trace("branch taken");
-            cpu.next_pc = vaddr;
-        } else {
-            Utils::trace("branch not taken");
-        }
-    }
-
-    static void branch_likely_offset16(Cpu &cpu, bool cond,
-                                       instruction_t inst) {
-        int64_t offset = (int16_t)inst.i_type.imm; // sext
-        // 負数の左シフトはUBなので乗算で実装
-        offset *= 4;
-        Utils::trace("pc <= pc {:+#x}?", (int64_t)offset);
-        branch_likely_addr64(cpu, cond, cpu.pc + offset);
-    }
-
-    static void branch_offset16(Cpu &cpu, bool cond, instruction_t inst) {
-        int64_t offset = (int16_t)inst.i_type.imm; // sext
-        // 負数の左シフトはUBなので乗算で実装
-        offset *= 4;
-        Utils::trace("pc <= pc {:+#x}?", (int64_t)offset);
-        branch_addr64(cpu, cond, cpu.pc + offset);
-    }
-
-    static void link(Cpu &cpu, uint8_t reg) { cpu.gpr.write(reg, cpu.pc + 4); }
-
     static void op_add(Cpu &cpu, instruction_t inst) {
         // TODO: throw exception
         // https://github.com/Dillonb/n64/blob/6502f7d2f163c3f14da5bff8cd6d5ccc47143156/src/cpu/mips_instructions.c#L903
