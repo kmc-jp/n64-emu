@@ -58,7 +58,7 @@ uint64_t Cpu::Cop0::Reg::read(uint8_t reg_num) const {
         return error_epc;
     default: {
         Utils::info("Unimplemented; Access to COP0 {} register",
-                     COP0_REG_NAMES[reg_num]);
+                    COP0_REG_NAMES[reg_num]);
         Utils::abort("Aborted");
     } break;
     }
@@ -143,7 +143,7 @@ void Cpu::Cop0::Reg::write(uint8_t reg_num, uint64_t value) {
     } break;
     default: {
         Utils::info("Unimplemented; Access to COP0 {}th reg",
-                     (uint32_t)reg_num);
+                    (uint32_t)reg_num);
         Utils::abort("Aborted");
     } break;
     }
@@ -159,8 +159,8 @@ void Cpu::Cop0::reset() {
     reg.status.fr = 1;
     reg.prid = 0x00000B22;
     reg.config = 0x7006E463;
-    reg.epc = 0xFFFFFFFFFFFFFFFFll;
-    reg.error_epc = 0xFFFFFFFFFFFFFFFFll;
+    reg.epc = 0xFFFFFFFFFFFFFFFF;
+    reg.error_epc = 0xFFFFFFFFFFFFFFFF;
     reg.wired = 0;
     reg.index = 63;
     reg.bad_vaddr = 0xFFFFFFFFFFFFFFFF;
@@ -177,10 +177,10 @@ void Cpu::Cop0::dump() {
             COP0_REG_NAMES[i + 16] == UNUSED_COP0_REG_NAME;
         const uint64_t UNKNOWN_VAL = 0xccccdeadbeefcccc;
         Utils::info("{}\t= {:#018x}\t{}\t= {:#018x}", COP0_REG_NAMES[i],
-                     i_th_reg_is_unknwon ? UNKNOWN_VAL : reg.read(i),
-                     COP0_REG_NAMES[i + 16],
-                     i_plus_16_th_reg_is_unknwon ? UNKNOWN_VAL
-                                                 : reg.read(i + 16));
+                    i_th_reg_is_unknwon ? UNKNOWN_VAL : reg.read(i),
+                    COP0_REG_NAMES[i + 16],
+                    i_plus_16_th_reg_is_unknwon ? UNKNOWN_VAL
+                                                : reg.read(i + 16));
     }
     Utils::info("global interrupt enabled (ie) ? {}",
                 reg.status.ie ? "Enabled" : "Disabled");

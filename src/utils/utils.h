@@ -74,6 +74,10 @@ inline Wire read_from_byte_array(std::span<const uint8_t> span,
 void write_to_byte_array32(std::span<uint8_t> span, uint64_t offset,
                            uint32_t value);
 
+/* 指定された配列に8byte分を書き込む (big endian) */
+void write_to_byte_array64(std::span<uint8_t> span, uint64_t offset,
+                           uint64_t value);
+
 void core_dump();
 
 void unimplemented(const std::string what, const std::source_location loc =

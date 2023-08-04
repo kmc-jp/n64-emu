@@ -152,13 +152,13 @@ template <typename Wire> void write_paddr(uint32_t paddr, Wire value) {
     static_assert(wire64 || wire32 || wire16);
 
     if (PHYS_RDRAM_MEM_BASE <= paddr && paddr <= PHYS_RDRAM_MEM_END) {
+        uint32_t offs = paddr - PHYS_RDRAM_MEM_BASE;
         if constexpr (wire16) {
             abort_unimplemented_access(paddr);
         } else if constexpr (wire32) {
-            uint32_t offs = paddr - PHYS_RDRAM_MEM_BASE;
             Utils::write_to_byte_array32(g_memory().get_rdram(), offs, value);
         } else if constexpr (wire64) {
-            abort_unimplemented_access(paddr);
+            Utils::write_to_byte_array64(g_memory().get_rdram(), offs, value);
         } else {
             static_assert(false);
         }
