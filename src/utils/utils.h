@@ -87,7 +87,7 @@ enum class LogLevel {
     TRACE,
     DEBUG,
     INFO,
-    // WARN,
+    WARN,
     // ERROR,
     CRITICAL,
     OFF
@@ -117,6 +117,11 @@ inline void trace(fmt::format_string<Args...> fmt, Args &&...args) {
 template <typename... Args>
 inline void info(fmt::format_string<Args...> fmt, Args &&...args) {
     spdlog::info(fmt, std::forward<Args>(args)...);
+}
+
+template <typename... Args>
+inline void warn(fmt::format_string<Args...> fmt, Args &&...args) {
+    spdlog::warn(fmt, std::forward<Args>(args)...);
 }
 
 template <typename... Args>

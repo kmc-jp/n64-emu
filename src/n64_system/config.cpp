@@ -32,6 +32,8 @@ bool read_config_from_command_line(Config &config, int argc, char *argv[]) {
                 config.log_level = Utils::LogLevel::DEBUG;
             else if (level_str == "info")
                 config.log_level = Utils::LogLevel::INFO;
+            else if (level_str == "warn")
+                config.log_level = Utils::LogLevel::WARN;
             else if (level_str == "trace")
                 config.log_level = Utils::LogLevel::TRACE;
             else if (level_str == "critical")
