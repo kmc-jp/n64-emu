@@ -1,15 +1,15 @@
 # n64-emu
 An experimental Nintendo 64 emulator.
 
-#### Status
+### NOTE
 
 n64-emu is in a very early stage of development now.
 No commercial ROM can run on it.
 
-## Build (Linux/Windows/macOS)
+## Build
 
 We do not distribute pre-build binaries. 
-You need to build from source to use the emulator.
+You need to build from source.
 
 ### Prerequisites
 - Little endian machine
@@ -17,6 +17,8 @@ You need to build from source to use the emulator.
 - CMake
 
 We support MSVC++. Clang and GCC are not tested for now.
+
+### Linux/Windows/macOS
 
 ```
 git clone --recursive git@github.com:kmc-jp/n64-emu.git
@@ -32,6 +34,8 @@ make # or cmake --build .
 
 ## Run
 
+Only the z64 format (big enddian) is supported.
+
 ```
 ./n64[.exe] <rom_file.z64>
 ```
@@ -45,8 +49,9 @@ ctest -C Debug
 
 ## Contributing
 
-We do not currently accept any pull requests except from members of KMC.
-See: [CONTRIBUTING.md](CONTRIBUTING.md)
+We do not currently accept pull requests to add new feature.
+But bug reports and bug fixes are always welcome 😀
+See [CONTRIBUTING.md](CONTRIBUTING.md)(ja).
 
 
 ## Acknowledgements
