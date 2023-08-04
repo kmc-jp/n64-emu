@@ -174,8 +174,8 @@ class Cpu::Operation::Impl {
 
     static void op_slt(Cpu &cpu, instruction_t inst) {
         // https://github.com/Dillonb/n64/blob/6502f7d2f163c3f14da5bff8cd6d5ccc47143156/src/cpu/mips_instructions.c#L962
-        uint64_t rs = cpu.gpr.read(inst.r_type.rs);
-        uint64_t rt = cpu.gpr.read(inst.r_type.rt);
+        int64_t rs = cpu.gpr.read(inst.r_type.rs);
+        int64_t rt = cpu.gpr.read(inst.r_type.rt);
         Utils::trace("SLT {} {} {} ", GPR_NAMES[inst.r_type.rd],
                      GPR_NAMES[inst.r_type.rs], GPR_NAMES[inst.r_type.rt]);
         cpu.gpr.write(inst.r_type.rd, rs < rt ? 1 : 0);
@@ -188,11 +188,25 @@ class Cpu::Operation::Impl {
         uint64_t rt = cpu.gpr.read(inst.r_type.rt); // unsigned
         Utils::trace("SLTU {} {} {}", GPR_NAMES[inst.r_type.rd],
                      GPR_NAMES[inst.r_type.rs], GPR_NAMES[inst.r_type.rt]);
-        if (rs < rt) {
-            cpu.gpr.write(inst.r_type.rd, 1);
-        } else {
-            cpu.gpr.write(inst.r_type.rd, 0);
-        }
+        cpu.gpr.write(inst.r_type.rd, rs < rt ? 1 : 0);
+    }
+
+    static void op_slti(Cpu &cpu, instruction_t inst) {
+        // https://github.com/Dillonb/n64/blob/6502f7d2f163c3f14da5bff8cd6d5ccc47143156/src/cpu/mips_instructions.c#L199
+        int16_t imm = inst.i_type.imm;
+        int64_t rs = cpu.gpr.read(inst.i_type.rs);
+        Utils::trace("SLTI {} {} {}", GPR_NAMES[inst.i_type.rt],
+                     GPR_NAMES[inst.i_type.rs], imm);
+        cpu.gpr.write(inst.i_type.rt, rs < imm ? 1 : 0);
+    }
+
+    static void op_sltiu(Cpu &cpu, instruction_t inst) {
+        // https://github.com/Dillonb/n64/blob/6502f7d2f163c3f14da5bff8cd6d5ccc47143156/src/cpu/mips_instructions.c#L210
+        int16_t imm = inst.i_type.imm;
+        uint64_t rs = cpu.gpr.read(inst.i_type.rs);
+        Utils::trace("SLTIU {} {} {}", GPR_NAMES[inst.i_type.rt],
+                     GPR_NAMES[inst.i_type.rs], imm);
+        cpu.gpr.write(inst.i_type.rt, rs < imm ? 1 : 0);
     }
 
     static void op_and(Cpu &cpu, instruction_t inst) {
@@ -719,6 +733,10 @@ void Cpu::Operation::execute(Cpu &cpu, instruction_t inst) {
         return Impl::op_bgtzl(cpu, inst);
     case OPCODE_CACHE: // CACHE
         return Impl::op_cache();
+    case OPCODE_SLTI: // SLTI
+        return Impl::op_slti(cpu, inst);
+    case OPCODE_SLTIU: // SLTIU
+        return Impl::op_sltiu(cpu, inst);
     case OPCODE_COP0: // CP0 instructions
     {
         // https://hack64.net/docs/VR43XX.pdf p.86

@@ -88,6 +88,9 @@ constexpr uint8_t OPCODE_ANDI = 0b001100;
 constexpr uint8_t OPCODE_ORI = 0b001101;
 constexpr uint8_t OPCODE_XORI = 0b001110;
 
+constexpr uint8_t OPCODE_SLTI = 0b001010;
+constexpr uint8_t OPCODE_SLTIU = 0b001011;
+
 constexpr uint8_t SPECIAL_FUNCT_ADD = 0b100000;   // ADD
 constexpr uint8_t SPECIAL_FUNCT_ADDU = 0b100001;  // ADDU
 constexpr uint8_t SPECIAL_FUNCT_SUB = 0b100010;   // SUB
