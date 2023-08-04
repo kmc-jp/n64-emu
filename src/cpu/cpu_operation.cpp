@@ -139,6 +139,48 @@ class Cpu::Operation::Impl {
         cpu.hi = sext_hi;
     }
 
+    static void op_div(Cpu &cpu, instruction_t inst) {
+        // https://github.com/Dillonb/n64/blob/6502f7d2f163c3f14da5bff8cd6d5ccc47143156/src/cpu/mips_instructions.c#L809
+        int64_t dividend = (int32_t)cpu.gpr.read(inst.r_type.rs);
+        int64_t divisor = (int32_t)cpu.gpr.read(inst.r_type.rt);
+        Utils::trace("DIV {}, {}", GPR_NAMES[inst.r_type.rs],
+                     GPR_NAMES[inst.r_type.rt]);
+        if (divisor == 0) {
+            Utils::warn("division by zero");
+            cpu.hi = dividend;
+            if (dividend >= 0)
+                cpu.lo = (int64_t)-1;
+            else
+                cpu.lo = (int64_t)1;
+        } else {
+            int32_t quotient = dividend / divisor;
+            int32_t remainder = dividend % divisor;
+
+            cpu.lo = quotient;
+            cpu.hi = remainder;
+        }
+    }
+
+    static void op_divu(Cpu &cpu, instruction_t inst) {
+        // https://github.com/Dillonb/n64/blob/6502f7d2f163c3f14da5bff8cd6d5ccc47143156/src/cpu/mips_instructions.c#L831
+        uint32_t dividend = cpu.gpr.read(inst.r_type.rs);
+        uint32_t divisor = cpu.gpr.read(inst.r_type.rt);
+        Utils::trace("DIVU {}, {}", GPR_NAMES[inst.r_type.rs],
+                     GPR_NAMES[inst.r_type.rt]);
+
+        if (divisor == 0) {
+            Utils::warn("division by zero");
+            cpu.hi = (int32_t)dividend;
+            cpu.lo = 0xFFFF'FFFF'FFFF'FFFF;
+        } else {
+            int32_t quotient = dividend / divisor;
+            int32_t remainder = dividend % divisor;
+
+            cpu.lo = quotient;
+            cpu.hi = remainder;
+        }
+    }
+
     static void op_sll(Cpu &cpu, instruction_t inst) {
         // https://github.com/Dillonb/n64/blob/6502f7d2f163c3f14da5bff8cd6d5ccc47143156/src/cpu/mips_instructions.c#L698
         assert_encoding_is_valid(inst.r_type.rs == 0);
@@ -637,6 +679,10 @@ void Cpu::Operation::execute(Cpu &cpu, instruction_t inst) {
             return Impl::op_mult(cpu, inst);
         case SPECIAL_FUNCT_MULTU: // MULTU
             return Impl::op_multu(cpu, inst);
+        case SPECIAL_FUNCT_DIV: // DIV
+            return Impl::op_div(cpu, inst);
+        case SPECIAL_FUNCT_DIVU: // DIVU
+            return Impl::op_divu(cpu, inst);
         case SPECIAL_FUNCT_SLL: // SLL
             return Impl::op_sll(cpu, inst);
         case SPECIAL_FUNCT_SLLV: // SLLV
