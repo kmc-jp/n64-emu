@@ -35,7 +35,7 @@ void AI::write_paddr32(uint32_t paddr, uint32_t value) {
         N64System::check_interrupt();
     } break;
     default: {
-        Utils::critical("AI: Access to paddr: {:#010x}", paddr);
+        Utils::critical("AI: Write to paddr: {:#010x}", paddr);
         Utils::abort("Aborted");
     } break;
     }
