@@ -162,6 +162,7 @@ template <typename Wire> Wire read_paddr(uint32_t paddr) {
 uint64_t read_paddr64(uint32_t paddr) { return read_paddr<uint64_t>(paddr); }
 uint32_t read_paddr32(uint32_t paddr) { return read_paddr<uint32_t>(paddr); }
 uint16_t read_paddr16(uint32_t paddr) { return read_paddr<uint16_t>(paddr); }
+uint8_t read_paddr8(uint32_t paddr) { return read_paddr<uint8_t>(paddr); }
 
 // Do not use this function directly. Use write_paddr64, write_paddr32,
 // write_paddr16 instead.
@@ -325,6 +326,9 @@ void write_paddr32(uint32_t paddr, uint32_t value) {
 }
 void write_paddr16(uint32_t paddr, uint16_t value) {
     write_paddr<uint16_t>(paddr, value);
+}
+void write_paddr8(uint32_t paddr, uint8_t value) {
+    write_paddr<uint8_t>(paddr, value);
 }
 
 } // namespace Memory

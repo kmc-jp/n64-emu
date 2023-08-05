@@ -52,14 +52,25 @@ inline uint16_t read_from_byte_array16(std::span<const uint8_t> span,
            (static_cast<uint16_t>(span[offset + 1] << 0));
 }
 
+/* 指定された配列から1byte分を読み込む (big endian) */
+inline uint16_t read_from_byte_array8(std::span<const uint8_t> span,
+                                      uint64_t offset) {
+    assert(offset + 1 <= span.size());
+    return span[offset];
+}
+
 /* 指定された配列からWire分を読み込む (big endian) */
 template <typename Wire>
 inline Wire read_from_byte_array(std::span<const uint8_t> span,
                                  uint64_t offset) {
-    static_assert(std::is_same<Wire, uint32_t>::value ||
+    static_assert(std::is_same<Wire, uint8_t>::value ||
                   std::is_same<Wire, uint16_t>::value ||
+                  std::is_same<Wire, uint32_t>::value ||
                   std::is_same<Wire, uint64_t>::value);
-    if constexpr (std::is_same<Wire, uint16_t>::value) {
+
+    if constexpr (std::is_same<Wire, uint8_t>::value) {
+        return read_from_byte_array8(span, offset);
+    } else if constexpr (std::is_same<Wire, uint16_t>::value) {
         return read_from_byte_array16(span, offset);
     } else if constexpr (std::is_same<Wire, uint32_t>::value) {
         return read_from_byte_array32(span, offset);

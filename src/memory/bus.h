@@ -12,12 +12,14 @@ namespace Memory {
 uint64_t read_paddr64(uint32_t paddr);
 uint32_t read_paddr32(uint32_t paddr);
 uint16_t read_paddr16(uint32_t paddr);
+uint8_t read_paddr8(uint32_t paddr);
 
 // TODO: move to memory class?
 // 指定された物理アドレスに32bitを書き込む (big endian)
 void write_paddr64(uint32_t paddr, uint64_t value);
 void write_paddr32(uint32_t paddr, uint32_t value);
 void write_paddr16(uint32_t paddr, uint16_t value);
+void write_paddr8(uint32_t paddr, uint8_t value);
 
 } // namespace Memory
 } // namespace N64
