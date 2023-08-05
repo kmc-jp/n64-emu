@@ -2,6 +2,7 @@
 #define CPU_H
 
 #include "cop0.h"
+#include "cop1.h"
 #include "instruction.h"
 #include <cstdint>
 
@@ -48,8 +49,7 @@ class Cpu {
     bool prev_delay_slot;
 
     Cop0 cop0;
-
-    // TODO: add COP1?
+    Cop1 cop1;
 
     Cpu() {}
 

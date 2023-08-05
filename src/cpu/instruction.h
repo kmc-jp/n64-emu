@@ -131,6 +131,7 @@ constexpr uint8_t COP_DMFC = 0b00001; // DMFC
 constexpr uint8_t COP_MTC = 0b00100;  // MTC
 constexpr uint8_t COP_DMTC = 0b00101; // DMT
 constexpr uint8_t COP_CFC = 0b00010;  // CFC
+constexpr uint8_t COP_CTC = 0b00110;  // CTC
 
 static void assert_encoding_is_valid(bool validity) {
     // should be able to ignore?

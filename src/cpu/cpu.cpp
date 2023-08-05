@@ -250,6 +250,8 @@ void Cpu::execute_instruction(instruction_t inst) {
         switch (inst.r_type.rs) {
         case COP_CFC: // CFC1
             return FpuImpl::op_cfc1(*this, inst);
+        case COP_CTC: // CTC1
+            return FpuImpl::op_ctc1(*this, inst);
         default: {
             Utils::abort("Unimplemented rs = {:#07b} for opcode = CP1.",
                          static_cast<uint32_t>(inst.r_type.rs));
