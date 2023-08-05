@@ -23,7 +23,8 @@ constexpr uint32_t PHYS_RSP_REG_END = 0x040BFFFF;
 
 constexpr uint32_t PHYS_MI_BASE     = 0x04300000;
 constexpr uint32_t PHYS_MI_END      = 0x043FFFFF;
-
+constexpr uint32_t PHYS_VI_BASE     = 0x04400000;
+constexpr uint32_t PHYS_VI_END      = 0x044FFFFF;
 constexpr uint32_t PHYS_AI_BASE     = 0x04500000;
 constexpr uint32_t PHYS_AI_END      = 0x045FFFFF;
 constexpr uint32_t PHYS_PI_BASE     = 0x04600000;
