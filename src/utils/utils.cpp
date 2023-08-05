@@ -7,19 +7,6 @@
 
 namespace Utils {
 
-void write_to_byte_array32(std::span<uint8_t> span, uint64_t offset,
-                           uint32_t value) {
-    assert(offset + 4 <= span.size());
-    uint8_t b1 = value & 0xFF;
-    uint8_t b2 = (value >> 8) & 0xff;
-    uint8_t b3 = (value >> 16) & 0xff;
-    uint8_t b4 = (value >> 24) & 0xff;
-    span[offset + 0] = b4;
-    span[offset + 1] = b3;
-    span[offset + 2] = b2;
-    span[offset + 3] = b1;
-}
-
 void write_to_byte_array64(std::span<uint8_t> span, uint64_t offset,
                            uint64_t value) {
     assert(offset + 8 <= span.size());
@@ -40,6 +27,34 @@ void write_to_byte_array64(std::span<uint8_t> span, uint64_t offset,
     span[offset + 5] = b3;
     span[offset + 6] = b2;
     span[offset + 7] = b1;
+}
+
+void write_to_byte_array32(std::span<uint8_t> span, uint64_t offset,
+                           uint32_t value) {
+    assert(offset + 4 <= span.size());
+    uint8_t b1 = value & 0xFF;
+    uint8_t b2 = (value >> 8) & 0xff;
+    uint8_t b3 = (value >> 16) & 0xff;
+    uint8_t b4 = (value >> 24) & 0xff;
+    span[offset + 0] = b4;
+    span[offset + 1] = b3;
+    span[offset + 2] = b2;
+    span[offset + 3] = b1;
+}
+
+void write_to_byte_array16(std::span<uint8_t> span, uint64_t offset,
+                           uint16_t value) {
+    assert(offset + 2 <= span.size());
+    uint8_t b1 = value & 0xFF;
+    uint8_t b2 = (value >> 8) & 0xff;
+    span[offset + 0] = b2;
+    span[offset + 1] = b1;
+}
+
+void write_to_byte_array8(std::span<uint8_t> span, uint64_t offset,
+                          uint8_t value) {
+    assert(offset + 1 <= span.size());
+    span[offset] = value;
 }
 
 void core_dump() { N64::g_cpu().dump(); }

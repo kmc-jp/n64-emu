@@ -53,8 +53,8 @@ inline uint16_t read_from_byte_array16(std::span<const uint8_t> span,
 }
 
 /* 指定された配列から1byte分を読み込む (big endian) */
-inline uint16_t read_from_byte_array8(std::span<const uint8_t> span,
-                                      uint64_t offset) {
+inline uint8_t read_from_byte_array8(std::span<const uint8_t> span,
+                                     uint64_t offset) {
     assert(offset + 1 <= span.size());
     return span[offset];
 }
@@ -81,13 +81,21 @@ inline Wire read_from_byte_array(std::span<const uint8_t> span,
     }
 }
 
+/* 指定された配列に8byte分を書き込む (big endian) */
+void write_to_byte_array64(std::span<uint8_t> span, uint64_t offset,
+                           uint64_t value);
+
 /* 指定された配列に4byte分を書き込む (big endian) */
 void write_to_byte_array32(std::span<uint8_t> span, uint64_t offset,
                            uint32_t value);
 
-/* 指定された配列に8byte分を書き込む (big endian) */
-void write_to_byte_array64(std::span<uint8_t> span, uint64_t offset,
-                           uint64_t value);
+/* 指定された配列に2byte分を書き込む (big endian) */
+void write_to_byte_array16(std::span<uint8_t> span, uint64_t offset,
+                           uint16_t value);
+
+/* 指定された配列に1byte分を書き込む (big endian) */
+void write_to_byte_array8(std::span<uint8_t> span, uint64_t offset,
+                           uint8_t value);
 
 void core_dump();
 
