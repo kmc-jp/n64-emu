@@ -52,6 +52,14 @@ typedef union {
         unsigned op : 6;
     })
     copz_type1;
+
+    PACK(struct {
+        unsigned offset : 16;
+        unsigned ft : 5;
+        unsigned base : 5;
+        unsigned op : 6;
+    })
+    fi_type;
 } instruction_t;
 
 static_assert(sizeof(instruction_t) == 4, "instruction_t size is not 4");
@@ -74,6 +82,10 @@ constexpr uint8_t OPCODE_LHU = 0b100101;
 constexpr uint8_t OPCODE_LD = 0b110111;
 constexpr uint8_t OPCODE_SW = 0b101011;
 constexpr uint8_t OPCODE_SD = 0b111111;
+constexpr uint8_t OPCODE_LDL = 0b011010;
+constexpr uint8_t OPCODE_LDR = 0b011011;
+constexpr uint8_t OPCODE_SDL = 0b101100;
+constexpr uint8_t OPCODE_SDR = 0b101101;
 
 constexpr uint8_t OPCODE_BEQ = 0b000100;
 constexpr uint8_t OPCODE_BEQL = 0b010100;
