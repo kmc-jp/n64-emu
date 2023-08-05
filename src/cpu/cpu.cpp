@@ -150,6 +150,18 @@ void Cpu::execute_instruction(instruction_t inst) {
             return CpuImpl::op_mfhi(*this, inst);
         case SPECIAL_FUNCT_MFLO: // MFLO
             return CpuImpl::op_mflo(*this, inst);
+        case SPECIAL_FUNCT_DSLL: // DSLL
+            return CpuImpl::op_dsll(*this, inst);
+        case SPECIAL_FUNCT_DSRL: // DSRL
+            return CpuImpl::op_dsrl(*this, inst);
+        case SPECIAL_FUNCT_DSRA: // DSRA
+            return CpuImpl::op_dsra(*this, inst);
+        case SPECIAL_FUNCT_DSLL32: // DSLL32
+            return CpuImpl::op_dsll32(*this, inst);
+        case SPECIAL_FUNCT_DSRL32: // DSRL32
+            return CpuImpl::op_dsrl32(*this, inst);
+        case SPECIAL_FUNCT_DSRA32: // DSRA32
+            return CpuImpl::op_dsra32(*this, inst);
         default: {
             Utils::abort("Unimplemented funct = {:#08b} for opcode = SPECIAL.",
                          static_cast<uint32_t>(inst.r_type.funct));

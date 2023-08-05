@@ -297,6 +297,60 @@ class Cpu::CpuImpl {
         cpu.gpr.write(inst.r_type.rd, cpu.lo);
     }
 
+    static void op_dsll(Cpu &cpu, instruction_t inst) {
+        // https://github.com/Dillonb/n64/blob/6502f7d2f163c3f14da5bff8cd6d5ccc47143156/src/cpu/mips_instructions.c#L1077
+        uint64_t value = cpu.gpr.read(inst.r_type.rt);
+        value <<= inst.r_type.sa;
+        cpu.gpr.write(inst.r_type.rd, value);
+        Utils::trace("DSLL {} <= {} << {}", GPR_NAMES[inst.r_type.rd],
+                     GPR_NAMES[inst.r_type.rt], (uint8_t)inst.r_type.sa);
+    }
+
+    static void op_dsrl(Cpu &cpu, instruction_t inst) {
+        // https://github.com/Dillonb/n64/blob/6502f7d2f163c3f14da5bff8cd6d5ccc47143156/src/cpu/mips_instructions.c#L1083
+        uint64_t value = cpu.gpr.read(inst.r_type.rt);
+        value >>= inst.r_type.sa;
+        cpu.gpr.write(inst.r_type.rd, value);
+        Utils::trace("DSRL {} <= {} >> {}", GPR_NAMES[inst.r_type.rd],
+                     GPR_NAMES[inst.r_type.rt], (uint8_t)inst.r_type.sa);
+    }
+
+    static void op_dsra(Cpu &cpu, instruction_t inst) {
+        // https://github.com/Dillonb/n64/blob/6502f7d2f163c3f14da5bff8cd6d5ccc47143156/src/cpu/mips_instructions.c#L1089
+        int64_t value = cpu.gpr.read(inst.r_type.rt);
+        value >>= inst.r_type.sa;
+        cpu.gpr.write(inst.r_type.rd, value);
+        Utils::trace("DSRA {} <= {} >> {}", GPR_NAMES[inst.r_type.rd],
+                     GPR_NAMES[inst.r_type.rt], (uint8_t)inst.r_type.sa);
+    }
+
+    static void op_dsll32(Cpu &cpu, instruction_t inst) {
+        // https://github.com/Dillonb/n64/blob/6502f7d2f163c3f14da5bff8cd6d5ccc47143156/src/cpu/mips_instructions.c#L1095
+        uint64_t value = cpu.gpr.read(inst.r_type.rt);
+        value <<= (inst.r_type.sa + 32);
+        cpu.gpr.write(inst.r_type.rd, value);
+        Utils::trace("DSLL32 {} <= {} << {}", GPR_NAMES[inst.r_type.rd],
+                     GPR_NAMES[inst.r_type.rt], (uint8_t)inst.r_type.sa);
+    }
+
+    static void op_dsrl32(Cpu &cpu, instruction_t inst) {
+        // https://github.com/Dillonb/n64/blob/6502f7d2f163c3f14da5bff8cd6d5ccc47143156/src/cpu/mips_instructions.c#L1101
+        uint64_t value = cpu.gpr.read(inst.r_type.rt);
+        value >>= (inst.r_type.sa + 32);
+        cpu.gpr.write(inst.r_type.rd, value);
+        Utils::trace("DSRL32 {} <= {} >> {}", GPR_NAMES[inst.r_type.rd],
+                     GPR_NAMES[inst.r_type.rt], (uint8_t)inst.r_type.sa);
+    }
+
+    static void op_dsra32(Cpu &cpu, instruction_t inst) {
+        // https://github.com/Dillonb/n64/blob/6502f7d2f163c3f14da5bff8cd6d5ccc47143156/src/cpu/mips_instructions.c#L1107
+        int64_t value = cpu.gpr.read(inst.r_type.rt);
+        value >>= (inst.r_type.sa + 32);
+        cpu.gpr.write(inst.r_type.rd, value);
+        Utils::trace("DSRA32 {} <= {} >> {}", GPR_NAMES[inst.r_type.rd],
+                     GPR_NAMES[inst.r_type.rt], (uint8_t)inst.r_type.sa);
+    }
+
     static void op_bltz(Cpu &cpu, instruction_t inst) {
         // https://github.com/Dillonb/n64/blob/6502f7d2f163c3f14da5bff8cd6d5ccc47143156/src/cpu/mips_instructions.c#L1113
         int64_t rs = cpu.gpr.read(inst.i_type.rs);

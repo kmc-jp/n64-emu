@@ -116,6 +116,12 @@ constexpr uint8_t SPECIAL_FUNCT_JR = 0b001000;    // JR
 constexpr uint8_t SPECIAL_FUNCT_JALR = 0b001001;  // JALR
 constexpr uint8_t SPECIAL_FUNCT_MFHI = 0b010000;  // MFHI
 constexpr uint8_t SPECIAL_FUNCT_MFLO = 0b010010;  // MFLO
+constexpr uint8_t SPECIAL_FUNCT_DSLL = 0b111000;
+constexpr uint8_t SPECIAL_FUNCT_DSRL = 0b111010;
+constexpr uint8_t SPECIAL_FUNCT_DSRA = 0b111011;
+constexpr uint8_t SPECIAL_FUNCT_DSLL32 = 0b111100;
+constexpr uint8_t SPECIAL_FUNCT_DSRL32 = 0b111110;
+constexpr uint8_t SPECIAL_FUNCT_DSRA32 = 0b111111;
 
 // Regimm
 constexpr uint8_t REGIMM_RT_BLTZ = 0b00000;   // BLTZ
