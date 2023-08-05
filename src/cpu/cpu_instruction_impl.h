@@ -415,33 +415,66 @@ class Cpu::CpuImpl {
     }
 
     static void op_lb(Cpu &cpu, instruction_t inst) {
-        // TODO:
-        Utils::unimplemented("lb");
-    }
-
-    static void op_lbu(Cpu &cpu, instruction_t inst) {
-        // TODO:
-        Utils::unimplemented("LBU");
-    }
-
-    static void op_lh(Cpu &cpu, instruction_t inst) {
-        // TODO:
-        Utils::unimplemented("lh");
-    }
-
-    static void op_lhu(Cpu &cpu, instruction_t inst) {
-        // https://hack64.net/docs/VR43XX.pdf p.451
-        // https://github.com/Dillonb/n64/blob/6502f7d2f163c3f14da5bff8cd6d5ccc47143156/src/cpu/mips_instructions.c#L282
+        // https://github.com/Dillonb/n64/blob/6502f7d2f163c3f14da5bff8cd6d5ccc47143156/src/cpu/mips_instructions.c#L437
         int16_t offset = inst.i_type.imm;
-        Utils::trace("LHU: {} <= *({} + {:#x})", GPR_NAMES[inst.i_type.rt],
-                     GPR_NAMES[inst.i_type.rs], offset);
         uint64_t vaddr = cpu.gpr.read(inst.i_type.rs) + offset;
+        Utils::trace("LB {} <= *({} + {:#x})", GPR_NAMES[inst.i_type.rt],
+                     GPR_NAMES[inst.i_type.rs], offset);
         std::optional<uint32_t> paddr = Mmu::resolve_vaddr(vaddr);
 
         if (paddr.has_value()) {
-            const uint16_t value = Memory::read_paddr16(paddr.value());
-            cpu.gpr.write(inst.i_type.rt, static_cast<uint64_t>(value)); // zext
+            int8_t value = Memory::read_paddr8(paddr.value());
+            cpu.gpr.write(inst.i_type.rt, (int64_t)value);
+        } else {
+            g_tlb().generate_exception(vaddr);
+        }
+    }
 
+    static void op_lbu(Cpu &cpu, instruction_t inst) {
+        // https://github.com/Dillonb/n64/blob/6502f7d2f163c3f14da5bff8cd6d5ccc47143156/src/cpu/mips_instructions.c#L268
+        int16_t offset = inst.i_type.imm;
+        uint64_t vaddr = cpu.gpr.read(inst.i_type.rs) + offset;
+        Utils::trace("LBU {} <= *({} + {:#x})", GPR_NAMES[inst.i_type.rt],
+                     GPR_NAMES[inst.i_type.rs], offset);
+        std::optional<uint32_t> paddr = Mmu::resolve_vaddr(vaddr);
+
+        if (paddr.has_value()) {
+            uint8_t value = Memory::read_paddr8(paddr.value());
+            cpu.gpr.write(inst.i_type.rt, value);
+        } else {
+            g_tlb().generate_exception(vaddr);
+        }
+    }
+
+    static void op_lh(Cpu &cpu, instruction_t inst) {
+        // https://github.com/Dillonb/n64/blob/6502f7d2f163c3f14da5bff8cd6d5ccc47143156/src/cpu/mips_instructions.c#L300
+        // TODO: alignment?
+        int16_t offset = inst.i_type.imm;
+        uint64_t vaddr = cpu.gpr.read(inst.i_type.rs) + offset;
+        Utils::trace("LH {} <= *({} + {:#x})", GPR_NAMES[inst.i_type.rt],
+                     GPR_NAMES[inst.i_type.rs], offset);
+        std::optional<uint32_t> paddr = Mmu::resolve_vaddr(vaddr);
+
+        if (paddr.has_value()) {
+            int16_t value = Memory::read_paddr16(paddr.value());
+            cpu.gpr.write(inst.i_type.rt, (int64_t)value);
+        } else {
+            g_tlb().generate_exception(vaddr);
+        }
+    }
+
+    static void op_lhu(Cpu &cpu, instruction_t inst) {
+        // https://github.com/Dillonb/n64/blob/6502f7d2f163c3f14da5bff8cd6d5ccc47143156/src/cpu/mips_instructions.c#L282
+        // TODO: alignment?
+        int16_t offset = inst.i_type.imm;
+        uint64_t vaddr = cpu.gpr.read(inst.i_type.rs) + offset;
+        Utils::trace("LHU: {} <= *({} + {:#x})", GPR_NAMES[inst.i_type.rt],
+                     GPR_NAMES[inst.i_type.rs], offset);
+        std::optional<uint32_t> paddr = Mmu::resolve_vaddr(vaddr);
+
+        if (paddr.has_value()) {
+            uint16_t value = Memory::read_paddr16(paddr.value());
+            cpu.gpr.write(inst.i_type.rt, static_cast<uint64_t>(value)); // zext
         } else {
             g_tlb().generate_exception(vaddr);
         }
@@ -539,22 +572,43 @@ class Cpu::CpuImpl {
     }
 
     static void op_sb(Cpu &cpu, instruction_t inst) {
-        // TODO:
-        Utils::unimplemented("SB");
+        // https://github.com/Dillonb/n64/blob/6502f7d2f163c3f14da5bff8cd6d5ccc47143156/src/cpu/mips_instructions.c#L353
+        int16_t offset = inst.i_type.imm;
+        uint64_t vaddr = cpu.gpr.read(inst.i_type.rs) + offset;
+        Utils::trace("SB: *({} + {:#x}) <= {}", GPR_NAMES[inst.i_type.rs],
+                     offset, GPR_NAMES[inst.r_type.rt]);
+        std::optional<uint32_t> paddr = Mmu::resolve_vaddr(vaddr);
+
+        if (paddr.has_value()) {
+            uint8_t value = cpu.gpr.read(inst.r_type.rt);
+            Memory::write_paddr8(paddr.value(), value);
+        } else {
+            g_tlb().generate_exception(vaddr);
+        }
     }
 
     static void op_sh(Cpu &cpu, instruction_t inst) {
-        // TODO:
-        Utils::unimplemented("SH");
+        // https://github.com/Dillonb/n64/blob/6502f7d2f163c3f14da5bff8cd6d5ccc47143156/src/cpu/mips_instructions.c#L368
+        int16_t offset = inst.i_type.imm;
+        uint64_t vaddr = cpu.gpr.read(inst.i_type.rs) + offset;
+        Utils::trace("SH: *({} + {:#x}) <= {}", GPR_NAMES[inst.i_type.rs],
+                     offset, GPR_NAMES[inst.r_type.rt]);
+        std::optional<uint32_t> paddr = Mmu::resolve_vaddr(vaddr);
+
+        if (paddr.has_value()) {
+            uint16_t value = cpu.gpr.read(inst.r_type.rt);
+            Memory::write_paddr8(paddr.value(), value);
+        } else {
+            g_tlb().generate_exception(vaddr);
+        }
     }
 
     static void op_sw(Cpu &cpu, instruction_t inst) {
         // https://github.com/Dillonb/n64/blob/6502f7d2f163c3f14da5bff8cd6d5ccc47143156/src/cpu/mips_instructions.c#L382
         int16_t offset = inst.i_type.imm;
+        uint64_t vaddr = cpu.gpr.read(inst.i_type.rs) + offset;
         Utils::trace("SW: *({} + {:#x}) <= {}", GPR_NAMES[inst.i_type.rs],
                      offset, GPR_NAMES[inst.r_type.rt]);
-        uint64_t vaddr = cpu.gpr.read(inst.i_type.rs);
-        vaddr += offset;
         std::optional<uint32_t> paddr = Mmu::resolve_vaddr(vaddr);
 
         if (paddr.has_value()) {
@@ -570,8 +624,7 @@ class Cpu::CpuImpl {
         int16_t offset = inst.i_type.imm;
         Utils::trace("SD: *({} + {:#x}) <= {}", GPR_NAMES[inst.i_type.rs],
                      offset, GPR_NAMES[inst.r_type.rt]);
-        uint64_t vaddr = cpu.gpr.read(inst.i_type.rs);
-        vaddr += offset;
+        uint64_t vaddr = cpu.gpr.read(inst.i_type.rs) + offset;
         std::optional<uint32_t> paddr = Mmu::resolve_vaddr(vaddr);
 
         if (paddr.has_value()) {
