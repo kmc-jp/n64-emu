@@ -5,6 +5,7 @@
 #include "mmio/mi.h"
 #include "mmio/pi.h"
 #include "mmio/si.h"
+#include "mmio/vi.h"
 #include "rcp/rsp.h"
 #include "utils.h"
 #include <cstdint>
@@ -101,6 +102,18 @@ template <typename Wire> Wire read_paddr(uint32_t paddr) {
             abort_unimplemented_read<uint16_t>(paddr);
         } else if constexpr (wire32) {
             return g_rsp().read_paddr32(paddr);
+        } else if constexpr (wire64) {
+            abort_unimplemented_read<uint64_t>(paddr);
+        } else {
+            static_assert(false);
+        }
+    } else if (PHYS_VI_BASE <= paddr && paddr <= PHYS_VI_END) {
+        if constexpr (wire8) {
+            abort_unimplemented_read<uint8_t>(paddr);
+        } else if constexpr (wire16) {
+            abort_unimplemented_read<uint16_t>(paddr);
+        } else if constexpr (wire32) {
+            return g_vi().read_paddr32(paddr);
         } else if constexpr (wire64) {
             abort_unimplemented_read<uint64_t>(paddr);
         } else {
@@ -257,6 +270,18 @@ template <typename Wire> void write_paddr(uint32_t paddr, Wire value) {
             abort_unimplemented_write<uint16_t>(paddr);
         } else if constexpr (wire32) {
             g_rsp().write_paddr32(paddr, value);
+        } else if constexpr (wire64) {
+            abort_unimplemented_write<uint64_t>(paddr);
+        } else {
+            static_assert(false);
+        }
+    } else if (PHYS_VI_BASE <= paddr && paddr <= PHYS_VI_END) {
+        if constexpr (wire8) {
+            abort_unimplemented_write<uint8_t>(paddr);
+        } else if constexpr (wire16) {
+            abort_unimplemented_write<uint16_t>(paddr);
+        } else if constexpr (wire32) {
+            g_vi().write_paddr32(paddr, value);
         } else if constexpr (wire64) {
             abort_unimplemented_write<uint64_t>(paddr);
         } else {

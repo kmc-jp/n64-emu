@@ -3,5 +3,6 @@ add_library(mmio
     si.h si.cpp
     mi.h mi.cpp
     ai.h ai.cpp
+    vi.h vi.cpp
 )
 target_precompile_headers(mmio PRIVATE ${PCH_FILES})
