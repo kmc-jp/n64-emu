@@ -1,0 +1,22 @@
+Halley's Comet Software Presents:
+----- Christmas Flame Demo
+
+This is a nice little demo of a flame effect that I've been testing, incorporated into a rather
+slow scroller.
+
+And snow!
+
+I realize that this is rather tedious, it might be more interesting if I added some sound, but I was rather pressed for time and I wanted to have it done by Christmas.  It's 10:03 right now.
+
+I envisioned this as a nice little Yule Log type thing to run with some Christmas music in the background.  Try it, won't you?
+
+
+--Modifications
+ I designed this scroller to be very easy to modify. If you want to use your own text, it is as easy as opening up the rom and editing from offset 0x295B9. As long as you end the text with the null character and recalculate the checksum, you should be fine. The size of the message is calculated at runtime, so you can have up to 65,535 characters without a problem.
+I've head that some have requested a devkit just to change the text in a scroller. This is your chance to do it the easy(-ier) way!
+
+Flame Demo has been coded exclusively by Halley's Comet Software from 12/23/01 to 12/25/01 in 100% devkit free R4300i assembly. Thanks to everyone who has published any info on the N64!
+
+(c) 2001 Halley's Comet Software
+
+May God grant you a Merry Christmas and a Happy New Year!

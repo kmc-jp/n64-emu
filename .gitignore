@@ -59,5 +59,6 @@ test/test_runner
 !tests/**/*.z64
 
 *.txt
+!roms/**/*
 
 .vscode
