@@ -1,10 +1,20 @@
+#include "cop1.h"
+
 namespace N64 {
 namespace Cpu {
 
-void Cop1::reset() {
-    fcr0.raw = 0;
-    fcr31 = 0;
-    fgr.fill(0);
+void Cop1::dump() {
+    // TODO: Implement
 }
 
+void Cop1::reset() {
+    Utils::debug("Resetting CPU COP1");
+    fcr0 = 0;
+    fcr31.raw = 0;
+    for (auto &reg : fgr) {
+        reg.raw = 0;
+    }
 }
+
+} // namespace Cpu
+} // namespace N64

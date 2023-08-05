@@ -63,6 +63,8 @@ class Cop1 {
 
     Cop1() {}
 
+    void dump();
+
     void reset();
 
   private:

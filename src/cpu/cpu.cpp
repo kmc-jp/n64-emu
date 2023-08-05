@@ -19,6 +19,7 @@ void Cpu::reset() {
     delay_slot = false;
     prev_delay_slot = false;
     cop0.reset();
+    cop1.reset();
 }
 
 void Cpu::dump() {
@@ -31,6 +32,7 @@ void Cpu::dump() {
     }
     Utils::info("");
     cop0.dump();
+    cop1.dump();
     Utils::info("=========================");
 }
 

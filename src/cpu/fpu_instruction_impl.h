@@ -18,7 +18,7 @@ class Cpu::FpuImpl {
   private:
     static bool test_cop1_usable_exception(Cpu &cpu) {
         // https://github.com/project64/project64/blob/353ef5ed897cb72a8904603feddbdc649dff9eca/Source/Project64-core/N64System/Interpreter/InterpreterOps.cpp#L3071
-        if (cpu.cop0.reg.status.cu1 == 1) {
+        if (cpu.cop0.reg.status.cu1 == 0) {
             // TODO: implement
             Utils::unimplemented("Trigger cop1 exception");
             return true;
