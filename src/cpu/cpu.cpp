@@ -192,24 +192,30 @@ void Cpu::execute_instruction(instruction_t inst) {
         return CpuImpl::op_j(*this, inst);
     case OPCODE_JAL: // JAL (J format)
         return CpuImpl::op_jal(*this, inst);
-    case OPCODE_LUI: // LUI (I format)
-        return CpuImpl::op_lui(*this, inst);
+    case OPCODE_LB: // LB (I format)
+        return CpuImpl::op_lb(*this, inst);
+    case OPCODE_LBU: // LBU (I format)
+        return CpuImpl::op_lbu(*this, inst);
+    case OPCODE_LH: // LH (I format)
+        return CpuImpl::op_lh(*this, inst);
+    case OPCODE_LHU: // LHU (I format)
+        return CpuImpl::op_lhu(*this, inst);
     case OPCODE_LW: // LW (I format)
         return CpuImpl::op_lw(*this, inst);
     case OPCODE_LWU: // LWU (I format)
         return CpuImpl::op_lwu(*this, inst);
-    case OPCODE_LHU: // LHU (I format)
-        return CpuImpl::op_lhu(*this, inst);
+    case OPCODE_LUI: // LUI (I format)
+        return CpuImpl::op_lui(*this, inst);
     case OPCODE_LD: // LD (I format)
         return CpuImpl::op_ld(*this, inst);
-    case OPCODE_SW: // SW (I format)
-        return CpuImpl::op_sw(*this, inst);
-    case OPCODE_SD: // SD (I format)
-        return CpuImpl::op_sd(*this, inst);
     case OPCODE_LDL: // LDL (I format)
         return CpuImpl::op_ldl(*this, inst);
     case OPCODE_LDR: // LDR (I format)
         return CpuImpl::op_ldr(*this, inst);
+    case OPCODE_SW: // SW (I format)
+        return CpuImpl::op_sw(*this, inst);
+    case OPCODE_SD: // SD (I format)
+        return CpuImpl::op_sd(*this, inst);
     case OPCODE_SDL: // SDL (I format)
         return CpuImpl::op_sdl(*this, inst);
     case OPCODE_SDR: // SDR (I format)

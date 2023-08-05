@@ -414,14 +414,37 @@ class Cpu::CpuImpl {
         branch_addr64(cpu, true, target);
     }
 
-    static void op_lui(Cpu &cpu, instruction_t inst) {
-        // https://github.com/Dillonb/n64/blob/6502f7d2f163c3f14da5bff8cd6d5ccc47143156/src/cpu/mips_instructions.c#L259
-        assert_encoding_is_valid(inst.i_type.rs == 0);
-        int64_t simm = (int16_t)inst.i_type.imm; // sext
-        // 負数の左シフトはUBなので乗算で実装
-        simm *= 65536;
-        Utils::trace("LUI: {} <= {:#x}", GPR_NAMES[inst.i_type.rt], simm);
-        cpu.gpr.write(inst.i_type.rt, simm);
+    static void op_lb(Cpu &cpu, instruction_t inst) {
+        // TODO:
+        Utils::unimplemented("lb");
+    }
+
+    static void op_lbu(Cpu &cpu, instruction_t inst) {
+        // TODO:
+        Utils::unimplemented("LBU");
+    }
+
+    static void op_lh(Cpu &cpu, instruction_t inst) {
+        // TODO:
+        Utils::unimplemented("lh");
+    }
+
+    static void op_lhu(Cpu &cpu, instruction_t inst) {
+        // https://hack64.net/docs/VR43XX.pdf p.451
+        // https://github.com/Dillonb/n64/blob/6502f7d2f163c3f14da5bff8cd6d5ccc47143156/src/cpu/mips_instructions.c#L282
+        int16_t offset = inst.i_type.imm;
+        Utils::trace("LHU: {} <= *({} + {:#x})", GPR_NAMES[inst.i_type.rt],
+                     GPR_NAMES[inst.i_type.rs], offset);
+        uint64_t vaddr = cpu.gpr.read(inst.i_type.rs) + offset;
+        std::optional<uint32_t> paddr = Mmu::resolve_vaddr(vaddr);
+
+        if (paddr.has_value()) {
+            const uint16_t value = Memory::read_paddr16(paddr.value());
+            cpu.gpr.write(inst.i_type.rt, static_cast<uint64_t>(value)); // zext
+
+        } else {
+            g_tlb().generate_exception(vaddr);
+        }
     }
 
     static void op_lw(Cpu &cpu, instruction_t inst) {
@@ -456,22 +479,14 @@ class Cpu::CpuImpl {
         }
     }
 
-    static void op_lhu(Cpu &cpu, instruction_t inst) {
-        // https://hack64.net/docs/VR43XX.pdf p.451
-        // https://github.com/Dillonb/n64/blob/6502f7d2f163c3f14da5bff8cd6d5ccc47143156/src/cpu/mips_instructions.c#L282
-        int16_t offset = inst.i_type.imm;
-        Utils::trace("LHU: {} <= *({} + {:#x})", GPR_NAMES[inst.i_type.rt],
-                     GPR_NAMES[inst.i_type.rs], offset);
-        uint64_t vaddr = cpu.gpr.read(inst.i_type.rs) + offset;
-        std::optional<uint32_t> paddr = Mmu::resolve_vaddr(vaddr);
-
-        if (paddr.has_value()) {
-            const uint16_t value = Memory::read_paddr16(paddr.value());
-            cpu.gpr.write(inst.i_type.rt, static_cast<uint64_t>(value)); // zext
-
-        } else {
-            g_tlb().generate_exception(vaddr);
-        }
+    static void op_lui(Cpu &cpu, instruction_t inst) {
+        // https://github.com/Dillonb/n64/blob/6502f7d2f163c3f14da5bff8cd6d5ccc47143156/src/cpu/mips_instructions.c#L259
+        assert_encoding_is_valid(inst.i_type.rs == 0);
+        int64_t simm = (int16_t)inst.i_type.imm; // sext
+        // 負数の左シフトはUBなので乗算で実装
+        simm *= 65536;
+        Utils::trace("LUI: {} <= {:#x}", GPR_NAMES[inst.i_type.rt], simm);
+        cpu.gpr.write(inst.i_type.rt, simm);
     }
 
     static void op_ld(Cpu &cpu, instruction_t inst) {
@@ -486,40 +501,6 @@ class Cpu::CpuImpl {
         if (paddr.has_value()) {
             uint64_t value = Memory::read_paddr64(paddr.value());
             cpu.gpr.write(inst.i_type.rt, value);
-        } else {
-            g_tlb().generate_exception(vaddr);
-        }
-    }
-
-    static void op_sw(Cpu &cpu, instruction_t inst) {
-        // https://github.com/Dillonb/n64/blob/6502f7d2f163c3f14da5bff8cd6d5ccc47143156/src/cpu/mips_instructions.c#L382
-        int16_t offset = inst.i_type.imm;
-        Utils::trace("SW: *({} + {:#x}) <= {}", GPR_NAMES[inst.i_type.rs],
-                     offset, GPR_NAMES[inst.r_type.rt]);
-        uint64_t vaddr = cpu.gpr.read(inst.i_type.rs);
-        vaddr += offset;
-        std::optional<uint32_t> paddr = Mmu::resolve_vaddr(vaddr);
-
-        if (paddr.has_value()) {
-            uint32_t word = cpu.gpr.read(inst.r_type.rt);
-            Memory::write_paddr32(paddr.value(), word);
-        } else {
-            g_tlb().generate_exception(vaddr);
-        }
-    }
-
-    static void op_sd(Cpu &cpu, instruction_t inst) {
-        // https://github.com/Dillonb/n64/blob/6502f7d2f163c3f14da5bff8cd6d5ccc47143156/src/cpu/mips_instructions.c#L402
-        int16_t offset = inst.i_type.imm;
-        Utils::trace("SD: *({} + {:#x}) <= {}", GPR_NAMES[inst.i_type.rs],
-                     offset, GPR_NAMES[inst.r_type.rt]);
-        uint64_t vaddr = cpu.gpr.read(inst.i_type.rs);
-        vaddr += offset;
-        std::optional<uint32_t> paddr = Mmu::resolve_vaddr(vaddr);
-
-        if (paddr.has_value()) {
-            uint64_t dword = cpu.gpr.read(inst.r_type.rt);
-            Memory::write_paddr64(paddr.value(), dword);
         } else {
             g_tlb().generate_exception(vaddr);
         }
@@ -552,6 +533,50 @@ class Cpu::CpuImpl {
             uint64_t data = Memory::read_paddr64(paddr.value() & ~7);
             uint64_t old = cpu.gpr.read(inst.i_type.rt);
             cpu.gpr.write(inst.i_type.rt, (old & ~mask) | (data >> shift));
+        } else {
+            g_tlb().generate_exception(vaddr);
+        }
+    }
+
+    static void op_sb(Cpu &cpu, instruction_t inst) {
+        // TODO:
+        Utils::unimplemented("SB");
+    }
+
+    static void op_sh(Cpu &cpu, instruction_t inst) {
+        // TODO:
+        Utils::unimplemented("SH");
+    }
+
+    static void op_sw(Cpu &cpu, instruction_t inst) {
+        // https://github.com/Dillonb/n64/blob/6502f7d2f163c3f14da5bff8cd6d5ccc47143156/src/cpu/mips_instructions.c#L382
+        int16_t offset = inst.i_type.imm;
+        Utils::trace("SW: *({} + {:#x}) <= {}", GPR_NAMES[inst.i_type.rs],
+                     offset, GPR_NAMES[inst.r_type.rt]);
+        uint64_t vaddr = cpu.gpr.read(inst.i_type.rs);
+        vaddr += offset;
+        std::optional<uint32_t> paddr = Mmu::resolve_vaddr(vaddr);
+
+        if (paddr.has_value()) {
+            uint32_t word = cpu.gpr.read(inst.r_type.rt);
+            Memory::write_paddr32(paddr.value(), word);
+        } else {
+            g_tlb().generate_exception(vaddr);
+        }
+    }
+
+    static void op_sd(Cpu &cpu, instruction_t inst) {
+        // https://github.com/Dillonb/n64/blob/6502f7d2f163c3f14da5bff8cd6d5ccc47143156/src/cpu/mips_instructions.c#L402
+        int16_t offset = inst.i_type.imm;
+        Utils::trace("SD: *({} + {:#x}) <= {}", GPR_NAMES[inst.i_type.rs],
+                     offset, GPR_NAMES[inst.r_type.rt]);
+        uint64_t vaddr = cpu.gpr.read(inst.i_type.rs);
+        vaddr += offset;
+        std::optional<uint32_t> paddr = Mmu::resolve_vaddr(vaddr);
+
+        if (paddr.has_value()) {
+            uint64_t dword = cpu.gpr.read(inst.r_type.rt);
+            Memory::write_paddr64(paddr.value(), dword);
         } else {
             g_tlb().generate_exception(vaddr);
         }
