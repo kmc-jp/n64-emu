@@ -6,6 +6,7 @@
 #include "memory/bus.h"
 #include "memory/tlb.h"
 #include "mmu/mmu.h"
+#include "n64_system/interrupt.h"
 #include "utils/utils.h"
 #include <cstdint>
 
@@ -48,8 +49,9 @@ void Cpu::step() {
     Utils::trace("CPU cycle starts PC={:#018x}", pc);
 
     // Compare interrupt
-    if (cop0.reg.count == cop0.reg.compare) {
+    if (cop0.reg.count == (cop0.reg.compare << 1)) {
         cop0.reg.cause.ip7 = true;
+        N64System::check_interrupt();
     }
 
     // updates delay slot
@@ -58,22 +60,7 @@ void Cpu::step() {
 
     // check for interrupt/exception
     if (cop0.reg.cause.interrupt_pending & cop0.reg.status.im) {
-        Utils::unimplemented("Interrupt occured!");
-        uint8_t exc_code = cop0.reg.cause.exception_code;
-        switch (exc_code) {
-        case 0: // interrupt
-        {
-            Utils::critical(
-                "Unimplemented. interruption IP = {:#010b} mask = {:#010b}",
-                static_cast<uint32_t>(cop0.reg.cause.interrupt_pending),
-                static_cast<uint32_t>(cop0.reg.status.im));
-            Utils::abort("Aborted");
-        } break;
-        default: {
-            Utils::critical("Unimplemented. exception code = {}", exc_code);
-            Utils::abort("Aborted");
-        } break;
-        }
+        handle_exception(ExceptionCode::INTERRUPT, 0);
     }
 
     // instruction fetch
@@ -95,6 +82,27 @@ void Cpu::step() {
 
     cop0.reg.count += CPU_CYCLES_PER_INST;
     cop0.reg.count &= 0x1FFFFFFFF;
+}
+
+void Cpu::handle_exception(ExceptionCode exception_code,
+                           uint8_t coprocessor_error) {
+    bool old_exl = cop0.reg.status.exl;
+    // TODO: implement
+    // uint8_t exc_code = cop0.reg.cause.exception_code;
+    switch (exception_code) {
+    case ExceptionCode::INTERRUPT: {
+        Utils::critical(
+            "Unimplemented interruption. IP = {:#010b} mask = {:#010b}",
+            static_cast<uint32_t>(cop0.reg.cause.interrupt_pending),
+            static_cast<uint32_t>(cop0.reg.status.im));
+        Utils::abort("Aborted");
+    } break;
+    default: {
+        Utils::critical("Unimplemented. exception code = {}",
+                        static_cast<uint8_t>(exception_code));
+        Utils::abort("Aborted");
+    } break;
+    }
 }
 
 void Cpu::execute_instruction(instruction_t inst) {

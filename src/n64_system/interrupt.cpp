@@ -14,14 +14,7 @@ void check_interrupt() {
         g_cpu().cop0.reg.cause.ip2 = 0;
     }
 
-// FIXME: remove this?
-    if ((g_cpu().cop0.reg.cause.interrupt_pending &
-         g_cpu().cop0.reg.status.im) != 0) {
-        // FIXME: CPUの方だけでチェックすれば問題なさそう
-        Utils::unimplemented("Interrupt occured!");
-    }
-
-    // TODO: pi reg_status
+    // TODO: pi reg_status?
 }
 
 } // namespace N64System

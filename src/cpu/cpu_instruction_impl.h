@@ -355,7 +355,7 @@ class Cpu::CpuImpl {
         Utils::trace("TGE: {}, {}", GPR_NAMES[inst.r_type.rs],
                      GPR_NAMES[inst.r_type.rt]);
         if (rs >= rt)
-            handle_exception(ExceptionCode::TRAP, 0);
+            cpu.handle_exception(ExceptionCode::TRAP, 0);
     }
 
     static void op_tgeu(Cpu &cpu, instruction_t inst) {
@@ -365,7 +365,7 @@ class Cpu::CpuImpl {
         Utils::trace("TGEU: {}, {}", GPR_NAMES[inst.r_type.rs],
                      GPR_NAMES[inst.r_type.rt]);
         if (rs >= rt)
-            handle_exception(ExceptionCode::TRAP, 0);
+            cpu.handle_exception(ExceptionCode::TRAP, 0);
     }
 
     static void op_tlt(Cpu &cpu, instruction_t inst) {
@@ -375,7 +375,7 @@ class Cpu::CpuImpl {
         Utils::trace("TLT: {}, {}", GPR_NAMES[inst.r_type.rs],
                      GPR_NAMES[inst.r_type.rt]);
         if (rs < rt)
-            handle_exception(ExceptionCode::TRAP, 0);
+            cpu.handle_exception(ExceptionCode::TRAP, 0);
     }
 
     static void op_tltu(Cpu &cpu, instruction_t inst) {
@@ -385,7 +385,7 @@ class Cpu::CpuImpl {
         Utils::trace("TLTU: {}, {}", GPR_NAMES[inst.r_type.rs],
                      GPR_NAMES[inst.r_type.rt]);
         if (rs < rt)
-            handle_exception(ExceptionCode::TRAP, 0);
+            cpu.handle_exception(ExceptionCode::TRAP, 0);
     }
 
     static void op_teq(Cpu &cpu, instruction_t inst) {
@@ -395,7 +395,7 @@ class Cpu::CpuImpl {
         Utils::trace("TEQ: {}, {}", GPR_NAMES[inst.r_type.rs],
                      GPR_NAMES[inst.r_type.rt]);
         if (rs == rt)
-            handle_exception(ExceptionCode::TRAP, 0);
+            cpu.handle_exception(ExceptionCode::TRAP, 0);
     }
 
     static void op_tne(Cpu &cpu, instruction_t inst) {
@@ -405,7 +405,7 @@ class Cpu::CpuImpl {
         Utils::trace("TNE: {}, {}", GPR_NAMES[inst.r_type.rs],
                      GPR_NAMES[inst.r_type.rt]);
         if (rs != rt)
-            handle_exception(ExceptionCode::TRAP, 0);
+            cpu.handle_exception(ExceptionCode::TRAP, 0);
     }
 
     static void op_dsll(Cpu &cpu, instruction_t inst) {
@@ -537,7 +537,7 @@ class Cpu::CpuImpl {
             int8_t value = Memory::read_paddr8(paddr.value());
             cpu.gpr.write(inst.i_type.rt, (int64_t)value);
         } else {
-            handle_exception(get_tlb_exception_code(BusAccess::LOAD), 0);
+            cpu.handle_exception(get_tlb_exception_code(BusAccess::LOAD), 0);
         }
     }
 
@@ -553,7 +553,7 @@ class Cpu::CpuImpl {
             uint8_t value = Memory::read_paddr8(paddr.value());
             cpu.gpr.write(inst.i_type.rt, value);
         } else {
-            handle_exception(get_tlb_exception_code(BusAccess::LOAD), 0);
+            cpu.handle_exception(get_tlb_exception_code(BusAccess::LOAD), 0);
         }
     }
 
@@ -570,7 +570,7 @@ class Cpu::CpuImpl {
             int16_t value = Memory::read_paddr16(paddr.value());
             cpu.gpr.write(inst.i_type.rt, (int64_t)value);
         } else {
-            handle_exception(get_tlb_exception_code(BusAccess::LOAD), 0);
+            cpu.handle_exception(get_tlb_exception_code(BusAccess::LOAD), 0);
         }
     }
 
@@ -587,7 +587,7 @@ class Cpu::CpuImpl {
             uint16_t value = Memory::read_paddr16(paddr.value());
             cpu.gpr.write(inst.i_type.rt, static_cast<uint64_t>(value)); // zext
         } else {
-            handle_exception(get_tlb_exception_code(BusAccess::LOAD), 0);
+            cpu.handle_exception(get_tlb_exception_code(BusAccess::LOAD), 0);
         }
     }
 
@@ -603,7 +603,7 @@ class Cpu::CpuImpl {
             int32_t word = Memory::read_paddr32(paddr.value());
             cpu.gpr.write(inst.i_type.rt, (int64_t)word); // sext
         } else {
-            handle_exception(get_tlb_exception_code(BusAccess::LOAD), 0);
+            cpu.handle_exception(get_tlb_exception_code(BusAccess::LOAD), 0);
         }
     }
 
@@ -619,7 +619,7 @@ class Cpu::CpuImpl {
             uint32_t word = Memory::read_paddr32(paddr.value());
             cpu.gpr.write(inst.i_type.rt, (uint64_t)word); // zext
         } else {
-            handle_exception(get_tlb_exception_code(BusAccess::LOAD), 0);
+            cpu.handle_exception(get_tlb_exception_code(BusAccess::LOAD), 0);
         }
     }
 
@@ -646,7 +646,7 @@ class Cpu::CpuImpl {
             uint64_t value = Memory::read_paddr64(paddr.value());
             cpu.gpr.write(inst.i_type.rt, value);
         } else {
-            handle_exception(get_tlb_exception_code(BusAccess::LOAD), 0);
+            cpu.handle_exception(get_tlb_exception_code(BusAccess::LOAD), 0);
         }
     }
 
@@ -663,7 +663,7 @@ class Cpu::CpuImpl {
             uint64_t old = cpu.gpr.read(inst.i_type.rt);
             cpu.gpr.write(inst.i_type.rt, (old & ~mask) | (data << shift));
         } else {
-            handle_exception(get_tlb_exception_code(BusAccess::LOAD), 0);
+            cpu.handle_exception(get_tlb_exception_code(BusAccess::LOAD), 0);
         }
     }
 
@@ -680,7 +680,7 @@ class Cpu::CpuImpl {
             uint64_t old = cpu.gpr.read(inst.i_type.rt);
             cpu.gpr.write(inst.i_type.rt, (old & ~mask) | (data >> shift));
         } else {
-            handle_exception(get_tlb_exception_code(BusAccess::LOAD), 0);
+            cpu.handle_exception(get_tlb_exception_code(BusAccess::LOAD), 0);
         }
     }
 
@@ -699,7 +699,7 @@ class Cpu::CpuImpl {
             cpu.cop0.reg.lladdr = paddr.value() >> 4;
             cpu.cop0.llbit = 1;
         } else {
-            handle_exception(get_tlb_exception_code(BusAccess::LOAD), 0);
+            cpu.handle_exception(get_tlb_exception_code(BusAccess::LOAD), 0);
         }
     }
 
@@ -719,7 +719,7 @@ class Cpu::CpuImpl {
             cpu.cop0.reg.lladdr = paddr.value() >> 4;
             cpu.cop0.llbit = 1;
         } else {
-            handle_exception(get_tlb_exception_code(BusAccess::LOAD), 0);
+            cpu.handle_exception(get_tlb_exception_code(BusAccess::LOAD), 0);
         }
     }
 
@@ -735,7 +735,7 @@ class Cpu::CpuImpl {
             uint8_t value = cpu.gpr.read(inst.r_type.rt);
             Memory::write_paddr8(paddr.value(), value);
         } else {
-            handle_exception(get_tlb_exception_code(BusAccess::STORE), 0);
+            cpu.handle_exception(get_tlb_exception_code(BusAccess::STORE), 0);
         }
     }
 
@@ -751,7 +751,7 @@ class Cpu::CpuImpl {
             uint16_t value = cpu.gpr.read(inst.r_type.rt);
             Memory::write_paddr8(paddr.value(), value);
         } else {
-            handle_exception(get_tlb_exception_code(BusAccess::STORE), 0);
+            cpu.handle_exception(get_tlb_exception_code(BusAccess::STORE), 0);
         }
     }
 
@@ -767,7 +767,7 @@ class Cpu::CpuImpl {
             uint32_t word = cpu.gpr.read(inst.r_type.rt);
             Memory::write_paddr32(paddr.value(), word);
         } else {
-            handle_exception(get_tlb_exception_code(BusAccess::STORE), 0);
+            cpu.handle_exception(get_tlb_exception_code(BusAccess::STORE), 0);
         }
     }
 
@@ -783,7 +783,7 @@ class Cpu::CpuImpl {
             uint64_t dword = cpu.gpr.read(inst.r_type.rt);
             Memory::write_paddr64(paddr.value(), dword);
         } else {
-            handle_exception(get_tlb_exception_code(BusAccess::STORE), 0);
+            cpu.handle_exception(get_tlb_exception_code(BusAccess::STORE), 0);
         }
     }
 
@@ -801,7 +801,7 @@ class Cpu::CpuImpl {
             Memory::write_paddr64(paddr.value() & ~7,
                                   (data & ~mask) | (old >> shift));
         } else {
-            handle_exception(get_tlb_exception_code(BusAccess::STORE), 0);
+            cpu.handle_exception(get_tlb_exception_code(BusAccess::STORE), 0);
         }
     }
 
@@ -819,7 +819,7 @@ class Cpu::CpuImpl {
             Memory::write_paddr64(paddr.value() & ~7,
                                   (data & ~mask) | (old << shift));
         } else {
-            handle_exception(get_tlb_exception_code(BusAccess::STORE), 0);
+            cpu.handle_exception(get_tlb_exception_code(BusAccess::STORE), 0);
         }
     }
 

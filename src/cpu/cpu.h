@@ -136,18 +136,14 @@ class Cpu {
     };
 
     // TODO: move to somewhere else
-    static inline ExceptionCode
-    get_tlb_exception_code(BusAccess bus_access) {
+    static inline ExceptionCode get_tlb_exception_code(BusAccess bus_access) {
         Utils::unimplemented("get_tlb_exception_code");
         exit(-1);
         return ExceptionCode::INTERRUPT;
     }
 
-    static void handle_exception(ExceptionCode exception_code,
-                                 uint8_t coprocessor_error) {
-        Utils::abort("exception code: {:#x}",
-                     static_cast<uint8_t>(exception_code));
-    }
+    void handle_exception(ExceptionCode exception_code,
+                          uint8_t coprocessor_error);
 
   private:
     // program counter
