@@ -14,6 +14,8 @@
 namespace N64 {
 namespace Memory {
 
+template <class...> constexpr std::false_type always_false{};
+
 template <typename Wire> void abort_unimplemented_read(uint32_t paddr) {
     constexpr bool wire64 = std::is_same<Wire, uint64_t>::value;
     constexpr bool wire32 = std::is_same<Wire, uint32_t>::value;
@@ -30,7 +32,7 @@ template <typename Wire> void abort_unimplemented_read(uint32_t paddr) {
     } else if constexpr (wire64) {
         Utils::critical("Unimplemented read64 from paddr = {:#010x}", paddr);
     } else {
-        static_assert(false);
+        static_assert(always_false<Wire>);
     }
     Utils::abort("Aborted");
 }
@@ -51,7 +53,7 @@ template <typename Wire> void abort_unimplemented_write(uint32_t paddr) {
     } else if constexpr (wire64) {
         Utils::critical("Unimplemented write64 from paddr = {:#010x}", paddr);
     } else {
-        static_assert(false);
+        static_assert(always_false<Wire>);
     }
     Utils::abort("Aborted");
 }
@@ -80,7 +82,7 @@ template <typename Wire> Wire read_paddr(uint32_t paddr) {
         } else if constexpr (wire64) {
             return Utils::read_from_byte_array64(g_rsp().get_sp_dmem(), offs);
         } else {
-            static_assert(false);
+            static_assert(always_false<Wire>);
         }
     } else if (PHYS_SPIMEM_BASE <= paddr && paddr <= PHYS_SPIMEM_END) {
         const uint32_t offs = paddr - PHYS_SPIMEM_BASE;
@@ -93,7 +95,7 @@ template <typename Wire> Wire read_paddr(uint32_t paddr) {
         } else if constexpr (wire64) {
             return Utils::read_from_byte_array64(g_rsp().get_sp_imem(), offs);
         } else {
-            static_assert(false);
+            static_assert(always_false<Wire>);
         }
     } else if (PHYS_RSP_REG_BASE <= paddr && paddr <= PHYS_RSP_REG_END) {
         if constexpr (wire8) {
@@ -105,7 +107,7 @@ template <typename Wire> Wire read_paddr(uint32_t paddr) {
         } else if constexpr (wire64) {
             abort_unimplemented_read<uint64_t>(paddr);
         } else {
-            static_assert(false);
+            static_assert(always_false<Wire>);
         }
     } else if (PHYS_VI_BASE <= paddr && paddr <= PHYS_VI_END) {
         if constexpr (wire8) {
@@ -117,7 +119,7 @@ template <typename Wire> Wire read_paddr(uint32_t paddr) {
         } else if constexpr (wire64) {
             abort_unimplemented_read<uint64_t>(paddr);
         } else {
-            static_assert(false);
+            static_assert(always_false<Wire>);
         }
     } else if (PHYS_AI_BASE <= paddr && paddr <= PHYS_AI_END) {
         if constexpr (wire8) {
@@ -129,7 +131,7 @@ template <typename Wire> Wire read_paddr(uint32_t paddr) {
         } else if constexpr (wire64) {
             abort_unimplemented_read<uint64_t>(paddr);
         } else {
-            static_assert(false);
+            static_assert(always_false<Wire>);
         }
     } else if (PHYS_MI_BASE <= paddr && paddr <= PHYS_MI_END) {
         if constexpr (wire8) {
@@ -141,7 +143,7 @@ template <typename Wire> Wire read_paddr(uint32_t paddr) {
         } else if constexpr (wire64) {
             abort_unimplemented_read<uint64_t>(paddr);
         } else {
-            static_assert(false);
+            static_assert(always_false<Wire>);
         }
     } else if (PHYS_PI_BASE <= paddr && paddr <= PHYS_PI_END) {
         if constexpr (wire8) {
@@ -153,7 +155,7 @@ template <typename Wire> Wire read_paddr(uint32_t paddr) {
         } else if constexpr (wire64) {
             abort_unimplemented_read<uint64_t>(paddr);
         } else {
-            static_assert(false);
+            static_assert(always_false<Wire>);
         }
     } else if (PHYS_RI_BASE <= paddr && paddr <= PHYS_RI_END) {
         if constexpr (wire8) {
@@ -165,7 +167,7 @@ template <typename Wire> Wire read_paddr(uint32_t paddr) {
         } else if constexpr (wire64) {
             abort_unimplemented_read<uint64_t>(paddr);
         } else {
-            static_assert(false);
+            static_assert(always_false<Wire>);
         }
     } else if (PHYS_SI_BASE <= paddr && paddr <= PHYS_SI_END) {
         if constexpr (wire8) {
@@ -177,7 +179,7 @@ template <typename Wire> Wire read_paddr(uint32_t paddr) {
         } else if constexpr (wire64) {
             abort_unimplemented_read<uint64_t>(paddr);
         } else {
-            static_assert(false);
+            static_assert(always_false<Wire>);
         }
     } else if (PHYS_ROM_BASE <= paddr && paddr <= PHYS_ROM_END) {
         if constexpr (wire8) {
@@ -189,7 +191,7 @@ template <typename Wire> Wire read_paddr(uint32_t paddr) {
         } else if constexpr (wire64) {
             abort_unimplemented_read<uint64_t>(paddr);
         } else {
-            static_assert(false);
+            static_assert(always_false<Wire>);
         }
     } else if (PHYS_PIF_RAM_BASE <= paddr && paddr <= PHYS_PIF_RAM_END) {
         if constexpr (wire8) {
@@ -202,7 +204,7 @@ template <typename Wire> Wire read_paddr(uint32_t paddr) {
         } else if constexpr (wire64) {
             abort_unimplemented_read<uint64_t>(paddr);
         } else {
-            static_assert(false);
+            static_assert(always_false<Wire>);
         }
     } else {
         abort_unimplemented_read<uint32_t>(paddr);
@@ -235,7 +237,7 @@ template <typename Wire> void write_paddr(uint32_t paddr, Wire value) {
         } else if constexpr (wire64) {
             Utils::write_to_byte_array64(g_memory().get_rdram(), offs, value);
         } else {
-            static_assert(false);
+            static_assert(always_false<Wire>);
         }
     } else if (PHYS_SPDMEM_BASE <= paddr && paddr <= PHYS_SPDMEM_END) {
         uint32_t offs = paddr - PHYS_SPDMEM_BASE;
@@ -248,7 +250,7 @@ template <typename Wire> void write_paddr(uint32_t paddr, Wire value) {
         } else if constexpr (wire64) {
             Utils::write_to_byte_array64(g_rsp().get_sp_dmem(), offs, value);
         } else {
-            static_assert(false);
+            static_assert(always_false<Wire>);
         }
     } else if (PHYS_SPIMEM_BASE <= paddr && paddr <= PHYS_SPIMEM_END) {
         if constexpr (wire8) {
@@ -261,7 +263,7 @@ template <typename Wire> void write_paddr(uint32_t paddr, Wire value) {
         } else if constexpr (wire64) {
             abort_unimplemented_write<uint64_t>(paddr);
         } else {
-            static_assert(false);
+            static_assert(always_false<Wire>);
         }
     } else if (PHYS_RSP_REG_BASE <= paddr && paddr <= PHYS_RSP_REG_END) {
         if constexpr (wire8) {
@@ -273,7 +275,7 @@ template <typename Wire> void write_paddr(uint32_t paddr, Wire value) {
         } else if constexpr (wire64) {
             abort_unimplemented_write<uint64_t>(paddr);
         } else {
-            static_assert(false);
+            static_assert(always_false<Wire>);
         }
     } else if (PHYS_VI_BASE <= paddr && paddr <= PHYS_VI_END) {
         if constexpr (wire8) {
@@ -285,7 +287,7 @@ template <typename Wire> void write_paddr(uint32_t paddr, Wire value) {
         } else if constexpr (wire64) {
             abort_unimplemented_write<uint64_t>(paddr);
         } else {
-            static_assert(false);
+            static_assert(always_false<Wire>);
         }
     } else if (PHYS_AI_BASE <= paddr && paddr <= PHYS_AI_END) {
         if constexpr (wire8) {
@@ -297,7 +299,7 @@ template <typename Wire> void write_paddr(uint32_t paddr, Wire value) {
         } else if constexpr (wire64) {
             abort_unimplemented_write<uint64_t>(paddr);
         } else {
-            static_assert(false);
+            static_assert(always_false<Wire>);
         }
     } else if (PHYS_MI_BASE <= paddr && paddr <= PHYS_MI_END) {
         if constexpr (wire8) {
@@ -309,7 +311,7 @@ template <typename Wire> void write_paddr(uint32_t paddr, Wire value) {
         } else if constexpr (wire64) {
             abort_unimplemented_write<uint64_t>(paddr);
         } else {
-            static_assert(false);
+            static_assert(always_false<Wire>);
         }
     } else if (PHYS_PI_BASE <= paddr && paddr <= PHYS_PI_END) {
         if constexpr (wire8) {
@@ -321,7 +323,7 @@ template <typename Wire> void write_paddr(uint32_t paddr, Wire value) {
         } else if constexpr (wire64) {
             abort_unimplemented_write<uint64_t>(paddr);
         } else {
-            static_assert(false);
+            static_assert(always_false<Wire>);
         }
     } else if (PHYS_RI_BASE <= paddr && paddr <= PHYS_RI_END) {
         if constexpr (wire8) {
@@ -333,7 +335,7 @@ template <typename Wire> void write_paddr(uint32_t paddr, Wire value) {
         } else if constexpr (wire64) {
             abort_unimplemented_write<uint64_t>(paddr);
         } else {
-            static_assert(false);
+            static_assert(always_false<Wire>);
         }
     } else if (PHYS_SI_BASE <= paddr && paddr <= PHYS_SI_END) {
         if constexpr (wire8) {
@@ -345,7 +347,7 @@ template <typename Wire> void write_paddr(uint32_t paddr, Wire value) {
         } else if constexpr (wire64) {
             abort_unimplemented_write<uint64_t>(paddr);
         } else {
-            static_assert(false);
+            static_assert(always_false<Wire>);
         }
     } else if (PHYS_ROM_BASE <= paddr && paddr <= PHYS_ROM_END) {
         if constexpr (wire8) {
@@ -359,7 +361,7 @@ template <typename Wire> void write_paddr(uint32_t paddr, Wire value) {
         } else if constexpr (wire64) {
             abort_unimplemented_write<uint64_t>(paddr);
         } else {
-            static_assert(false);
+            static_assert(always_false<Wire>);
         }
     } else if (PHYS_PIF_RAM_BASE <= paddr && paddr <= PHYS_PIF_RAM_END) {
         if constexpr (wire8) {
@@ -372,7 +374,7 @@ template <typename Wire> void write_paddr(uint32_t paddr, Wire value) {
         } else if constexpr (wire64) {
             abort_unimplemented_write<uint64_t>(paddr);
         } else {
-            static_assert(false);
+            static_assert(always_false<Wire>);
         }
     } else {
         abort_unimplemented_write<uint32_t>(paddr);
