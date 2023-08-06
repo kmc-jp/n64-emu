@@ -31,7 +31,9 @@ add_library(parallel-rdp
     util/timer.cpp
     util/timeline_trace_file.cpp
     util/thread_name.cpp
+    # missing files
     volk/volk.c
+    vulkan/wsi.cpp
 )
 
 # FIXME: set the following options
