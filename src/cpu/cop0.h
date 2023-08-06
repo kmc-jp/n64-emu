@@ -205,6 +205,8 @@ class Cop0 {
 
   public:
     Reg reg;
+    // Set true iff LLAddr is set
+    bool llbit;
 
     Cop0() {}
 

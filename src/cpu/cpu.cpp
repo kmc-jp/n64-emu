@@ -212,6 +212,10 @@ void Cpu::execute_instruction(instruction_t inst) {
         return CpuImpl::op_ldl(*this, inst);
     case OPCODE_LDR: // LDR (I format)
         return CpuImpl::op_ldr(*this, inst);
+    case OPCODE_LL: // LL
+        return CpuImpl::op_ll(*this, inst);
+    case OPCODE_LLD: // LLD
+        return CpuImpl::op_lld(*this, inst);
     case OPCODE_SB: // SB (I format)
         return CpuImpl::op_sb(*this, inst);
     case OPCODE_SH: // SH (I format)
@@ -224,6 +228,10 @@ void Cpu::execute_instruction(instruction_t inst) {
         return CpuImpl::op_sdl(*this, inst);
     case OPCODE_SDR: // SDR (I format)
         return CpuImpl::op_sdr(*this, inst);
+    case OPCODE_SC: // SC
+        return CpuImpl::op_sc(*this, inst);
+    case OPCODE_SCD: // SCD
+        return CpuImpl::op_scd(*this, inst);
     case OPCODE_ADDI: // ADDI (I format)
         return CpuImpl::op_addi(*this, inst);
     case OPCODE_ADDIU: // ADDIU (I format)

@@ -168,6 +168,8 @@ void Cpu::Cop0::reset() {
     // FIXME: necessary?
     // https://github.com/project64/project64/blob/353ef5ed897cb72a8904603feddbdc649dff9eca/Source/Project64-core/N64System/N64System.cpp#L855
     reg.cause.ip4 = 1;
+
+    llbit = false;
 }
 
 void Cpu::Cop0::dump() {

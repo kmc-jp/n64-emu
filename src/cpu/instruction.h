@@ -87,6 +87,8 @@ constexpr uint8_t OPCODE_LUI = 0b001111;
 constexpr uint8_t OPCODE_LD = 0b110111;
 constexpr uint8_t OPCODE_LDL = 0b011010;
 constexpr uint8_t OPCODE_LDR = 0b011011;
+constexpr uint8_t OPCODE_LL = 0b110000;
+constexpr uint8_t OPCODE_LLD = 0b110100;
 
 constexpr uint8_t OPCODE_SB = 0b101000;
 constexpr uint8_t OPCODE_SH = 0b101001;
@@ -94,6 +96,8 @@ constexpr uint8_t OPCODE_SW = 0b101011;
 constexpr uint8_t OPCODE_SD = 0b111111;
 constexpr uint8_t OPCODE_SDL = 0b101100;
 constexpr uint8_t OPCODE_SDR = 0b101101;
+constexpr uint8_t OPCODE_SC = 0b111000;
+constexpr uint8_t OPCODE_SCD = 0b111100;
 
 constexpr uint8_t OPCODE_BEQ = 0b000100;
 constexpr uint8_t OPCODE_BEQL = 0b010100;
