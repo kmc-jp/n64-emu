@@ -305,6 +305,15 @@ class Cpu::CpuImpl {
                                           cpu.gpr.read(inst.r_type.rt));
     }
 
+    static void op_nor(Cpu &cpu, instruction_t inst) {
+        // https://github.com/Dillonb/n64/blob/6502f7d2f163c3f14da5bff8cd6d5ccc47143156/src/cpu/mips_instructions.c#L958
+        Utils::trace("NOR: {}, {}, {}", GPR_NAMES[inst.r_type.rd],
+                     GPR_NAMES[inst.r_type.rs], GPR_NAMES[inst.r_type.rt]);
+        uint64_t res =
+            ~(cpu.gpr.read(inst.r_type.rs) | cpu.gpr.read(inst.r_type.rt));
+        cpu.gpr.write(inst.r_type.rd, res);
+    }
+
     static void op_jr(Cpu &cpu, instruction_t inst) {
         // https://github.com/Dillonb/n64/blob/6502f7d2f163c3f14da5bff8cd6d5ccc47143156/src/cpu/mips_instructions.c#L733
         assert_encoding_is_valid(inst.r_type.rt == 0 && inst.r_type.rd == 0 &&
