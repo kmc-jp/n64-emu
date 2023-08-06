@@ -12,7 +12,7 @@ namespace Cpu {
 const uint32_t CPU_CYCLES_PER_INST = 1;
 constexpr uint8_t RA = 31;
 
-enum class ExceptionCode : uint32_t {
+enum class ExceptionCode : uint8_t {
     INTERRUPT = 0,
     TLB_MODIFICATION = 1,
     TLB_MISS_LOAD = 2,
@@ -77,6 +77,8 @@ class Cpu {
     void dump();
 
     void set_pc64(uint64_t value);
+
+    void set_pc32(uint32_t value);
 
     uint64_t get_pc64() const;
 

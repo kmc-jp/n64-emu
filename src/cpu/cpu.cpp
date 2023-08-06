@@ -42,8 +42,14 @@ void Cpu::dump() {
 }
 
 void Cpu::set_pc64(uint64_t value) {
-    prev_pc = value;
+    prev_pc = pc;
     pc = value;
+    next_pc = value + 4;
+}
+
+void Cpu::set_pc32(uint32_t value) {
+    prev_pc = pc;
+    pc = (int64_t)((int32_t)value);
     next_pc = value + 4;
 }
 
@@ -93,17 +99,34 @@ void Cpu::step() {
 void Cpu::handle_exception(ExceptionCode exception_code,
                            uint8_t coprocessor_error, bool use_prev_pc) {
     bool old_exl = cop0.reg.status.exl;
-    bool pc_return_to = use_prev_pc ? prev_pc : pc;
+    // FIXME: is this identical to pc??
+    int64_t epc = use_prev_pc ? prev_pc : pc;
 
-    // TODO: implement
-    // uint8_t exc_code = cop0.reg.cause.exception_code;
+    if (cop0.reg.status.exl == 0) {
+        if (prev_delay_slot) {
+            cop0.reg.cause.branch_delay = 1;
+            // FIXME: Is just minus 4 fine?
+            epc -= 4;
+        } else {
+            cop0.reg.cause.branch_delay = 0;
+        }
+        cop0.reg.status.exl = 1;
+        cop0.reg.epc = epc;
+    }
+
+    cop0.reg.cause.coprocessor_error = coprocessor_error;
+    cop0.reg.cause.exception_code = static_cast<uint8_t>(exception_code);
+
+    if (cop0.reg.status.bev == 1) {
+        Utils::unimplemented("BEV is set");
+    }
+
+    // FIXME: Add case of TLB Error
     switch (exception_code) {
     case ExceptionCode::INTERRUPT: {
-        Utils::critical(
-            "Unimplemented interruption. IP = {:#010b} mask = {:#010b}",
-            static_cast<uint32_t>(cop0.reg.cause.interrupt_pending),
-            static_cast<uint32_t>(cop0.reg.status.im));
-        Utils::abort("Aborted");
+        // The log below outputs too much log. Should commented out
+        // Utils::trace("Handling exception/interruption");
+        set_pc32(0x80000180);
     } break;
     default: {
         Utils::critical("Unimplemented. exception code = {}",
