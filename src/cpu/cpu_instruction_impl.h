@@ -299,33 +299,62 @@ class Cpu::CpuImpl {
 
     static void op_tge(Cpu &cpu, instruction_t inst) {
         // https://github.com/Dillonb/n64/blob/6502f7d2f163c3f14da5bff8cd6d5ccc47143156/src/cpu/mips_instructions.c#L1040
-        Utils::abort("TGE");
+        int64_t rs = cpu.gpr.read(inst.r_type.rs);
+        int64_t rt = cpu.gpr.read(inst.r_type.rt);
+        Utils::trace("TGE: {}, {}", GPR_NAMES[inst.r_type.rs],
+                     GPR_NAMES[inst.r_type.rt]);
+        if (rs >= rt)
+            handle_exception(ExceptionCode::TRAP, 0);
     }
 
     static void op_tgeu(Cpu &cpu, instruction_t inst) {
         // https://github.com/Dillonb/n64/blob/6502f7d2f163c3f14da5bff8cd6d5ccc47143156/src/cpu/mips_instructions.c#L1049
-        Utils::abort("TGEU");
+        uint64_t rs = cpu.gpr.read(inst.r_type.rs);
+        uint64_t rt = cpu.gpr.read(inst.r_type.rt);
+        Utils::trace("TGEU: {}, {}", GPR_NAMES[inst.r_type.rs],
+                     GPR_NAMES[inst.r_type.rt]);
+        if (rs >= rt)
+            handle_exception(ExceptionCode::TRAP, 0);
     }
 
     static void op_tlt(Cpu &cpu, instruction_t inst) {
         // https://github.com/Dillonb/n64/blob/6502f7d2f163c3f14da5bff8cd6d5ccc47143156/src/cpu/mips_instructions.c#L1058
-        Utils::abort("TLT");
+        int64_t rs = cpu.gpr.read(inst.r_type.rs);
+        int64_t rt = cpu.gpr.read(inst.r_type.rt);
+        Utils::trace("TLT: {}, {}", GPR_NAMES[inst.r_type.rs],
+                     GPR_NAMES[inst.r_type.rt]);
+        if (rs < rt)
+            handle_exception(ExceptionCode::TRAP, 0);
     }
 
     static void op_tltu(Cpu &cpu, instruction_t inst) {
         // https://github.com/Dillonb/n64/blob/6502f7d2f163c3f14da5bff8cd6d5ccc47143156/src/cpu/mips_instructions.c#L1067
-        Utils::abort("TLTU");
+        uint64_t rs = cpu.gpr.read(inst.r_type.rs);
+        uint64_t rt = cpu.gpr.read(inst.r_type.rt);
+        Utils::trace("TLTU: {}, {}", GPR_NAMES[inst.r_type.rs],
+                     GPR_NAMES[inst.r_type.rt]);
+        if (rs < rt)
+            handle_exception(ExceptionCode::TRAP, 0);
     }
 
     static void op_teq(Cpu &cpu, instruction_t inst) {
         // https://github.com/Dillonb/n64/blob/6502f7d2f163c3f14da5bff8cd6d5ccc47143156/src/cpu/mips_instructions.c#L1018
-        Utils::abort("TEQ");
+        uint64_t rs = cpu.gpr.read(inst.r_type.rs);
+        uint64_t rt = cpu.gpr.read(inst.r_type.rt);
+        Utils::trace("TEQ: {}, {}", GPR_NAMES[inst.r_type.rs],
+                     GPR_NAMES[inst.r_type.rt]);
+        if (rs == rt)
+            handle_exception(ExceptionCode::TRAP, 0);
     }
 
     static void op_tne(Cpu &cpu, instruction_t inst) {
-        ////
-        ///https://github.com/Dillonb/n64/blob/6502f7d2f163c3f14da5bff8cd6d5ccc47143156/src/cpu/mips_instructions.c#L1031
-        Utils::abort("TNE");
+        // https://github.com/Dillonb/n64/blob/6502f7d2f163c3f14da5bff8cd6d5ccc47143156/src/cpu/mips_instructions.c#L1031
+        uint64_t rs = cpu.gpr.read(inst.r_type.rs);
+        uint64_t rt = cpu.gpr.read(inst.r_type.rt);
+        Utils::trace("TNE: {}, {}", GPR_NAMES[inst.r_type.rs],
+                     GPR_NAMES[inst.r_type.rt]);
+        if (rs != rt)
+            handle_exception(ExceptionCode::TRAP, 0);
     }
 
     static void op_dsll(Cpu &cpu, instruction_t inst) {
@@ -539,7 +568,7 @@ class Cpu::CpuImpl {
             uint32_t word = Memory::read_paddr32(paddr.value());
             cpu.gpr.write(inst.i_type.rt, (uint64_t)word); // zext
         } else {
-           handle_exception(get_tlb_exception_code(BusAccess::LOAD), 0);
+            handle_exception(get_tlb_exception_code(BusAccess::LOAD), 0);
         }
     }
 
