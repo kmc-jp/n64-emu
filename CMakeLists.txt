@@ -10,5 +10,7 @@ endif()
 
 enable_testing()
 
+add_subdirectory(third_party/parallel-rdp-standalone)
+
 add_subdirectory(src)
 add_subdirectory(tests)

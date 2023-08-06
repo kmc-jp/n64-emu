@@ -60,5 +60,6 @@ test/test_runner
 
 *.txt
 !roms/**/*
+!**/CMakeLists.txt
 
 .vscode
