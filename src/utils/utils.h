@@ -79,7 +79,7 @@ inline Wire read_from_byte_array(std::span<const uint8_t> span,
     } else if constexpr (std::is_same<Wire, uint64_t>::value) {
         return read_from_byte_array64(span, offset);
     } else {
-        always_false<Wire>();
+        static_assert(always_false<Wire>);
     }
 }
 
