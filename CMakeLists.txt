@@ -11,6 +11,7 @@ endif()
 enable_testing()
 
 add_subdirectory(third_party/parallel-rdp-standalone)
+include(sdl2-config.cmake)
 
 add_subdirectory(src)
 add_subdirectory(tests)

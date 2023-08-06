@@ -1,6 +1,7 @@
 ﻿#include "n64_system.h"
 #include "config.h"
 #include "cpu/cpu.h"
+#include "frontend/frontend.h"
 #include "memory/memory.h"
 #include "memory/pif.h"
 #include "memory/tlb.h"
@@ -11,6 +12,7 @@
 #include "mmio/vi.h"
 #include "rcp/rsp.h"
 #include "scheduler.h"
+#include <SDL.h>
 
 namespace N64 {
 namespace N64System {
@@ -32,6 +34,26 @@ void reset_all(Config &config) {
     N64::g_vi().reset();
 }
 
+void frontend_loop(Config &config) {
+    Frontend front = Frontend();
+
+    while (true) {
+        N64System::step(config);
+
+        SDL_Event event;
+        while (SDL_PollEvent(&event)) {
+            switch (event.type) {
+            case SDL_QUIT: {
+                Utils::info("Stopping N64 system");
+                return;
+            } break;
+            default:
+                break;
+            }
+        }
+    }
+}
+
 void run(Config &config) {
     Utils::info("Starting N64 system");
     N64System::reset_all(config);
@@ -51,9 +73,7 @@ void run(Config &config) {
         Memory::pif_rom_execute();
     }
 
-    while (true) {
-        N64System::step(config);
-    }
+    frontend_loop(config);
 }
 
 void cpu_debug_callback(Config &config) {

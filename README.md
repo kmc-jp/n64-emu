@@ -1,4 +1,5 @@
 # n64-emu
+
 An experimental Nintendo 64 emulator.
 
 ### NOTE
@@ -18,7 +19,26 @@ You need to build from source.
 
 We support MSVC++. Clang and GCC are not tested for now.
 
-### Linux/Windows/macOS
+### Linux
+
+```
+sudo apt install cmake libsdl2-dev g++
+
+git clone --recursive git@github.com:kmc-jp/n64-emu.git
+cd n64-emu
+mkdir build
+cd build
+# configure build
+cmake ..
+# build
+make # or cmake --build . 
+```
+
+### Windows 
+
+1. Donwload SDL2 from https://github.com/libsdl-org/SDL/releases and extract it.
+2. Set `SDL2_DIR` environment variable point that to the location where you extracted the SDL2 development package.
+3. Run the follwoing commands
 
 ```
 git clone --recursive git@github.com:kmc-jp/n64-emu.git
@@ -28,9 +48,12 @@ cd build
 # configure build
 cmake ..
 # build
-make # or cmake --build .
+make # or cmake --build . 
 ```
 
+### macOS
+
+TODO
 
 ## Run
 
