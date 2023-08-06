@@ -16,6 +16,8 @@ class VI {
   private:
     static VI instance;
 
+    uint32_t reg_status;
+
   public:
     VI() {}
 
