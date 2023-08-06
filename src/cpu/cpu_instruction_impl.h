@@ -83,6 +83,27 @@ class Cpu::CpuImpl {
         cpu.gpr.write(inst.r_type.rd, (int64_t)res);
     }
 
+    static void op_dsub(Cpu &cpu, instruction_t inst) {
+        // https://github.com/Dillonb/n64/blob/6502f7d2f163c3f14da5bff8cd6d5ccc47143156/src/cpu/mips_instructions.c#L999
+        // TODO: check overflow
+        int64_t minuend = cpu.gpr.read(inst.r_type.rs);
+        int64_t subtrahend = cpu.gpr.read(inst.r_type.rt);
+        int64_t diff = minuend - subtrahend;
+        cpu.gpr.write(inst.r_type.rd, diff);
+        Utils::trace("DSUB: {} <= {} - {}", GPR_NAMES[inst.r_type.rd],
+                     GPR_NAMES[inst.r_type.rs], GPR_NAMES[inst.r_type.rt]);
+    }
+
+    static void op_dsubu(Cpu &cpu, instruction_t inst) {
+        // https://github.com/Dillonb/n64/blob/6502f7d2f163c3f14da5bff8cd6d5ccc47143156/src/cpu/mips_instructions.c#L1011
+        uint64_t minuend = cpu.gpr.read(inst.r_type.rs);
+        uint64_t subtrahend = cpu.gpr.read(inst.r_type.rt);
+        uint64_t diff = minuend - subtrahend;
+        cpu.gpr.write(inst.r_type.rd, diff);
+        Utils::trace("DSUBU: {} <= {} - {}", GPR_NAMES[inst.r_type.rd],
+                     GPR_NAMES[inst.r_type.rs], GPR_NAMES[inst.r_type.rt]);
+    }
+
     static void op_mult(Cpu &cpu, instruction_t inst) {
         // https://github.com/Dillonb/n64/blob/6502f7d2f163c3f14da5bff8cd6d5ccc47143156/src/cpu/mips_instructions.c#L780
         assert_encoding_is_valid(inst.r_type.sa == 0);

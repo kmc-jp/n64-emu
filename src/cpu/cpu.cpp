@@ -115,6 +115,10 @@ void Cpu::execute_instruction(instruction_t inst) {
             return CpuImpl::op_sub(*this, inst);
         case SPECIAL_FUNCT_SUBU: // SUBU
             return CpuImpl::op_subu(*this, inst);
+        case SPECIAL_FUNCT_DSUB: // DSUB
+            return CpuImpl::op_dsub(*this, inst);
+        case SPECIAL_FUNCT_DSUBU: // DSUBU
+            return CpuImpl::op_dsubu(*this, inst);
         case SPECIAL_FUNCT_MULT: // MULT
             return CpuImpl::op_mult(*this, inst);
         case SPECIAL_FUNCT_MULTU: // MULTU

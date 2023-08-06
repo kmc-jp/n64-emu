@@ -72,6 +72,7 @@ constexpr uint8_t OPCODE_CP1 = 0b010001;
 
 constexpr uint8_t OPCODE_J = 0b000010;
 constexpr uint8_t OPCODE_JAL = 0b000011;
+
 constexpr uint8_t OPCODE_ADDI = 0b001000;
 constexpr uint8_t OPCODE_ADDIU = 0b001001;
 constexpr uint8_t OPCODE_DADDI = 0b011000;
@@ -120,10 +121,12 @@ constexpr uint8_t OPCODE_SLTIU = 0b001011;
 
 constexpr uint8_t SPECIAL_FUNCT_ADD = 0b100000;   // ADD
 constexpr uint8_t SPECIAL_FUNCT_ADDU = 0b100001;  // ADDU
-constexpr uint8_t SPECIAL_FUNCT_DADD = 0b101100;
-constexpr uint8_t SPECIAL_FUNCT_DADDU = 0b101101;
+constexpr uint8_t SPECIAL_FUNCT_DADD = 0b101100; // DADD
+constexpr uint8_t SPECIAL_FUNCT_DADDU = 0b101101; // DADDU
 constexpr uint8_t SPECIAL_FUNCT_SUB = 0b100010;   // SUB
 constexpr uint8_t SPECIAL_FUNCT_SUBU = 0b100011;  // SUBU
+constexpr uint8_t SPECIAL_FUNCT_DSUB = 0b101110; // DSUB
+constexpr uint8_t SPECIAL_FUNCT_DSUBU = 0b101111; // DSUBU
 constexpr uint8_t SPECIAL_FUNCT_MULT = 0b011000;  // MULT
 constexpr uint8_t SPECIAL_FUNCT_MULTU = 0b011001; // MULTU
 constexpr uint8_t SPECIAL_FUNCT_DIV = 0b011010;   // DIV
