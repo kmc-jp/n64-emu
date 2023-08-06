@@ -24,6 +24,10 @@ constexpr uint32_t PADDR_VI_V_BURST = 0x0440002C;
 constexpr uint32_t PADDR_VI_X_SCALE = 0x04400030;
 constexpr uint32_t PADDR_VI_Y_SCALE = 0x04400034;
 
+namespace ViStatusFlags {
+enum ViStatusFlags : uint32_t { SERRATE = 0x40 };
+}
+
 // Video Interface
 class VI {
   private:
@@ -45,6 +49,10 @@ class VI {
     uint32_t reg_x_scale;
     uint32_t reg_y_scale;
 
+    // Always equal to the half of vsync. Probably.
+    int num_half_lines;
+    int cycles_per_half_line;
+
   public:
     VI() {}
 
@@ -53,6 +61,22 @@ class VI {
     uint32_t read_paddr32(uint32_t paddr) const;
 
     void write_paddr32(uint32_t paddr, uint32_t value);
+
+    uint32_t get_reg_status() const { return reg_status; }
+
+    void set_reg_current(uint32_t value) { reg_current = value; }
+
+    uint32_t get_reg_current() const { return reg_current; }
+
+    int get_num_half_lines() const { return num_half_lines; }
+
+    uint32_t get_reg_intr() const { return reg_intr; }
+
+    int get_cycles_per_half_line() const { return cycles_per_half_line; }
+
+    int get_num_fields() const {
+        return (reg_status & N64::Mmio::VI::ViStatusFlags::SERRATE) ? 2 : 1;
+    }
 
     inline static VI &get_instance() { return instance; }
 };

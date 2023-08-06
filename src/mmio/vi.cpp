@@ -21,7 +21,12 @@ void VI::reset() {
     reg_burst = 0; // FIXME: correct?
     reg_vsync = 0;
     reg_hsync = 0;
-    reg_hsync_leap = 0; // FIXME: correct?   
+    reg_hsync_leap = 0; // FIXME: correct?
+
+    // https://n64brew.dev/wiki/Video_Interface#0x0440_0018_-_VI_V_SYNC
+    // Assume NTSC not PAL.
+    num_half_lines = 0x20d / 2;
+    cycles_per_half_line = 1000;
 }
 
 uint32_t VI::read_paddr32(uint32_t paddr) const {
@@ -110,18 +115,17 @@ void VI::write_paddr32(uint32_t paddr, uint32_t value) {
         N64System::check_interrupt();
     } break;
     case PADDR_VI_BURST: {
-        // mask value of Kaizen may be wrong (not 10 bits but 12 bits)
         reg_burst = value;
         Utils::debug("VI: Burst set to {:#x}", reg_burst);
     } break;
     case PADDR_VI_V_SYNC: {
-        // mask value of Kaizen may be wrong (not 10 bits but 12 bits)
-        reg_vsync = value;
+        reg_vsync = value & 0x3FF;
+        num_half_lines = reg_vsync / 2;
         Utils::debug("VI: V_Sync set to {:#x}", reg_vsync);
     } break;
     case PADDR_VI_H_SYNC: {
-        // mask value of Kaizen may be wrong (not 10 bits but 12 bits)
-        reg_hsync = value;
+        // TODO: support PAL. ignore leap for now
+        reg_hsync = value & 0x3FF;
         Utils::debug("VI: H_Sync set to {:#x}", reg_hsync);
     } break;
     case PADDR_VI_H_SYNC_LEAP: {

@@ -8,6 +8,7 @@
 #include "mmio/mi.h"
 #include "mmio/pi.h"
 #include "mmio/si.h"
+#include "mmio/vi.h"
 #include "rcp/rsp.h"
 #include "scheduler.h"
 
@@ -28,6 +29,7 @@ void reset_all(Config &config) {
     N64::g_si().reset();
     N64::g_mi().reset();
     N64::g_ai().reset();
+    N64::g_vi().reset();
 }
 
 void run(Config &config) {
@@ -54,32 +56,7 @@ void run(Config &config) {
     }
 }
 
-void step(Config &config) {
-    static int consumed_cpu_cycles = 0;
-
-    // TODO: refine
-    // breakpoint うちたいときはとりあえずここを使う
-    /*
-    if ((N64::g_cpu().get_pc64()) == 0xffffffff800000dc - 1) {
-        stop = true;
-        Utils::abort("Reached break point 1");
-    }
-    */
-
-    // CPU step
-    N64::g_cpu().step();
-    consumed_cpu_cycles += Cpu::CPU_CYCLES_PER_INST;
-
-    // RSP step
-    // NOTE: RSP ticks 2/3x faster than CPU
-    while (consumed_cpu_cycles >= 3) {
-        consumed_cpu_cycles -= 3;
-        N64::g_rsp().step();
-        N64::g_rsp().step();
-    }
-
-    N64::g_scheduler().tick(Cpu::CPU_CYCLES_PER_INST);
-
+void cpu_debug_callback(Config &config) {
     // n64-testsの終了条件
     // https://github.com/Dillonb/n64-tests
     if (config.test_mode) {
@@ -106,6 +83,53 @@ void step(Config &config) {
     } else if (N64::g_scheduler().get_current_time() % 0x10'0000 == 1) {
         Utils::set_log_level(config.log_level);
     }
+}
+
+void step(Config &config) {
+    static int consumed_cpu_cycles = 0;
+
+    for (int field = 0; field < g_vi().get_num_fields(); field++) {
+        for (int line = 0; line < g_vi().get_num_half_lines(); line++) {
+            // FIXME: what if a CPU step take more than one cycle?
+            for (int i = 0; i < g_vi().get_cycles_per_half_line(); i++) {
+                // TODO: refine
+                // breakpoint うちたいときはとりあえずここを使う
+                /*
+                if ((g_cpu().get_pc64()) == 0xffffffff800000dc - 1) {
+                    stop = true;
+                    Utils::abort("Reached break point 1");
+                }
+                */
+
+                // TODO: why this value?
+                g_vi().set_reg_current(line * 2 + field);
+                if ((g_vi().get_reg_current() & 0x3FE) ==
+                    g_vi().get_reg_intr()) {
+                    g_mi().get_reg_intr().vi = 1;
+                    N64System::check_interrupt();
+                }
+
+                // TODO: AI step
+
+                // CPU step
+                g_cpu().step();
+                consumed_cpu_cycles += Cpu::CPU_CYCLES_PER_INST;
+                cpu_debug_callback(config);
+
+                // RSP step
+                // NOTE: RSP ticks 2/3x faster than CPU
+                while (consumed_cpu_cycles >= 3) {
+                    consumed_cpu_cycles -= 3;
+                    g_rsp().step();
+                    g_rsp().step();
+                }
+
+                g_scheduler().tick(Cpu::CPU_CYCLES_PER_INST);
+            }
+        }
+    }
+
+    // TODO: update screen here!
 }
 
 } // namespace N64System
