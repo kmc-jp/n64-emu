@@ -143,10 +143,11 @@ class Cpu {
     }
 
     void handle_exception(ExceptionCode exception_code,
-                          uint8_t coprocessor_error);
+                          uint8_t coprocessor_error, bool use_prev_pc);
 
   private:
     // program counter
+    uint64_t prev_pc;
     uint64_t pc;
     uint64_t next_pc;
 

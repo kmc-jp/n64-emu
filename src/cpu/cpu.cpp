@@ -21,6 +21,10 @@ void Cpu::reset() {
     prev_delay_slot = false;
     cop0.reset();
     cop1.reset();
+
+    prev_pc = 0;
+    pc = 0;
+    next_pc = 4;
 }
 
 void Cpu::dump() {
@@ -38,6 +42,7 @@ void Cpu::dump() {
 }
 
 void Cpu::set_pc64(uint64_t value) {
+    prev_pc = value;
     pc = value;
     next_pc = value + 4;
 }
@@ -60,7 +65,7 @@ void Cpu::step() {
 
     // check for interrupt/exception
     if (cop0.reg.cause.interrupt_pending & cop0.reg.status.im) {
-        handle_exception(ExceptionCode::INTERRUPT, 0);
+        handle_exception(ExceptionCode::INTERRUPT, 0, false);
     }
 
     // instruction fetch
@@ -75,6 +80,7 @@ void Cpu::step() {
     inst.raw = {Memory::read_paddr32(paddr_of_pc.value())};
     Utils::trace("fetched inst = {:#010x} from pc = {:#018x}", inst.raw, pc);
 
+    prev_pc = pc;
     pc = next_pc;
     next_pc += 4;
 
@@ -85,8 +91,10 @@ void Cpu::step() {
 }
 
 void Cpu::handle_exception(ExceptionCode exception_code,
-                           uint8_t coprocessor_error) {
+                           uint8_t coprocessor_error, bool use_prev_pc) {
     bool old_exl = cop0.reg.status.exl;
+    bool pc_return_to = use_prev_pc ? prev_pc : pc;
+
     // TODO: implement
     // uint8_t exc_code = cop0.reg.cause.exception_code;
     switch (exception_code) {
