@@ -13,7 +13,7 @@ constexpr uint32_t PADDR_VI_CTRL = 0x04400000;
 constexpr uint32_t PADDR_VI_ORIGIN = 0x04400004;
 constexpr uint32_t PADDR_VI_WIDTH = 0x04400008;
 constexpr uint32_t PADDR_VI_INTR = 0x0440000C;
-constexpr uint32_t PADDR_VI_CURRENT = 0x04400010;
+constexpr uint32_t PADDR_VI_V_CURRENT = 0x04400010;
 constexpr uint32_t PADDR_VI_BURST = 0x04400014;
 constexpr uint32_t PADDR_VI_V_SYNC = 0x04400018;
 constexpr uint32_t PADDR_VI_H_SYNC = 0x0440001C;
@@ -32,7 +32,9 @@ class VI {
     uint32_t reg_status;
     uint32_t reg_origin;
     uint32_t reg_width;
-
+    // FIXME: this name is confusing. Correct?
+    uint32_t reg_intr;
+    uint32_t reg_current;
     uint32_t reg_burst;
     uint32_t reg_vsync;
     uint32_t reg_hsync;

@@ -13,10 +13,15 @@ void VI::reset() {
     Utils::debug("Resetting VI");
     // TODO: reset registers
     // https://github.com/SimoneN64/Kaizen/blob/dffd36fc31731a0391a9b90f88ac2e5ed5d3f9ec/src/backend/core/mmio/VI.cpp#L12
-    reg_status = 0;
-
-    // TODO: correct?
+    reg_status = 0xf;
     reg_origin = 0;
+    reg_width = 320;
+    reg_intr = 0;
+    reg_current = 0;
+    reg_burst = 0; // FIXME: correct?
+    reg_vsync = 0;
+    reg_hsync = 0;
+    reg_hsync_leap = 0; // FIXME: correct?   
 }
 
 uint32_t VI::read_paddr32(uint32_t paddr) const {
@@ -29,6 +34,16 @@ uint32_t VI::read_paddr32(uint32_t paddr) const {
     case PADDR_VI_WIDTH:
         Utils::abort("VI: Read from VI_WIDTH is not supported");
         return reg_width;
+    case PADDR_VI_INTR: // 0x0440000C
+        Utils::abort("VI: Read from VI_WIDTH is not supported");
+        return reg_intr;
+    case PADDR_VI_V_CURRENT: // 0x04400010
+    {
+        // Project64: returns m_HalfLine
+        // Kaizen: returns current << 1
+        // n64: returns v_current
+        return reg_current;
+    } break;
     case PADDR_VI_BURST:
         Utils::abort("VI: Read from VI_BURST is not supported");
         return reg_burst;
@@ -80,6 +95,19 @@ void VI::write_paddr32(uint32_t paddr, uint32_t value) {
         reg_width = value & 0x7ff;
         Utils::debug("VI: Width set to {:#x}", reg_width);
         // TODO: onChanged function?
+    } break;
+    case PADDR_VI_INTR: // 0x0440000C
+    {
+        // Project64: set VI_INTR_REG
+        // Kaizen: set intr
+        reg_intr = value & 0x3ff;
+    } break;
+    case PADDR_VI_V_CURRENT: // 0x04400010
+    {
+        // Project64: interrupt lower
+        // Kaizen: interrupt lower
+        g_mi().get_reg_intr().vi = 0;
+        N64System::check_interrupt();
     } break;
     case PADDR_VI_BURST: {
         // mask value of Kaizen may be wrong (not 10 bits but 12 bits)
