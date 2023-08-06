@@ -17,7 +17,6 @@ set(PCH_FILES
 )
 
 find_package(SDL2 REQUIRED)
-include_directories(${SDL2_INCLUDE_DIRS})
 
 include_directories(
     .
@@ -30,6 +29,13 @@ include_directories(
     n64_system
     frontend
     "${CMAKE_SOURCE_DIR}/third_party/spdlog/include"
+    ${SDL2_INCLUDE_DIRS}
+    "${CMAKE_SOURCE_DIR}/third_party/parallel-rdp-standalone/vulkan-headers/include"
+    "${CMAKE_SOURCE_DIR}/third_party/parallel-rdp-standalone"
+    "${CMAKE_SOURCE_DIR}/third_party/parallel-rdp-standalone/parallel-rdp"
+    "${CMAKE_SOURCE_DIR}/third_party/parallel-rdp-standalone/util"
+    "${CMAKE_SOURCE_DIR}/third_party/parallel-rdp-standalone/volk"
+    "${CMAKE_SOURCE_DIR}/third_party/parallel-rdp-standalone/vulkan"
 )
 
 add_executable(n64 main.cpp)
@@ -44,7 +50,7 @@ add_subdirectory(n64_system)
 add_subdirectory(frontend)
 
 target_link_libraries(n64 PRIVATE
-    cpu memory mmio mmu rcp utils n64_system frontend
+    cpu memory mmio mmu rcp utils n64_system frontend parallel-rdp
     PUBLIC
     ${SDL2_LIBRARIES}
 )

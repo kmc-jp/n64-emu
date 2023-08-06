@@ -35,7 +35,7 @@ void reset_all(Config &config) {
 }
 
 void frontend_loop(Config &config) {
-    Frontend front = Frontend();
+    Frontend::Frontend frontend{};
 
     while (true) {
         N64System::step(config);

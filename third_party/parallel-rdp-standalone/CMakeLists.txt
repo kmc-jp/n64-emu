@@ -31,6 +31,7 @@ add_library(parallel-rdp
     util/timer.cpp
     util/timeline_trace_file.cpp
     util/thread_name.cpp
+    volk/volk.c
 )
 
 # FIXME: set the following options
@@ -55,10 +56,10 @@ endif()
 # TODO: 
 
 target_include_directories(parallel-rdp PUBLIC
+    vulkan-headers/include
     parallel-rdp
     volk
     spirv-cross
     vulkan
-    vulkan-headers/include
     util
 )
