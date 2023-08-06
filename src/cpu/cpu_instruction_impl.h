@@ -39,6 +39,27 @@ class Cpu::CpuImpl {
         cpu.gpr.write(inst.r_type.rd, (int64_t)res);
     }
 
+    static void op_dadd(Cpu &cpu, instruction_t inst) {
+        // TODO: exception
+        // https://github.com/Dillonb/n64/blob/6502f7d2f163c3f14da5bff8cd6d5ccc47143156/src/cpu/mips_instructions.c#L980
+        uint64_t rs = cpu.gpr.read(inst.r_type.rs);
+        uint64_t rt = cpu.gpr.read(inst.r_type.rt);
+        uint64_t res = rs + rt;
+        Utils::trace("DADD: {} <= {} + {}", GPR_NAMES[inst.r_type.rd],
+                     GPR_NAMES[inst.r_type.rs], GPR_NAMES[inst.r_type.rt]);
+        cpu.gpr.write(inst.r_type.rd, (int64_t)res);
+    }
+
+    static void op_daddu(Cpu &cpu, instruction_t inst) {
+        // https://github.com/Dillonb/n64/blob/6502f7d2f163c3f14da5bff8cd6d5ccc47143156/src/cpu/mips_instructions.c#L992
+        uint64_t rs = cpu.gpr.read(inst.r_type.rs);
+        uint64_t rt = cpu.gpr.read(inst.r_type.rt);
+        uint64_t res = rs + rt;
+        Utils::trace("DADDU: {} <= {} + {}", GPR_NAMES[inst.r_type.rd],
+                     GPR_NAMES[inst.r_type.rs], GPR_NAMES[inst.r_type.rt]);
+        cpu.gpr.write(inst.r_type.rd, (int64_t)res);
+    }
+
     static void op_sub(Cpu &cpu, instruction_t inst) {
         // https://github.com/Dillonb/n64/blob/6502f7d2f163c3f14da5bff8cd6d5ccc47143156/src/cpu/mips_instructions.c#L932
         // TODO: throw exception
@@ -808,6 +829,16 @@ class Cpu::CpuImpl {
         uint64_t res = rs + addend;
         // TODO: check overflow
         Utils::trace("DADDI: {} <= {} + {:#x}", GPR_NAMES[inst.i_type.rt],
+                     GPR_NAMES[inst.i_type.rs], addend);
+        cpu.gpr.write(inst.i_type.rt, res);
+    }
+
+    static void op_daddiu(Cpu &cpu, instruction_t inst) {
+        // https://github.com/Dillonb/n64/blob/6502f7d2f163c3f14da5bff8cd6d5ccc47143156/src/cpu/mips_instructions.c#L430
+        uint64_t addend = (int64_t)((int16_t)inst.i_type.imm);
+        uint64_t rs = cpu.gpr.read(inst.i_type.rs);
+        uint64_t res = rs + addend;
+        Utils::trace("DADDIU: {} <= {} + {:#x}", GPR_NAMES[inst.i_type.rt],
                      GPR_NAMES[inst.i_type.rs], addend);
         cpu.gpr.write(inst.i_type.rt, res);
     }
