@@ -12,6 +12,25 @@ namespace Cpu {
 const uint32_t CPU_CYCLES_PER_INST = 1;
 constexpr uint8_t RA = 31;
 
+enum class ExceptionCode : uint32_t {
+    INTERRUPT = 0,
+    TLB_MODIFICATION = 1,
+    TLB_MISS_LOAD = 2,
+    TLB_MISS_STORE = 3,
+    ADDRESS_ERROR_LOAD = 4,
+    ADDRESS_ERROR_STORE = 5,
+    BUS_ERROR_INS_FETCH = 6,
+    BUS_ERROR_LOAD_STORE = 7,
+    SYSCALL = 8,
+    BREAKPOINT = 9,
+    RESERVED_INSTR = 10,
+    COPROCESSOR_UNUSABLE = 11,
+    ARITHMETIC_OVERFLOW = 12,
+    TRAP = 13,
+    FLOATING_POINT = 15,
+    WATCH = 23,
+};
+
 class Gpr {
   private:
     std::array<uint64_t, 32> reg{};
@@ -110,9 +129,24 @@ class Cpu {
 
     static void link(Cpu &cpu, uint8_t reg) { cpu.gpr.write(reg, cpu.pc + 4); }
 
-    static void handle_exception(uint32_t exception_code,
+    // TODO: move to somewhere else
+    enum class BusAccess {
+        LOAD,
+        STORE,
+    };
+
+    // TODO: move to somewhere else
+    static inline ExceptionCode
+    get_tlb_exception_code(BusAccess bus_access) {
+        Utils::unimplemented("get_tlb_exception_code");
+        exit(-1);
+        return ExceptionCode::INTERRUPT;
+    }
+
+    static void handle_exception(ExceptionCode exception_code,
                                  uint8_t coprocessor_error) {
-        Utils::abort("exception code: {:#x}", exception_code);
+        Utils::abort("exception code: {:#x}",
+                     static_cast<uint8_t>(exception_code));
     }
 
   private:

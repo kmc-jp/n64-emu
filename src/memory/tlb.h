@@ -5,18 +5,6 @@
 #include <cstdint>
 
 namespace N64 {
-
-// TODO: move to somewhere else
-enum class BusAccess {
-    LOAD,
-    STORE,
-};
-
-// TODO: move to somewhere else
-static inline uint32_t get_tlb_exception_code(BusAccess bus_access) {
-    Utils::unimplemented("get_tlb_exception_code");
-}
-
 namespace Memory {
 
 class TLB {
