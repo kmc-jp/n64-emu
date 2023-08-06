@@ -110,6 +110,11 @@ class Cpu {
 
     static void link(Cpu &cpu, uint8_t reg) { cpu.gpr.write(reg, cpu.pc + 4); }
 
+    static void handle_exception(uint32_t exception_code,
+                                 uint8_t coprocessor_error) {
+        Utils::abort("exception code: {:#x}", exception_code);
+    }
+
   private:
     // program counter
     uint64_t pc;

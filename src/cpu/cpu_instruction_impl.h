@@ -297,6 +297,37 @@ class Cpu::CpuImpl {
         cpu.gpr.write(inst.r_type.rd, cpu.lo);
     }
 
+    static void op_tge(Cpu &cpu, instruction_t inst) {
+        // https://github.com/Dillonb/n64/blob/6502f7d2f163c3f14da5bff8cd6d5ccc47143156/src/cpu/mips_instructions.c#L1040
+        Utils::abort("TGE");
+    }
+
+    static void op_tgeu(Cpu &cpu, instruction_t inst) {
+        // https://github.com/Dillonb/n64/blob/6502f7d2f163c3f14da5bff8cd6d5ccc47143156/src/cpu/mips_instructions.c#L1049
+        Utils::abort("TGEU");
+    }
+
+    static void op_tlt(Cpu &cpu, instruction_t inst) {
+        // https://github.com/Dillonb/n64/blob/6502f7d2f163c3f14da5bff8cd6d5ccc47143156/src/cpu/mips_instructions.c#L1058
+        Utils::abort("TLT");
+    }
+
+    static void op_tltu(Cpu &cpu, instruction_t inst) {
+        // https://github.com/Dillonb/n64/blob/6502f7d2f163c3f14da5bff8cd6d5ccc47143156/src/cpu/mips_instructions.c#L1067
+        Utils::abort("TLTU");
+    }
+
+    static void op_teq(Cpu &cpu, instruction_t inst) {
+        // https://github.com/Dillonb/n64/blob/6502f7d2f163c3f14da5bff8cd6d5ccc47143156/src/cpu/mips_instructions.c#L1018
+        Utils::abort("TEQ");
+    }
+
+    static void op_tne(Cpu &cpu, instruction_t inst) {
+        ////
+        ///https://github.com/Dillonb/n64/blob/6502f7d2f163c3f14da5bff8cd6d5ccc47143156/src/cpu/mips_instructions.c#L1031
+        Utils::abort("TNE");
+    }
+
     static void op_dsll(Cpu &cpu, instruction_t inst) {
         // https://github.com/Dillonb/n64/blob/6502f7d2f163c3f14da5bff8cd6d5ccc47143156/src/cpu/mips_instructions.c#L1077
         uint64_t value = cpu.gpr.read(inst.r_type.rt);
@@ -426,7 +457,7 @@ class Cpu::CpuImpl {
             int8_t value = Memory::read_paddr8(paddr.value());
             cpu.gpr.write(inst.i_type.rt, (int64_t)value);
         } else {
-            g_tlb().generate_exception(vaddr);
+            handle_exception(get_tlb_exception_code(BusAccess::LOAD), 0);
         }
     }
 
@@ -442,7 +473,7 @@ class Cpu::CpuImpl {
             uint8_t value = Memory::read_paddr8(paddr.value());
             cpu.gpr.write(inst.i_type.rt, value);
         } else {
-            g_tlb().generate_exception(vaddr);
+            handle_exception(get_tlb_exception_code(BusAccess::LOAD), 0);
         }
     }
 
@@ -459,7 +490,7 @@ class Cpu::CpuImpl {
             int16_t value = Memory::read_paddr16(paddr.value());
             cpu.gpr.write(inst.i_type.rt, (int64_t)value);
         } else {
-            g_tlb().generate_exception(vaddr);
+            handle_exception(get_tlb_exception_code(BusAccess::LOAD), 0);
         }
     }
 
@@ -476,7 +507,7 @@ class Cpu::CpuImpl {
             uint16_t value = Memory::read_paddr16(paddr.value());
             cpu.gpr.write(inst.i_type.rt, static_cast<uint64_t>(value)); // zext
         } else {
-            g_tlb().generate_exception(vaddr);
+            handle_exception(get_tlb_exception_code(BusAccess::LOAD), 0);
         }
     }
 
@@ -492,7 +523,7 @@ class Cpu::CpuImpl {
             int32_t word = Memory::read_paddr32(paddr.value());
             cpu.gpr.write(inst.i_type.rt, (int64_t)word); // sext
         } else {
-            g_tlb().generate_exception(vaddr);
+            handle_exception(get_tlb_exception_code(BusAccess::LOAD), 0);
         }
     }
 
@@ -508,7 +539,7 @@ class Cpu::CpuImpl {
             uint32_t word = Memory::read_paddr32(paddr.value());
             cpu.gpr.write(inst.i_type.rt, (uint64_t)word); // zext
         } else {
-            g_tlb().generate_exception(vaddr);
+           handle_exception(get_tlb_exception_code(BusAccess::LOAD), 0);
         }
     }
 
@@ -535,7 +566,7 @@ class Cpu::CpuImpl {
             uint64_t value = Memory::read_paddr64(paddr.value());
             cpu.gpr.write(inst.i_type.rt, value);
         } else {
-            g_tlb().generate_exception(vaddr);
+            handle_exception(get_tlb_exception_code(BusAccess::LOAD), 0);
         }
     }
 
@@ -552,7 +583,7 @@ class Cpu::CpuImpl {
             uint64_t old = cpu.gpr.read(inst.i_type.rt);
             cpu.gpr.write(inst.i_type.rt, (old & ~mask) | (data << shift));
         } else {
-            g_tlb().generate_exception(vaddr);
+            handle_exception(get_tlb_exception_code(BusAccess::LOAD), 0);
         }
     }
 
@@ -569,7 +600,7 @@ class Cpu::CpuImpl {
             uint64_t old = cpu.gpr.read(inst.i_type.rt);
             cpu.gpr.write(inst.i_type.rt, (old & ~mask) | (data >> shift));
         } else {
-            g_tlb().generate_exception(vaddr);
+            handle_exception(get_tlb_exception_code(BusAccess::LOAD), 0);
         }
     }
 
@@ -588,7 +619,7 @@ class Cpu::CpuImpl {
             cpu.cop0.reg.lladdr = paddr.value() >> 4;
             cpu.cop0.llbit = 1;
         } else {
-            g_tlb().generate_exception(vaddr);
+            handle_exception(get_tlb_exception_code(BusAccess::LOAD), 0);
         }
     }
 
@@ -608,7 +639,7 @@ class Cpu::CpuImpl {
             cpu.cop0.reg.lladdr = paddr.value() >> 4;
             cpu.cop0.llbit = 1;
         } else {
-            g_tlb().generate_exception(vaddr);
+            handle_exception(get_tlb_exception_code(BusAccess::LOAD), 0);
         }
     }
 
@@ -624,7 +655,7 @@ class Cpu::CpuImpl {
             uint8_t value = cpu.gpr.read(inst.r_type.rt);
             Memory::write_paddr8(paddr.value(), value);
         } else {
-            g_tlb().generate_exception(vaddr);
+            handle_exception(get_tlb_exception_code(BusAccess::STORE), 0);
         }
     }
 
@@ -640,7 +671,7 @@ class Cpu::CpuImpl {
             uint16_t value = cpu.gpr.read(inst.r_type.rt);
             Memory::write_paddr8(paddr.value(), value);
         } else {
-            g_tlb().generate_exception(vaddr);
+            handle_exception(get_tlb_exception_code(BusAccess::STORE), 0);
         }
     }
 
@@ -656,7 +687,7 @@ class Cpu::CpuImpl {
             uint32_t word = cpu.gpr.read(inst.r_type.rt);
             Memory::write_paddr32(paddr.value(), word);
         } else {
-            g_tlb().generate_exception(vaddr);
+            handle_exception(get_tlb_exception_code(BusAccess::STORE), 0);
         }
     }
 
@@ -672,7 +703,7 @@ class Cpu::CpuImpl {
             uint64_t dword = cpu.gpr.read(inst.r_type.rt);
             Memory::write_paddr64(paddr.value(), dword);
         } else {
-            g_tlb().generate_exception(vaddr);
+            handle_exception(get_tlb_exception_code(BusAccess::STORE), 0);
         }
     }
 
@@ -690,7 +721,7 @@ class Cpu::CpuImpl {
             Memory::write_paddr64(paddr.value() & ~7,
                                   (data & ~mask) | (old >> shift));
         } else {
-            g_tlb().generate_exception(vaddr);
+            handle_exception(get_tlb_exception_code(BusAccess::STORE), 0);
         }
     }
 
@@ -708,7 +739,7 @@ class Cpu::CpuImpl {
             Memory::write_paddr64(paddr.value() & ~7,
                                   (data & ~mask) | (old << shift));
         } else {
-            g_tlb().generate_exception(vaddr);
+            handle_exception(get_tlb_exception_code(BusAccess::STORE), 0);
         }
     }
 

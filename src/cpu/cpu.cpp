@@ -82,7 +82,6 @@ void Cpu::step() {
         // FIXME: what if IF causes TLB miss?
         Utils::critical("PC fetch causes TLB miss");
         Utils::abort("Aborted");
-        g_tlb().generate_exception(pc);
     }
 
     instruction_t inst;
@@ -150,6 +149,18 @@ void Cpu::execute_instruction(instruction_t inst) {
             return CpuImpl::op_mfhi(*this, inst);
         case SPECIAL_FUNCT_MFLO: // MFLO
             return CpuImpl::op_mflo(*this, inst);
+        case SPECIAL_FUNCT_TGE: // TGE
+            return CpuImpl::op_tge(*this, inst);
+        case SPECIAL_FUNCT_TGEU: // TGEU
+            return CpuImpl::op_tgeu(*this, inst);
+        case SPECIAL_FUNCT_TLT: // TLT
+            return CpuImpl::op_tlt(*this, inst);
+        case SPECIAL_FUNCT_TLTU: // TLTU
+            return CpuImpl::op_tltu(*this, inst);
+        case SPECIAL_FUNCT_TEQ: // TEQ
+            return CpuImpl::op_teq(*this, inst);
+        case SPECIAL_FUNCT_TNE: // TNE
+            return CpuImpl::op_tne(*this, inst);
         case SPECIAL_FUNCT_DSLL: // DSLL
             return CpuImpl::op_dsll(*this, inst);
         case SPECIAL_FUNCT_DSRL: // DSRL
