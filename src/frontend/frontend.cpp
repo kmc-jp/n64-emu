@@ -7,8 +7,6 @@ namespace Frontend {
 
 using namespace Vulkan;
 
-WSI *wsi;
-VkInstance instance{};
 
 } // namespace Frontend
 } // namespace N64

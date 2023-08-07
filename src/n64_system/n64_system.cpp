@@ -35,7 +35,7 @@ void reset_all(Config &config) {
 }
 
 void frontend_loop(Config &config) {
-    Frontend::Frontend frontend{};
+    Frontend::Frontend frontend{g_memory().get_rdram().data()};
 
     while (true) {
         N64System::step(config);
@@ -51,6 +51,7 @@ void frontend_loop(Config &config) {
                 break;
             }
         }
+        frontend.update_screeen_parallel_rdp(g_vi());
     }
 }
 
