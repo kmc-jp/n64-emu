@@ -34,8 +34,8 @@ void reset_all(Config &config) {
     N64::g_vi().reset();
 }
 
+// https://github.com/Dillonb/n64/blob/6502f7d2f163c3f14da5bff8cd6d5ccc47143156/src/qt_frontend/n64_emulator_thread.cpp#L35
 void frontend_loop(Config &config) {
-    Frontend::Frontend frontend{g_memory().get_rdram().data()};
 
     while (true) {
         N64System::step(config);
@@ -51,7 +51,6 @@ void frontend_loop(Config &config) {
                 break;
             }
         }
-        frontend.update_screeen_parallel_rdp(g_vi());
     }
 }
 

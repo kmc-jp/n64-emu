@@ -7,11 +7,6 @@
 
 namespace N64 {
 
-namespace Frontend {
-
-class Frontend;
-}
-
 namespace Mmio {
 namespace VI {
 
@@ -36,7 +31,7 @@ enum ViStatusFlags : uint32_t { SERRATE = 0x40 };
 
 // Video Interface
 class VI {
-    friend class N64::Frontend::Frontend;
+    friend void pre_scanout(SDL_PixelFormatEnum pixel_format);
 
   private:
     static VI instance;
