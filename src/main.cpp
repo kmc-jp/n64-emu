@@ -1,6 +1,6 @@
-﻿#include "config.h"
+﻿#include "app/app.h"
+#include "config.h"
 #include "n64_system/config.h"
-#include "n64_system/n64_system.h"
 #include "utils.h"
 #include <iostream>
 
@@ -25,7 +25,8 @@ int main(int argc, char *argv[]) {
     }
     Utils::set_log_level(config.log_level);
 
-    N64::N64System::run(config);
+    N64::Frontend::App app(config);
+    app.run();
 
     return 0;
 }

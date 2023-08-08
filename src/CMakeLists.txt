@@ -27,7 +27,7 @@ include_directories(
     rcp
     utils
     n64_system
-    frontend
+    app
     "${CMAKE_SOURCE_DIR}/third_party/spdlog/include"
     ${SDL2_INCLUDE_DIRS}
     "${CMAKE_SOURCE_DIR}/third_party/parallel-rdp-standalone/vulkan-headers/include"
@@ -47,10 +47,11 @@ add_subdirectory(mmu)
 add_subdirectory(rcp)
 add_subdirectory(utils)
 add_subdirectory(n64_system)
-add_subdirectory(frontend)
+add_subdirectory(app)
 
 target_link_libraries(n64 PRIVATE
-    cpu memory mmio mmu rcp utils n64_system frontend parallel-rdp
+    cpu memory mmio mmu rcp utils n64_system app
+    parallel-rdp
     PUBLIC
     ${SDL2_LIBRARIES}
 )

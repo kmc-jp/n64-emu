@@ -1,7 +1,6 @@
 ﻿#include "n64_system.h"
 #include "config.h"
 #include "cpu/cpu.h"
-#include "frontend/frontend.h"
 #include "memory/memory.h"
 #include "memory/pif.h"
 #include "memory/tlb.h"
@@ -17,7 +16,7 @@
 namespace N64 {
 namespace N64System {
 
-void reset_all(Config &config) {
+static void reset_all(Config &config) {
     // this is not an actual hardware. but reset here.
     N64::g_scheduler().init();
 
@@ -34,27 +33,7 @@ void reset_all(Config &config) {
     N64::g_vi().reset();
 }
 
-void frontend_loop(Config &config) {
-    Frontend::Frontend frontend{};
-
-    while (true) {
-        N64System::step(config);
-
-        SDL_Event event;
-        while (SDL_PollEvent(&event)) {
-            switch (event.type) {
-            case SDL_QUIT: {
-                Utils::info("Stopping N64 system");
-                return;
-            } break;
-            default:
-                break;
-            }
-        }
-    }
-}
-
-void run(Config &config) {
+void set_up(Config &config) {
     Utils::info("Starting N64 system");
     N64System::reset_all(config);
 
@@ -72,11 +51,9 @@ void run(Config &config) {
         Utils::debug("Executing PIF ROM");
         Memory::pif_rom_execute();
     }
-
-    frontend_loop(config);
 }
 
-void cpu_debug_callback(Config &config) {
+static void cpu_debug_callback(Config &config) {
     // n64-testsの終了条件
     // https://github.com/Dillonb/n64-tests
     if (config.test_mode) {
@@ -148,8 +125,6 @@ void step(Config &config) {
             }
         }
     }
-
-    // TODO: update screen here!
 }
 
 } // namespace N64System
