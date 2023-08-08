@@ -1,8 +1,8 @@
-#include "vi.h"
+#include "mmio/vi.h"
 #include "memory/memory_map.h"
-#include "mi.h"
+#include "mmio/mi.h"
 #include "n64_system/interrupt.h"
-#include "utils.h"
+#include "utils/utils.h"
 #include <cstdint>
 
 namespace N64 {

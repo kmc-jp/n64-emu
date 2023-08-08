@@ -6,4 +6,4 @@ namespace Rsp {
 Rsp Rsp::instance{};
 
 }
-}
+} // namespace N64

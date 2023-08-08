@@ -1,7 +1,6 @@
 ﻿#include "app/app.h"
-#include "config.h"
 #include "n64_system/config.h"
-#include "utils.h"
+#include "utils/utils.h"
 #include <iostream>
 
 constexpr std::string_view USAGE =

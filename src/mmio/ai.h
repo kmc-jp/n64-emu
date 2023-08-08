@@ -1,7 +1,7 @@
 ﻿#ifndef AI_H
 #define AI_H
 
-#include "memory_map.h"
+#include "memory/memory_map.h"
 #include <array>
 #include <cstdint>
 

@@ -1,7 +1,7 @@
 ﻿#ifndef SI_H
 #define SI_H
 
-#include "memory_map.h"
+#include "memory/memory_map.h"
 #include <array>
 #include <cstdint>
 

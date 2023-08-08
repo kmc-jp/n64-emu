@@ -1,7 +1,7 @@
 ﻿#ifndef PI_H
 #define PI_H
 
-#include "utils.h"
+#include "utils/utils.h"
 #include <cstdint>
 
 namespace N64 {
@@ -23,7 +23,7 @@ namespace PiStatusFlags {
 enum PiStatusFlags : uint32_t {
     DMA_BUSY = 1,
     IO_BUSY = 2,
-    //ERROR = 4,
+    // ERROR = 4,
     INTERRUPT = 8,
 };
 }

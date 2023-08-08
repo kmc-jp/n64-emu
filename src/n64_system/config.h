@@ -1,8 +1,8 @@
 ﻿#ifndef CONFIG_H
 #define CONFIG_H
 
+#include "utils/utils.h"
 #include <string>
-#include "utils.h"
 
 namespace N64 {
 namespace N64System {

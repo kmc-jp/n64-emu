@@ -6,8 +6,7 @@
 namespace N64 {
 namespace N64System {
 
-
-void set_up(Config& config);
+void set_up(Config &config);
 
 void step(Config &config);
 

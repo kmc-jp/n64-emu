@@ -1,8 +1,8 @@
 ﻿#ifndef MI_H
 #define MI_H
 
-#include "memory_map.h"
-#include "utils.h"
+#include "memory/memory_map.h"
+#include "utils/utils.h"
 #include <array>
 #include <cstdint>
 

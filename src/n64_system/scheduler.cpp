@@ -1,4 +1,4 @@
-﻿#include "scheduler.h"
+﻿#include "n64_system/scheduler.h"
 
 namespace N64 {
 namespace N64System {

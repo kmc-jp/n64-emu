@@ -20,14 +20,6 @@ find_package(SDL2 REQUIRED)
 
 include_directories(
     .
-    cpu
-    memory
-    mmio
-    mmu
-    rcp
-    utils
-    n64_system
-    app
     "${CMAKE_SOURCE_DIR}/third_party/spdlog/include"
     ${SDL2_INCLUDE_DIRS}
     "${CMAKE_SOURCE_DIR}/third_party/parallel-rdp-standalone/vulkan-headers/include"

@@ -1,6 +1,6 @@
 ﻿#include "mi.h"
 #include "n64_system/interrupt.h"
-#include "utils.h"
+#include "utils/utils.h"
 #include <cstdint>
 
 namespace N64 {

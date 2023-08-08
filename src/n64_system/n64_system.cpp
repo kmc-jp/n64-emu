@@ -9,8 +9,8 @@
 #include "mmio/pi.h"
 #include "mmio/si.h"
 #include "mmio/vi.h"
+#include "n64_system/scheduler.h"
 #include "rcp/rsp.h"
-#include "scheduler.h"
 #include <SDL.h>
 
 namespace N64 {
@@ -54,7 +54,7 @@ void set_up(Config &config) {
 }
 
 static void cpu_debug_callback(Config &config) {
-    // n64-testsの終了条件
+    // Check condition for n64-tests
     // https://github.com/Dillonb/n64-tests
     if (config.test_mode) {
         if (N64::g_cpu().gpr.read(30) != 0) {
@@ -89,8 +89,7 @@ void step(Config &config) {
         for (int line = 0; line < g_vi().get_num_half_lines(); line++) {
             // FIXME: what if a CPU step take more than one cycle?
             for (int i = 0; i < g_vi().get_cycles_per_half_line(); i++) {
-                // TODO: refine
-                // breakpoint うちたいときはとりあえずここを使う
+                // TODO: refine breakpoint
                 /*
                 if ((g_cpu().get_pc64()) == 0xffffffff800000dc - 1) {
                     stop = true;
@@ -113,8 +112,7 @@ void step(Config &config) {
                 consumed_cpu_cycles += Cpu::CPU_CYCLES_PER_INST;
                 cpu_debug_callback(config);
 
-                // RSP step
-                // NOTE: RSP ticks 2/3x faster than CPU
+                // RSP step. RSP ticks 2/3x faster than CPU
                 while (consumed_cpu_cycles >= 3) {
                     consumed_cpu_cycles -= 3;
                     g_rsp().step();
