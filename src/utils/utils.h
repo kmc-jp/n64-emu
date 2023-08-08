@@ -154,6 +154,8 @@ template <typename... Args>
     exit(-1);
 }
 
+std::vector<uint8_t> read_binary_file(std::string filepath);
+
 } // namespace Utils
 
 #endif
