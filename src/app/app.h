@@ -25,6 +25,7 @@ class App {
             exit(-1);
         }
         window = new Window();
+        init_imgui();
         // TODO: vulkan, wsi, etc.
     }
 
@@ -33,18 +34,19 @@ class App {
         SDL_Quit();
     }
 
-    void run() {
+    void init_imgui() {
         IMGUI_CHECKVERSION();
         ImGui::CreateContext();
         // ImGuiIO &io{ImGui::GetIO()};
-
         // io.ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard;
         //  io.ConfigFlags |= ImGuiConfigFlags_ViewportsEnable;
 
         ImGui_ImplSDL2_InitForSDLRenderer(window->get_native_sdl_window(),
                                           window->get_native_sdl_renderer());
         ImGui_ImplSDLRenderer2_Init(window->get_native_sdl_renderer());
+    }
 
+    void run() {
         N64System::set_up(config);
 
         while (true) {
