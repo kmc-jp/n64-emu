@@ -29,6 +29,9 @@ class Window {
             Utils::critical("Failed to create SDL_Renderer");
             exit(-1);
         }
+        // Set render scale for high DPI displays (e.g. Apple Retina)
+        const float scale{get_scale()};
+        SDL_RenderSetScale(renderer, scale, scale);
     }
     ~Window() {
         SDL_DestroyRenderer(renderer);
@@ -38,6 +41,22 @@ class Window {
     SDL_Window *get_native_sdl_window() const { return window; }
 
     SDL_Renderer *get_native_sdl_renderer() const { return renderer; }
+
+    [[nodiscard]] float get_scale() const {
+        int window_width{0};
+        int window_height{0};
+        SDL_GetWindowSize(window, &window_width, &window_height);
+
+        int render_output_width{0};
+        int render_output_height{0};
+        SDL_GetRendererOutputSize(renderer, &render_output_width,
+                                  &render_output_height);
+
+        const auto scale_x{static_cast<float>(render_output_width) /
+                           static_cast<float>(window_width)};
+
+        return scale_x;
+    }
 };
 
 } // namespace Frontend
