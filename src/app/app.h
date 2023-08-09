@@ -30,6 +30,7 @@ class App {
     }
 
     ~App() {
+        fini_imgui();
         delete window;
         SDL_Quit();
     }
@@ -46,6 +47,12 @@ class App {
         ImGui_ImplSDLRenderer2_Init(window->get_native_sdl_renderer());
     }
 
+    void fini_imgui() {
+        ImGui_ImplSDLRenderer2_Shutdown();
+        ImGui_ImplSDL2_Shutdown();
+        ImGui::DestroyContext();
+    }
+
     void run() {
         N64System::set_up(config);
 
@@ -57,7 +64,7 @@ class App {
                 ImGui_ImplSDL2_ProcessEvent(&event);
                 switch (event.type) {
                 case SDL_QUIT: {
-                    Utils::info("Stopping N64 system");
+                    Utils::info("Stopping application");
                     return;
                 } break;
                 default:
