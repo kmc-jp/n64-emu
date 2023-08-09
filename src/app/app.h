@@ -76,6 +76,12 @@ class App {
             ImGui_ImplSDLRenderer2_NewFrame();
             ImGui_ImplSDL2_NewFrame();
             ImGui::NewFrame();
+
+            // TODO: render some panel
+            ImGui::Begin("TODO: some panel");
+            ImGui::Text("Hi, I am some panel :-)");
+            ImGui::End();
+
             // Rendering
             ImGui::Render();
 
@@ -84,7 +90,7 @@ class App {
                                    // Gray clear color (rgba)
                                    100, 100, 100, 255);
             SDL_RenderClear(window->get_native_sdl_renderer());
-            // ... to here
+            // ... to here?
 
             // Render data through the SDL renderer
             ImGui_ImplSDLRenderer2_RenderDrawData(ImGui::GetDrawData());
