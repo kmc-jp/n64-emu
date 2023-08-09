@@ -18,16 +18,22 @@ set(PCH_FILES
 
 find_package(SDL2 REQUIRED)
 
-include_directories(
-    .
-    "${CMAKE_SOURCE_DIR}/third_party/spdlog/include"
-    ${SDL2_INCLUDE_DIRS}
+set(SPDLOG_INCLUDE_DIRS
+    "${CMAKE_SOURCE_DIR}/third_party/spdlog/include")
+
+set(PARALLEL_RDP_INCLUDE_DIRS
     "${CMAKE_SOURCE_DIR}/third_party/parallel-rdp-standalone/vulkan-headers/include"
     "${CMAKE_SOURCE_DIR}/third_party/parallel-rdp-standalone"
     "${CMAKE_SOURCE_DIR}/third_party/parallel-rdp-standalone/parallel-rdp"
     "${CMAKE_SOURCE_DIR}/third_party/parallel-rdp-standalone/util"
     "${CMAKE_SOURCE_DIR}/third_party/parallel-rdp-standalone/volk"
-    "${CMAKE_SOURCE_DIR}/third_party/parallel-rdp-standalone/vulkan"
+    "${CMAKE_SOURCE_DIR}/third_party/parallel-rdp-standalone/vulkan")
+
+include_directories(
+    .
+    ${SPDLOG_INCLUDE_DIRS}
+    ${SDL2_INCLUDE_DIRS}
+    ${PARALLEL_RDP_INCLUDE_DIRS}
 )
 
 add_executable(n64 main.cpp)
