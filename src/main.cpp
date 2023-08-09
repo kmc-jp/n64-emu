@@ -7,9 +7,11 @@ constexpr std::string_view USAGE =
     "Usage: n64 [options] <ROM.z64>\n"
     "Options:\n"
     "--log <file>\tspecify output log file(default to stdout)\n"
-    "--log-level [trace|debug|info|critical|off]\tset log level(default to "
+    "--log-level [trace|debug|info|critical|off]\tset log level (default to "
     "debug)\n";
 
+// Entry point of the n64-emu. Handles command line arguments and starts the
+// App.
 int main(int argc, char *argv[]) {
     N64::N64System::Config config{};
 
