@@ -30,21 +30,22 @@ set(PARALLEL_RDP_INCLUDE_DIRS
     "${CMAKE_SOURCE_DIR}/third_party/parallel-rdp-standalone/vulkan")
 
 set(IMGUI_INCLUDE_DIR "${CMAKE_SOURCE_DIR}/third_party/imgui")
-set(IMGUI_SOURCES ${imgui_SOURCE_DIR}/imgui.cpp
-    ${CMAKE_SOURCE_DIR}/third_party/imgui.h
-    ${CMAKE_SOURCE_DIR}/third_party/imconfig.h
-    ${CMAKE_SOURCE_DIR}/third_party/imgui_demo.cpp
-    ${CMAKE_SOURCE_DIR}/third_party/imgui_draw.cpp
-    ${CMAKE_SOURCE_DIR}/third_party/imgui_internal.h
-    ${CMAKE_SOURCE_DIR}/third_party/imgui_tables.cpp
-    ${CMAKE_SOURCE_DIR}/third_party/imgui_widgets.cpp
-    ${CMAKE_SOURCE_DIR}/third_party/imstb_rectpack.h
-    ${CMAKE_SOURCE_DIR}/third_party/imstb_textedit.h
-    ${CMAKE_SOURCE_DIR}/third_party/imstb_truetype.h
-    ${CMAKE_SOURCE_DIR}/third_party/backends/imgui_impl_sdl2.h
-    ${CMAKE_SOURCE_DIR}/third_party/backends/imgui_impl_sdl2.cpp
-    ${CMAKE_SOURCE_DIR}/third_party/backends/imgui_impl_sdlrenderer2.h
-    ${CMAKE_SOURCE_DIR}/third_party/backends/imgui_impl_sdlrenderer2.cpp)
+set(IMGUI_SOURCES
+    ${CMAKE_SOURCE_DIR}/third_party/imgui/imgui.cpp
+    ${CMAKE_SOURCE_DIR}/third_party/imgui/imgui.h
+    ${CMAKE_SOURCE_DIR}/third_party/imgui/imconfig.h
+    ${CMAKE_SOURCE_DIR}/third_party/imgui/imgui_demo.cpp
+    ${CMAKE_SOURCE_DIR}/third_party/imgui/imgui_draw.cpp
+    ${CMAKE_SOURCE_DIR}/third_party/imgui/imgui_internal.h
+    ${CMAKE_SOURCE_DIR}/third_party/imgui/imgui_tables.cpp
+    ${CMAKE_SOURCE_DIR}/third_party/imgui/imgui_widgets.cpp
+    ${CMAKE_SOURCE_DIR}/third_party/imgui/imstb_rectpack.h
+    ${CMAKE_SOURCE_DIR}/third_party/imgui/imstb_textedit.h
+    ${CMAKE_SOURCE_DIR}/third_party/imgui/imstb_truetype.h
+    ${CMAKE_SOURCE_DIR}/third_party/imgui/backends/imgui_impl_sdl2.h
+    ${CMAKE_SOURCE_DIR}/third_party/imgui/backends/imgui_impl_sdl2.cpp
+    ${CMAKE_SOURCE_DIR}/third_party/imgui/backends/imgui_impl_sdlrenderer2.h
+    ${CMAKE_SOURCE_DIR}/third_party/imgui/backends/imgui_impl_sdlrenderer2.cpp)
 
 include_directories(
     .
@@ -55,6 +56,10 @@ include_directories(
 )
 
 add_executable(n64 main.cpp)
+
+add_library(imgui
+    ${IMGUI_SOURCES})
+target_link_libraries(imgui PUBLIC SDL2::SDL2)
 
 add_subdirectory(cpu)
 add_subdirectory(memory)
@@ -67,10 +72,9 @@ add_subdirectory(app)
 
 target_link_libraries(n64 PRIVATE
     cpu memory mmio mmu rcp utils n64_system app
-    parallel-rdp
+    parallel-rdp imgui
     PUBLIC
     ${SDL2_LIBRARIES}
-    ${IMGUI_SOURCCES}
 )
 
 # target_link_libraries(n64 PRIVATE SDL2::SDL2)
