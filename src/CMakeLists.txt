@@ -30,8 +30,21 @@ set(PARALLEL_RDP_INCLUDE_DIRS
     "${CMAKE_SOURCE_DIR}/third_party/parallel-rdp-standalone/vulkan")
 
 set(IMGUI_INCLUDE_DIR "${CMAKE_SOURCE_DIR}/third_party/imgui")
-file(GLOB IMGUI_SOURCES ${IMGUI_INCLUDE_DIR}/*.cpp)
-file(GLOB IMGUI_HEADERS ${IMGUI_INCLUDE_DIR}/*.h)
+set(IMGUI_SOURCES ${imgui_SOURCE_DIR}/imgui.cpp
+    ${CMAKE_SOURCE_DIR}/third_party/imgui.h
+    ${CMAKE_SOURCE_DIR}/third_party/imconfig.h
+    ${CMAKE_SOURCE_DIR}/third_party/imgui_demo.cpp
+    ${CMAKE_SOURCE_DIR}/third_party/imgui_draw.cpp
+    ${CMAKE_SOURCE_DIR}/third_party/imgui_internal.h
+    ${CMAKE_SOURCE_DIR}/third_party/imgui_tables.cpp
+    ${CMAKE_SOURCE_DIR}/third_party/imgui_widgets.cpp
+    ${CMAKE_SOURCE_DIR}/third_party/imstb_rectpack.h
+    ${CMAKE_SOURCE_DIR}/third_party/imstb_textedit.h
+    ${CMAKE_SOURCE_DIR}/third_party/imstb_truetype.h
+    ${CMAKE_SOURCE_DIR}/third_party/backends/imgui_impl_sdl2.h
+    ${CMAKE_SOURCE_DIR}/third_party/backends/imgui_impl_sdl2.cpp
+    ${CMAKE_SOURCE_DIR}/third_party/backends/imgui_impl_sdlrenderer2.h
+    ${CMAKE_SOURCE_DIR}/third_party/backends/imgui_impl_sdlrenderer2.cpp)
 
 include_directories(
     .
