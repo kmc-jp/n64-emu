@@ -29,11 +29,16 @@ set(PARALLEL_RDP_INCLUDE_DIRS
     "${CMAKE_SOURCE_DIR}/third_party/parallel-rdp-standalone/volk"
     "${CMAKE_SOURCE_DIR}/third_party/parallel-rdp-standalone/vulkan")
 
+set(IMGUI_INCLUDE_DIR "${CMAKE_SOURCE_DIR}/third_party/imgui")
+file(GLOB IMGUI_SOURCES ${IMGUI_INCLUDE_DIR}/*.cpp)
+file(GLOB IMGUI_HEADERS ${IMGUI_INCLUDE_DIR}/*.h)
+
 include_directories(
     .
     ${SPDLOG_INCLUDE_DIRS}
     ${SDL2_INCLUDE_DIRS}
     ${PARALLEL_RDP_INCLUDE_DIRS}
+    ${IMGUI_INCLUDE_DIR}
 )
 
 add_executable(n64 main.cpp)
@@ -52,6 +57,7 @@ target_link_libraries(n64 PRIVATE
     parallel-rdp
     PUBLIC
     ${SDL2_LIBRARIES}
+    ${IMGUI_SOURCCES}
 )
 
 # target_link_libraries(n64 PRIVATE SDL2::SDL2)
