@@ -42,6 +42,9 @@ class App {
         // io.ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard;
         //  io.ConfigFlags |= ImGuiConfigFlags_ViewportsEnable;
 
+        // TODO: dockspace
+        // https://martin-fieber.de/blog/gui-development-with-cpp-sdl2-and-dear-imgui/
+
         ImGui_ImplSDL2_InitForSDLRenderer(window->get_native_sdl_window(),
                                           window->get_native_sdl_renderer());
         ImGui_ImplSDLRenderer2_Init(window->get_native_sdl_renderer());
