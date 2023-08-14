@@ -13,10 +13,23 @@ RDP::CommandProcessor *command_processor;
 
 void init_prdp(Vulkan::WSI &wsi, uint8_t *rdram) {
     RDP::CommandProcessorFlags flags = 0;
+
+    // FIXME: I have no idea why these are needed
+    auto aligned_rdram = reinterpret_cast<uintptr_t>(rdram);
+    uintptr_t offset = 0;
+
+    if (wsi.get_device().get_device_features().supports_external_memory_host) {
+        size_t align =
+            wsi.get_device()
+                .get_device_features()
+                .host_memory_properties.minImportedHostPointerAlignment;
+        offset = aligned_rdram & (align - 1);
+        aligned_rdram -= offset;
+    }
     // FIXME: should align rdram??
     command_processor = new RDP::CommandProcessor(
-        wsi.get_device(), reinterpret_cast<void *>(rdram), 0, RDRAM_SIZE,
-        HIDDEN_RDRAM_SIZE, flags);
+        wsi.get_device(), reinterpret_cast<void *>(aligned_rdram), offset,
+        RDRAM_SIZE, HIDDEN_RDRAM_SIZE, flags);
 
     if (!command_processor->device_is_supported()) {
         Utils::critical("Parallel-RDP does not support this device. Sorry!");
@@ -82,7 +95,6 @@ void render_screen(Vulkan::WSI &wsi, Util::IntrusivePtr<Vulkan::Image> image) {
 }
 
 void update_screen(Vulkan::WSI &wsi, N64::Mmio::VI::VI &vi) {
-    command_processor->begin_frame_context();
     command_processor->set_vi_register(RDP::VIRegister::Control, vi.reg_status);
     command_processor->set_vi_register(RDP::VIRegister::Origin, vi.reg_origin);
     command_processor->set_vi_register(RDP::VIRegister::Width, vi.reg_width);
@@ -104,6 +116,7 @@ void update_screen(Vulkan::WSI &wsi, N64::Mmio::VI::VI &vi) {
     Util::IntrusivePtr<Vulkan::Image> image = command_processor->scanout(opts);
 
     render_screen(wsi, image);
+    command_processor->begin_frame_context();
 }
 
 } // namespace PRDPWrapper
