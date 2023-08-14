@@ -87,6 +87,13 @@ void step(Config &config) {
 
     for (int field = 0; field < g_vi().get_num_fields(); field++) {
         for (int line = 0; line < g_vi().get_num_half_lines(); line++) {
+            // TODO: why this value?
+            g_vi().set_reg_current(line * 2 + field);
+            if ((g_vi().get_reg_current() & 0x3FE) == g_vi().get_reg_intr()) {
+                g_mi().get_reg_intr().vi = 1;
+                N64System::check_interrupt();
+            }
+
             // FIXME: what if a CPU step take more than one cycle?
             for (int i = 0; i < g_vi().get_cycles_per_half_line(); i++) {
                 // TODO: refine breakpoint
@@ -96,16 +103,6 @@ void step(Config &config) {
                     Utils::abort("Reached break point 1");
                 }
                 */
-
-                // TODO: why this value?
-                g_vi().set_reg_current(line * 2 + field);
-                if ((g_vi().get_reg_current() & 0x3FE) ==
-                    g_vi().get_reg_intr()) {
-                    g_mi().get_reg_intr().vi = 1;
-                    N64System::check_interrupt();
-                }
-
-                // TODO: AI step
 
                 // CPU step
                 g_cpu().step();
@@ -122,6 +119,12 @@ void step(Config &config) {
                 g_scheduler().tick(Cpu::CPU_CYCLES_PER_INST);
             }
         }
+        if ((g_vi().get_reg_current() & 0x3FE) == g_vi().get_reg_intr()) {
+            g_mi().get_reg_intr().vi = 1;
+            N64System::check_interrupt();
+        }
+
+        // TODO: AI step
     }
 }
 

@@ -57,11 +57,11 @@ constexpr RDP::ScanoutOptions get_prdp_scanout_options() {
 }
 
 // https://github.com/simple64/simple64/blob/1e4ab555054a659c6e6a91db16ce46714be7ac00/parallel-rdp-standalone/parallel_imp.cpp#L154
-static void calculate_viewport(float* x, float* y, float* width, float* height)
-{
+static void calculate_viewport(float *x, float *y, float *width,
+                               float *height) {
     int32_t display_width = 640;
     int32_t display_height = 480;
-    
+
     *width = 800;
     *height = 600;
     *x = 0;
@@ -84,6 +84,8 @@ static void calculate_viewport(float* x, float* y, float* width, float* height)
 
 // https://github.com/SimoneN64/Kaizen/blob/dffd36fc31731a0391a9b90f88ac2e5ed5d3f9ec/external/parallel-rdp/ParallelRDPWrapper.cpp#L228C91-L228C91
 void render_screen(Vulkan::WSI &wsi, Util::IntrusivePtr<Vulkan::Image> image) {
+    // https://github.com/simple64/simple64/blob/1e4ab555054a659c6e6a91db16ce46714be7ac00/parallel-rdp-standalone/parallel_imp.cpp#L199
+    /*
     if (image.get() == NULL) {
         auto info = Vulkan::ImageCreateInfo::immutable_2d_image(
             800, 600, VK_FORMAT_R8G8B8A8_UNORM);
@@ -107,47 +109,33 @@ void render_screen(Vulkan::WSI &wsi, Util::IntrusivePtr<Vulkan::Image> image) {
             VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT, VK_ACCESS_SHADER_READ_BIT);
         wsi.get_device().submit(cmd);
     }
-    // clear screen
-    /*
-    {
-        Util::IntrusivePtr<Vulkan::CommandBuffer> cmd =
-            wsi.get_device().request_command_buffer();
-        Vulkan::RenderPassInfo rp = wsi.get_device().get_swapchain_render_pass(
-            Vulkan::SwapchainRenderPass::ColorOnly);
-        rp.clear_color[0].float32[0] = 0.1f;
-        rp.clear_color[0].float32[1] = 0.2f;
-        rp.clear_color[0].float32[2] = 0.3f;
-        cmd->begin_render_pass(rp);
-        cmd->end_render_pass();
-        wsi.get_device().submit(cmd);
-    }
     */
-
-    if (image.get() == NULL) {
-        Utils::critical("Image is null");
-    }
-
     Vulkan::ResourceLayout vertex_layout = {};
     Vulkan::ResourceLayout fragment_layout = {};
     fragment_layout.output_mask = 1 << 0;
     fragment_layout.sets[0].sampled_image_mask = 1 << 0;
-    // This request is cached.
     auto *program = wsi.get_device().request_program(
         vertex_spirv, sizeof(vertex_spirv), fragment_spirv,
         sizeof(fragment_spirv), &vertex_layout, &fragment_layout);
 
-    // swap chain?
-    {
-        // https://github.com/simple64/simple64/blob/1e4ab555054a659c6e6a91db16ce46714be7ac00/parallel-rdp-standalone/parallel_imp.cpp#L211
-        Util::IntrusivePtr<Vulkan::CommandBuffer> cmd =
-            wsi.get_device().request_command_buffer();
-        cmd->begin_render_pass(wsi.get_device().get_swapchain_render_pass(
-            Vulkan::SwapchainRenderPass::ColorOnly));
+    Util::IntrusivePtr<Vulkan::CommandBuffer> cmd =
+        wsi.get_device().request_command_buffer();
+    Vulkan::RenderPassInfo rp = wsi.get_device().get_swapchain_render_pass(
+        Vulkan::SwapchainRenderPass::ColorOnly);
+    cmd->begin_render_pass(rp);
+    // https://github.com/simple64/simple64/blob/1e4ab555054a659c6e6a91db16ce46714be7ac00/parallel-rdp-standalone/parallel_imp.cpp#L211
+    if (image.get() != NULL) {
+        // TODO: remove from here...
+        //rp.clear_color[0].float32[0] = 0.1f;
+        //rp.clear_color[0].float32[1] = 0.2f;
+        //rp.clear_color[0].float32[2] = 0.3f;
+        // ...to here
 
         VkViewport vp = cmd->get_viewport();
         calculate_viewport(&vp.x, &vp.y, &vp.width, &vp.height);
-        Utils::debug("Viewport x: {}, y: {}, width: {}, height: {}", vp.x, vp.y,
-                     vp.width, vp.height);
+        // Utils::debug("Viewport x: {}, y: {}, width: {}, height: {}",
+        // vp.x, vp.y,
+        //              vp.width, vp.height);
         cmd->set_program(program);
         cmd->set_opaque_state();
         cmd->set_depth_test(false, false);
@@ -155,23 +143,10 @@ void render_screen(Vulkan::WSI &wsi, Util::IntrusivePtr<Vulkan::Image> image) {
         cmd->set_texture(0, 0, image->get_view(),
                          Vulkan::StockSampler::NearestClamp);
         cmd->draw(3);
-
-        /*
-        cmd->set_texture(0, 0, image->get_view(),
-                         Vulkan::StockSampler::LinearClamp);
-        cmd->set_quad_state();
-         cmd->set_vertex_attrib(0, 0, VK_FORMAT_R32G32_SFLOAT, 0);
-         cmd->set_depth_test(false, false);
-         cmd->set_depth_compare(VK_COMPARE_OP_ALWAYS);
-         cmd->set_primitive_topology(VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST);
-        cmd->draw(0);
-        */
-
-        cmd->end_render_pass();
-        wsi.get_device().submit(cmd);
     }
+    cmd->end_render_pass();
+    wsi.get_device().submit(cmd);
 }
-
 void update_screen(Vulkan::WSI &wsi, N64::Mmio::VI::VI &vi) {
     command_processor->set_vi_register(RDP::VIRegister::Control, vi.reg_status);
     command_processor->set_vi_register(RDP::VIRegister::Origin, vi.reg_origin);

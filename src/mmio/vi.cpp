@@ -25,7 +25,7 @@ void VI::reset() {
 
     // https://n64brew.dev/wiki/Video_Interface#0x0440_0018_-_VI_V_SYNC
     // Assume NTSC not PAL.
-    num_half_lines = 0x20d / 2;
+    num_half_lines = 0x20d / 2; // 262
     cycles_per_half_line = 1000;
 }
 
@@ -47,6 +47,8 @@ uint32_t VI::read_paddr32(uint32_t paddr) const {
         // Project64: returns m_HalfLine
         // Kaizen: returns current << 1
         // n64: returns v_current
+        // FIXME: correct?
+        Utils::debug("VI: Burst Read value =  {:#x}", reg_current);
         return reg_current;
     } break;
     case PADDR_VI_BURST:
