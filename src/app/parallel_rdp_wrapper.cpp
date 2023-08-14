@@ -154,7 +154,7 @@ void render_screen(Vulkan::WSI &wsi, Util::IntrusivePtr<Vulkan::Image> image) {
         cmd->set_cull_mode(VK_CULL_MODE_NONE);
         cmd->set_texture(0, 0, image->get_view(),
                          Vulkan::StockSampler::NearestClamp);
-        cmd->draw(0);
+        cmd->draw(3);
 
         /*
         cmd->set_texture(0, 0, image->get_view(),
