@@ -1,3 +1,4 @@
+#include "spirv.h"
 #include <mmio/vi.h>
 #include <rdp_device.hpp>
 #include <utils/utils.h>
@@ -55,6 +56,31 @@ constexpr RDP::ScanoutOptions get_prdp_scanout_options() {
     return opts;
 }
 
+static void calculate_viewport(float* x, float* y, float* width, float* height)
+{
+    int32_t display_width = 640;
+    int32_t display_height = 480;
+    
+    *width = 800;
+    *height = 600;
+    *x = 0;
+    *y = 0;
+    int32_t hw = display_height * *width;
+    int32_t wh = display_width * *height;
+
+    // add letterboxes or pillarboxes if the window has a different aspect ratio
+    // than the current display mode
+    if (hw > wh) {
+        int32_t w_max = wh / display_height;
+        *x += (*width - w_max) / 2;
+        *width = w_max;
+    } else if (hw < wh) {
+        int32_t h_max = hw / display_width;
+        *y += (*height - h_max) / 2;
+        *height = h_max;
+    }
+}
+
 // https://github.com/SimoneN64/Kaizen/blob/dffd36fc31731a0391a9b90f88ac2e5ed5d3f9ec/external/parallel-rdp/ParallelRDPWrapper.cpp#L228C91-L228C91
 void render_screen(Vulkan::WSI &wsi, Util::IntrusivePtr<Vulkan::Image> image) {
     if (image.get() == NULL) {
@@ -100,6 +126,15 @@ void render_screen(Vulkan::WSI &wsi, Util::IntrusivePtr<Vulkan::Image> image) {
         Utils::critical("Image is null");
     }
 
+    Vulkan::ResourceLayout vertex_layout = {};
+    Vulkan::ResourceLayout fragment_layout = {};
+    fragment_layout.output_mask = 1 << 0;
+    fragment_layout.sets[0].sampled_image_mask = 1 << 0;
+    // This request is cached.
+    auto *program = wsi.get_device().request_program(
+        vertex_spirv, sizeof(vertex_spirv), fragment_spirv,
+        sizeof(fragment_spirv), &vertex_layout, &fragment_layout);
+
     // swap chain?
     {
         // https://github.com/simple64/simple64/blob/1e4ab555054a659c6e6a91db16ce46714be7ac00/parallel-rdp-standalone/parallel_imp.cpp#L211
@@ -108,10 +143,11 @@ void render_screen(Vulkan::WSI &wsi, Util::IntrusivePtr<Vulkan::Image> image) {
         cmd->begin_render_pass(wsi.get_device().get_swapchain_render_pass(
             Vulkan::SwapchainRenderPass::ColorOnly));
 
-        // VkViewport vp = cmd->get_viewport();
-        // Utils::debug("Viewport x: {}, y: {}, width: {}, height: {}", vp.x,
-        // vp.y,
-        //              vp.width, vp.height);
+        VkViewport vp = cmd->get_viewport();
+        calculate_viewport(&vp.x, &vp.y, &vp.width, &vp.height);
+        Utils::debug("Viewport x: {}, y: {}, width: {}, height: {}", vp.x, vp.y,
+                     vp.width, vp.height);
+        cmd->set_program(program);
         cmd->set_opaque_state();
         cmd->set_depth_test(false, false);
         cmd->set_cull_mode(VK_CULL_MODE_NONE);
