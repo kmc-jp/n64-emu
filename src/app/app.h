@@ -5,7 +5,6 @@
 #include "mmio/vi.h"
 #include "n64_system/config.h"
 #include "n64_system/n64_system.h"
-#include "parallel_rdp_wrapper.h"
 #include "utils/utils.h"
 #include "vulkan_headers.hpp"
 #include "wsi.hpp"
@@ -135,9 +134,7 @@ class App {
         N64System::set_up(config);
 
         while (platform.is_alive) {
-            N64System::step(config);
-
-            PRDPWrapper::update_screen(wsi, g_vi());
+            N64System::step(config, wsi);
         }
 
         PRDPWrapper::fini_prdp();

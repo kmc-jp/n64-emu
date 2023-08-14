@@ -85,31 +85,6 @@ static void calculate_viewport(float *x, float *y, float *width,
 // https://github.com/SimoneN64/Kaizen/blob/dffd36fc31731a0391a9b90f88ac2e5ed5d3f9ec/external/parallel-rdp/ParallelRDPWrapper.cpp#L228C91-L228C91
 void render_screen(Vulkan::WSI &wsi, Util::IntrusivePtr<Vulkan::Image> image) {
     // https://github.com/simple64/simple64/blob/1e4ab555054a659c6e6a91db16ce46714be7ac00/parallel-rdp-standalone/parallel_imp.cpp#L199
-    /*
-    if (image.get() == NULL) {
-        auto info = Vulkan::ImageCreateInfo::immutable_2d_image(
-            800, 600, VK_FORMAT_R8G8B8A8_UNORM);
-        info.usage = VK_IMAGE_USAGE_SAMPLED_BIT |
-                     VK_IMAGE_USAGE_TRANSFER_SRC_BIT |
-                     VK_IMAGE_USAGE_TRANSFER_DST_BIT;
-        info.misc = Vulkan::IMAGE_MISC_MUTABLE_SRGB_BIT;
-        info.initial_layout = VK_IMAGE_LAYOUT_UNDEFINED;
-        image = wsi.get_device().create_image(info);
-        auto cmd = wsi.get_device().request_command_buffer();
-        cmd->image_barrier(*image, VK_IMAGE_LAYOUT_UNDEFINED,
-                           VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
-                           VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, 0,
-                           VK_PIPELINE_STAGE_TRANSFER_BIT,
-                           VK_ACCESS_TRANSFER_WRITE_BIT);
-        cmd->clear_image(*image, {});
-        cmd->image_barrier(
-            *image, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
-            VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
-            VK_PIPELINE_STAGE_TRANSFER_BIT, VK_ACCESS_TRANSFER_WRITE_BIT,
-            VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT, VK_ACCESS_SHADER_READ_BIT);
-        wsi.get_device().submit(cmd);
-    }
-    */
     Vulkan::ResourceLayout vertex_layout = {};
     Vulkan::ResourceLayout fragment_layout = {};
     fragment_layout.output_mask = 1 << 0;
