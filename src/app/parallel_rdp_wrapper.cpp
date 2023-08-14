@@ -87,9 +87,11 @@ void render_screen(Vulkan::WSI &wsi, Util::IntrusivePtr<Vulkan::Image> image) {
 
     Util::IntrusivePtr<Vulkan::CommandBuffer> cmd =
         wsi.get_device().request_command_buffer();
+
     cmd->begin_render_pass(wsi.get_device().get_swapchain_render_pass(
         Vulkan::SwapchainRenderPass::ColorOnly));
     cmd->end_render_pass();
+
     wsi.get_device().submit(cmd);
     wsi.end_frame();
 }

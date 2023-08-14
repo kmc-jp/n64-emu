@@ -93,6 +93,12 @@ class App {
             Utils::critical("Failed to open Window");
             exit(-1);
         }
+
+        if (volkInitialize() != VK_SUCCESS) {
+            Utils::critical("Failed to initialize volk");
+            exit(-1);
+        }
+
         if (!Vulkan::Context::init_loader(
                 (PFN_vkGetInstanceProcAddr)
                     SDL_Vulkan_GetVkGetInstanceProcAddr())) {
@@ -129,9 +135,7 @@ class App {
         while (platform.is_alive) {
             N64System::step(config);
 
-            wsi.begin_frame();
             PRDPWrapper::update_screen(wsi, g_vi());
-            wsi.end_frame();
         }
 
         PRDPWrapper::fini_prdp();
