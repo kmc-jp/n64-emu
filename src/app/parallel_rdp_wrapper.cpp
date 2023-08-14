@@ -97,6 +97,7 @@ void render_screen(Vulkan::WSI &wsi, Util::IntrusivePtr<Vulkan::Image> image) {
 }
 
 void update_screen(Vulkan::WSI &wsi, N64::Mmio::VI::VI &vi) {
+    command_processor->begin_frame_context();
     command_processor->set_vi_register(RDP::VIRegister::Control, vi.reg_status);
     command_processor->set_vi_register(RDP::VIRegister::Origin, vi.reg_origin);
     command_processor->set_vi_register(RDP::VIRegister::Width, vi.reg_width);
@@ -118,7 +119,6 @@ void update_screen(Vulkan::WSI &wsi, N64::Mmio::VI::VI &vi) {
     Util::IntrusivePtr<Vulkan::Image> image = command_processor->scanout(opts);
 
     render_screen(wsi, image);
-    command_processor->begin_frame_context();
 }
 
 } // namespace PRDPWrapper

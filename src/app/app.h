@@ -1,4 +1,4 @@
-#pragma once
+﻿#pragma once
 
 #include "device.hpp"
 #include "memory/memory.h"
@@ -18,6 +18,8 @@ namespace Frontend {
 const char *WINDOW_TITLE = "n64-emu (dev)";
 constexpr int WINDOW_WIDTH = 800;
 constexpr int WINDOW_HEIGHT = WINDOW_WIDTH * 3 / 4;
+// 増やすと軽くなる
+constexpr int WSI_NUM_THREADS = 1;
 
 class SDL2Platform : public Vulkan::WSIPlatform {
   public:
@@ -122,7 +124,7 @@ class App {
         wsi.set_backbuffer_srgb(false);
         wsi.set_present_mode(Vulkan::PresentMode::SyncToVBlank);
         Vulkan::Context::SystemHandles system_handles;
-        if (!wsi.init_simple(1 /*num_thread_indices*/, system_handles)) {
+        if (!wsi.init_simple(WSI_NUM_THREADS, system_handles)) {
             Utils::critical("Failed to initialize WSI");
             exit(-1);
         }
