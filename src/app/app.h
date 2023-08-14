@@ -1,8 +1,11 @@
 #pragma once
 
 #include "device.hpp"
+#include "memory/memory.h"
+#include "mmio/vi.h"
 #include "n64_system/config.h"
 #include "n64_system/n64_system.h"
+#include "parallel_rdp_wrapper.h"
 #include "utils/utils.h"
 #include "vulkan_headers.hpp"
 #include "wsi.hpp"
@@ -15,6 +18,61 @@ namespace Frontend {
 const char *WINDOW_TITLE = "n64-emu (dev)";
 constexpr int WINDOW_WIDTH = 1024;
 constexpr int WINDOW_HEIGHT = WINDOW_WIDTH * 3 / 4;
+
+class SDL2Platform : public Vulkan::WSIPlatform {
+  public:
+    SDL2Platform(SDL_Window *window_) : window(window_) {}
+
+    VkSurfaceKHR create_surface(VkInstance instance,
+                                VkPhysicalDevice) override {
+        VkSurfaceKHR surface;
+        if (SDL_Vulkan_CreateSurface(window, instance, &surface))
+            return surface;
+        else
+            return VK_NULL_HANDLE;
+    }
+
+    std::vector<const char *> get_instance_extensions() override {
+        unsigned instance_ext_count = 0;
+        SDL_Vulkan_GetInstanceExtensions(window, &instance_ext_count, nullptr);
+        std::vector<const char *> instance_names(instance_ext_count);
+        SDL_Vulkan_GetInstanceExtensions(window, &instance_ext_count,
+                                         instance_names.data());
+        return instance_names;
+    }
+
+    uint32_t get_surface_width() override {
+        int w, h;
+        SDL_Vulkan_GetDrawableSize(window, &w, &h);
+        return w;
+    }
+
+    uint32_t get_surface_height() override {
+        int w, h;
+        SDL_Vulkan_GetDrawableSize(window, &w, &h);
+        return h;
+    }
+
+    bool alive(Vulkan::WSI &) override { return is_alive; }
+
+    void poll_input() override {
+        SDL_Event e;
+        while (SDL_PollEvent(&e)) {
+            switch (e.type) {
+            case SDL_QUIT:
+                is_alive = false;
+                break;
+            default:
+                break;
+            }
+        }
+    }
+
+    bool is_alive = true;
+
+  private:
+    SDL_Window *window;
+};
 
 class App {
   private:
@@ -51,23 +109,31 @@ class App {
     }
 
     void run() {
+        SDL2Platform platform(window);
+        Vulkan::WSI wsi;
+        wsi.set_platform(&platform);
+
+        wsi.set_backbuffer_srgb(true);
+        Vulkan::Context::SystemHandles system_handles;
+        if (!wsi.init_simple(1 /*num_thread_indices*/, system_handles)) {
+            Utils::critical("Failed to initialize WSI");
+            exit(-1);
+        }
+        Vulkan::Device &device = wsi.get_device();
+
+        PRDPWrapper::init_prdp(wsi, g_memory().get_rdram().data());
+
         N64System::set_up(config);
 
-        while (true) {
+        while (platform.is_alive) {
             N64System::step(config);
 
-            SDL_Event event;
-            while (SDL_PollEvent(&event)) {
-                switch (event.type) {
-                case SDL_QUIT: {
-                    Utils::info("Stopping application");
-                    return;
-                } break;
-                default:
-                    break;
-                }
-            }
+            wsi.begin_frame();
+            PRDPWrapper::update_screen(wsi, g_vi());
+            wsi.end_frame();
         }
+
+        PRDPWrapper::fini_prdp();
     }
 };
 

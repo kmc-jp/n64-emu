@@ -1,5 +1,6 @@
 include_directories(${SDL2_INCLUDE_DIRS})
 add_library(app
     app.h app.cpp
+    parallel_rdp_wrapper.h parallel_rdp_wrapper.cpp
 )
 target_precompile_headers(app PRIVATE ${PCH_FILES})
