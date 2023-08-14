@@ -1,4 +1,5 @@
 ﻿#include "n64_system.h"
+#include "app/parallel_rdp_wrapper.h"
 #include "config.h"
 #include "cpu/cpu.h"
 #include "memory/memory.h"
@@ -12,7 +13,6 @@
 #include "n64_system/scheduler.h"
 #include "rcp/rsp.h"
 #include <SDL.h>
-#include "app/parallel_rdp_wrapper.h"
 
 namespace N64 {
 namespace N64System {
@@ -84,7 +84,7 @@ static void cpu_debug_callback(Config &config) {
 }
 
 // https://github.com/Dillonb/n64/blob/6502f7d2f163c3f14da5bff8cd6d5ccc47143156/src/system/n64system.c#L313
-void step(Config &config, Vulkan::WSI& wsi) {
+void step(Config &config, Vulkan::WSI &wsi) {
     static int consumed_cpu_cycles = 0;
 
     for (int field = 0; field < g_vi().get_num_fields(); field++) {
