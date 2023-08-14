@@ -56,6 +56,7 @@ constexpr RDP::ScanoutOptions get_prdp_scanout_options() {
     return opts;
 }
 
+// https://github.com/simple64/simple64/blob/1e4ab555054a659c6e6a91db16ce46714be7ac00/parallel-rdp-standalone/parallel_imp.cpp#L154
 static void calculate_viewport(float* x, float* y, float* width, float* height)
 {
     int32_t display_width = 640;
