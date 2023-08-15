@@ -1,22 +1,84 @@
-#pragma once
+﻿#pragma once
 
-#include "app/window.h"
+#include "device.hpp"
+#include "memory/memory.h"
+#include "mmio/vi.h"
 #include "n64_system/config.h"
 #include "n64_system/n64_system.h"
 #include "utils/utils.h"
+#include "vulkan_headers.hpp"
+#include "wsi.hpp"
 #include <SDL.h>
-// imgui
-#include <backends/imgui_impl_sdl2.h>
-#include <backends/imgui_impl_sdlrenderer2.h>
-#include <imgui.h>
+#include <SDL_vulkan.h>
 
 namespace N64 {
 namespace Frontend {
 
+const char *WINDOW_TITLE = "n64-emu (dev)";
+constexpr int WINDOW_WIDTH = 800;
+constexpr int WINDOW_HEIGHT = WINDOW_WIDTH * 3 / 4;
+// 増やすと軽くなる
+constexpr int WSI_NUM_THREADS = 1;
+
+class SDL2Platform : public Vulkan::WSIPlatform {
+  public:
+    SDL2Platform(SDL_Window *window_) : window(window_) {}
+
+    VkSurfaceKHR create_surface(VkInstance instance,
+                                VkPhysicalDevice) override {
+        VkSurfaceKHR surface;
+        if (SDL_Vulkan_CreateSurface(window, instance, &surface))
+            return surface;
+        else
+            return VK_NULL_HANDLE;
+    }
+
+    std::vector<const char *> get_instance_extensions() override {
+        unsigned instance_ext_count = 0;
+        SDL_Vulkan_GetInstanceExtensions(window, &instance_ext_count, nullptr);
+        std::vector<const char *> instance_names(instance_ext_count);
+        SDL_Vulkan_GetInstanceExtensions(window, &instance_ext_count,
+                                         instance_names.data());
+        return instance_names;
+    }
+
+    uint32_t get_surface_width() override {
+        int w, h;
+        SDL_Vulkan_GetDrawableSize(window, &w, &h);
+        return w;
+    }
+
+    uint32_t get_surface_height() override {
+        int w, h;
+        SDL_Vulkan_GetDrawableSize(window, &w, &h);
+        return h;
+    }
+
+    bool alive(Vulkan::WSI &) override { return is_alive; }
+
+    void poll_input() override {
+        SDL_Event e;
+        while (SDL_PollEvent(&e)) {
+            switch (e.type) {
+            case SDL_QUIT:
+                is_alive = false;
+                break;
+            default:
+                break;
+            }
+        }
+    }
+
+    bool is_alive = true;
+
+  private:
+    SDL_Window *window;
+};
+
 class App {
   private:
     N64System::Config config;
-    Window *window = nullptr;
+    SDL_Window *window;
 
   public:
     App(N64System::Config &config) : config(config) {
@@ -24,83 +86,58 @@ class App {
             Utils::critical("Failed to initialize SDL: %s", SDL_GetError());
             exit(-1);
         }
-        window = new Window();
-        init_imgui();
+        window = SDL_CreateWindow(WINDOW_TITLE, SDL_WINDOWPOS_CENTERED,
+                                  SDL_WINDOWPOS_CENTERED, WINDOW_WIDTH,
+                                  WINDOW_HEIGHT,
+                                  SDL_WINDOW_VULKAN | SDL_WINDOW_RESIZABLE);
+        if (window == nullptr) {
+            Utils::critical("Failed to open Window");
+            exit(-1);
+        }
+
+        if (volkInitialize() != VK_SUCCESS) {
+            Utils::critical("Failed to initialize volk");
+            exit(-1);
+        }
+
+        if (!Vulkan::Context::init_loader(
+                (PFN_vkGetInstanceProcAddr)
+                    SDL_Vulkan_GetVkGetInstanceProcAddr())) {
+            Utils::critical("Failed to load Vulkan");
+            exit(-1);
+        }
         // TODO: vulkan, wsi, etc.
     }
 
     ~App() {
-        fini_imgui();
-        delete window;
+        SDL_DestroyWindow(window);
+        SDL_Vulkan_UnloadLibrary();
         SDL_Quit();
     }
 
-    void init_imgui() {
-        IMGUI_CHECKVERSION();
-        ImGui::CreateContext();
-        // ImGuiIO &io{ImGui::GetIO()};
-        // io.ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard;
-        //  io.ConfigFlags |= ImGuiConfigFlags_ViewportsEnable;
-
-        // TODO: dockspace
-        // https://martin-fieber.de/blog/gui-development-with-cpp-sdl2-and-dear-imgui/
-
-        ImGui_ImplSDL2_InitForSDLRenderer(window->get_native_sdl_window(),
-                                          window->get_native_sdl_renderer());
-        ImGui_ImplSDLRenderer2_Init(window->get_native_sdl_renderer());
-    }
-
-    void fini_imgui() {
-        ImGui_ImplSDLRenderer2_Shutdown();
-        ImGui_ImplSDL2_Shutdown();
-        ImGui::DestroyContext();
-    }
-
     void run() {
+        SDL2Platform platform(window);
+        Vulkan::WSI wsi;
+        wsi.set_platform(&platform);
+        // whats this?
+        wsi.set_backbuffer_srgb(false);
+        wsi.set_present_mode(Vulkan::PresentMode::SyncToVBlank);
+        Vulkan::Context::SystemHandles system_handles;
+        if (!wsi.init_simple(WSI_NUM_THREADS, system_handles)) {
+            Utils::critical("Failed to initialize WSI");
+            exit(-1);
+        }
+        Vulkan::Device &device = wsi.get_device();
+
+        PRDPWrapper::init_prdp(wsi, g_memory().get_rdram().data());
+
         N64System::set_up(config);
 
-        while (true) {
-            N64System::step(config);
-
-            SDL_Event event;
-            while (SDL_PollEvent(&event)) {
-                ImGui_ImplSDL2_ProcessEvent(&event);
-                switch (event.type) {
-                case SDL_QUIT: {
-                    Utils::info("Stopping application");
-                    return;
-                } break;
-                default:
-                    break;
-                }
-            }
-
-            // Start imgui frame
-            ImGui_ImplSDLRenderer2_NewFrame();
-            ImGui_ImplSDL2_NewFrame();
-            ImGui::NewFrame();
-
-            // TODO: render some panel
-            ImGui::Begin("TODO: some panel");
-            ImGui::Text("Hi, I am some panel :-)");
-            ImGui::End();
-
-            // Rendering
-            ImGui::Render();
-
-            // TODO: remove from here ...
-            SDL_SetRenderDrawColor(window->get_native_sdl_renderer(),
-                                   // Gray clear color (rgba)
-                                   100, 100, 100, 255);
-            SDL_RenderClear(window->get_native_sdl_renderer());
-            // ... to here?
-
-            // Render data through the SDL renderer
-            ImGui_ImplSDLRenderer2_RenderDrawData(ImGui::GetDrawData());
-            SDL_RenderPresent(window->get_native_sdl_renderer());
-
-            // TODO: update screen every 1/60 seconds
+        while (platform.is_alive) {
+            N64System::step(config, wsi);
         }
+
+        PRDPWrapper::fini_prdp();
     }
 };
 

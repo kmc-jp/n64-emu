@@ -33,6 +33,7 @@ class VI {
   private:
     static VI instance;
 
+  public:
     uint32_t reg_status;
     uint32_t reg_origin;
     uint32_t reg_width;
