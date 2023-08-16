@@ -19,6 +19,9 @@ void SI::reset() {
 
 uint32_t SI::read_paddr32(uint32_t paddr) const {
     switch (paddr) {
+    case PADDR_SI_DRAM_ADDR: {
+        return reg_dram_addr;
+    } break;
     case PADDR_SI_STATUS: {
         uint32_t value = 0;
         value |= dma_busy ? 1 : 0;
@@ -36,6 +39,9 @@ uint32_t SI::read_paddr32(uint32_t paddr) const {
 
 void SI::write_paddr32(uint32_t paddr, uint32_t value) {
     switch (paddr) {
+    case PADDR_SI_DRAM_ADDR: {
+        reg_dram_addr = value & RDRAM_SIZE_MASK;
+    } break;
     case PADDR_SI_STATUS: {
         // https://github.com/project64/project64/blob/353ef5ed897cb72a8904603feddbdc649dff9eca/Source/Project64-core/N64System/MemoryHandler/SerialInterfaceHandler.cpp#L98
         g_mi().get_reg_intr().si = 0;
@@ -43,7 +49,7 @@ void SI::write_paddr32(uint32_t paddr, uint32_t value) {
         N64System::check_interrupt();
     } break;
     default: {
-        Utils::critical("SI: Access to paddr: {:#010x}", paddr);
+        Utils::critical("SI: Write to paddr: {:#010x}", paddr);
         Utils::abort("Aborted");
     } break;
     }

@@ -18,7 +18,7 @@ class Memory {
     RI ri;
     Rom rom;
 
-    Memory() : rdram({}) { rdram.assign(RDRAM_MEM_SIZE, 0); }
+    Memory() : rdram({}) { rdram.assign(RDRAM_SIZE, 0); }
 
     void reset() {
         Utils::debug("Resetting Memory (RDRAM)");

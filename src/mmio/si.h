@@ -9,6 +9,9 @@ namespace N64 {
 namespace Mmio {
 namespace SI {
 
+constexpr uint32_t PADDR_SI_DRAM_ADDR = 0x04800000;
+constexpr uint32_t PADDR_PIF_AD_RD64B = 0x04800004;
+
 constexpr uint32_t PADDR_SI_STATUS = 0x04800018;
 
 namespace SiStatusFlags {
@@ -38,6 +41,7 @@ class SI {
   private:
     std::array<uint8_t, PIF_RAM_SIZE> pif_ram;
 
+    uint32_t reg_dram_addr;
     uint32_t reg_status;
     bool dma_busy;
 

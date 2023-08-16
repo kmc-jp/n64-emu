@@ -308,10 +308,10 @@ void pif_rom_execute() {
     case CicType::CIC_NUS_7102:
     case CicType::CIC_NUS_6102_7101:
     case CicType::CIC_NUS_6103_7103: {
-        N64::Memory::write_paddr32(0x318, RDRAM_MEM_SIZE);
+        N64::Memory::write_paddr32(0x318, RDRAM_SIZE);
     } break;
     case CicType::CIC_NUS_6105_7105: {
-        N64::Memory::write_paddr32(0x3F0, RDRAM_MEM_SIZE);
+        N64::Memory::write_paddr32(0x3F0, RDRAM_SIZE);
     } break;
     case CicType::CIC_NUS_6106_7106:
         break;

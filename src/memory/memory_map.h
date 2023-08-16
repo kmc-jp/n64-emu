@@ -42,7 +42,8 @@ constexpr uint32_t PHYS_PIF_RAM_END  = 0x1FC007FF;
 
 // clang-format on
 
-constexpr uint32_t RDRAM_MEM_SIZE = 0x00800000;
+constexpr uint32_t RDRAM_SIZE = 0x00800000;
+constexpr uint32_t RDRAM_SIZE_MASK = RDRAM_SIZE - 1;
 constexpr uint32_t PIF_RAM_SIZE = 0x40;
 
 } // namespace N64
