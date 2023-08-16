@@ -8,6 +8,7 @@
 namespace N64 {
 namespace Memory {
 
+// TODO: move this to si.h
 void pif_rom_execute();
 
 } // namespace Memory

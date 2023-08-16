@@ -200,7 +200,7 @@ template <typename Wire> Wire read_paddr(uint32_t paddr) {
             abort_unimplemented_read<uint16_t>(paddr);
         } else if constexpr (wire32) {
             uint64_t offset = paddr - PHYS_PIF_RAM_BASE;
-            return Utils::read_from_byte_array32(g_si().get_pif_ram(), offset);
+            return Utils::read_from_byte_array32(g_si().pif.ram, offset);
         } else if constexpr (wire64) {
             abort_unimplemented_read<uint64_t>(paddr);
         } else {
@@ -370,7 +370,7 @@ template <typename Wire> void write_paddr(uint32_t paddr, Wire value) {
             abort_unimplemented_write<uint16_t>(paddr);
         } else if constexpr (wire32) {
             uint64_t offs = paddr - PHYS_PIF_RAM_BASE;
-            Utils::write_to_byte_array32(g_si().get_pif_ram(), offs, value);
+            Utils::write_to_byte_array32(g_si().pif.ram, offs, value);
         } else if constexpr (wire64) {
             abort_unimplemented_write<uint64_t>(paddr);
         } else {
