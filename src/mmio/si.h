@@ -22,13 +22,6 @@ enum SiStatusFlags : uint32_t {
 
 // SI External Bus
 class SI {
-  private:
-    std::array<uint8_t, PIF_RAM_SIZE> pif_ram;
-
-    uint32_t reg_status;
-
-    static SI instance;
-
   public:
     SI() {}
 
@@ -41,6 +34,14 @@ class SI {
     void write_paddr32(uint32_t paddr, uint32_t value);
 
     inline static SI &get_instance() { return instance; }
+
+  private:
+    std::array<uint8_t, PIF_RAM_SIZE> pif_ram;
+
+    uint32_t reg_status;
+    bool dma_busy;
+
+    static SI instance;
 };
 
 } // namespace SI

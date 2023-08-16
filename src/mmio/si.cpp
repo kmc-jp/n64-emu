@@ -12,10 +12,21 @@ namespace SI {
 void SI::reset() {
     Utils::debug("Resetting SI");
     // TODO: reset registers
+
+    // non-registers
+    dma_busy = 0;
 }
 
 uint32_t SI::read_paddr32(uint32_t paddr) const {
     switch (paddr) {
+    case PADDR_SI_STATUS: {
+        uint32_t value = 0;
+        value |= dma_busy ? 1 : 0;
+        value |= 0 << 1;
+        value |= 0 << 3;
+        value |= g_mi().get_reg_intr().si << 12;
+        return value;
+    } break;
     default: {
         Utils::critical("SI: Read from paddr: {:#010x}", paddr);
         Utils::abort("Aborted");
