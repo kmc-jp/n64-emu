@@ -105,13 +105,6 @@ void step(Config &config, Vulkan::WSI &wsi) {
                 }
                 */
 
-                /*
-                   if ((g_cpu().get_pc64()) == 0x80000184) {
-                        Utils::critical("Reached break point");
-                        Utils::set_log_level(Utils::LogLevel::TRACE);
-                    }
-                    */
-
                 // CPU step
                 g_cpu().step();
                 consumed_cpu_cycles += Cpu::CPU_CYCLES_PER_INST;

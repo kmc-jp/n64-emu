@@ -11,7 +11,7 @@ const uint32_t PADDR_RI_MODE = 0x04700000;
 const uint32_t PADDR_RI_CONFIG = 0x04700004;
 const uint32_t PADDR_RI_CURRENT_LOAD = 0x04700008;
 const uint32_t PADDR_RI_SELECT = 0x0470000C;
-const uint32_t PADDR_RI_REFRESH = 0x0470001;
+const uint32_t PADDR_RI_REFRESH = 0x04700010;
 
 // RDRAM Interface
 // https://n64brew.dev/wiki/RDRAM_Interface
