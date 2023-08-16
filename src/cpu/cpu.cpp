@@ -57,7 +57,8 @@ void Cpu::set_pc32(uint32_t value) {
 uint64_t Cpu::get_pc64() const { return pc; }
 
 bool Cpu::should_service_interrupt() const {
-    bool interrupts_pending = (cop0.reg.status.im & cop0.reg.cause.interrupt_pending) != 0;
+    bool interrupts_pending =
+        (cop0.reg.status.im & cop0.reg.cause.interrupt_pending) != 0;
     bool interrupts_enabled = cop0.reg.status.ie == 1;
     bool currently_handling_exception = cop0.reg.status.exl == 1;
     bool currently_handling_error = cop0.reg.status.erl == 1;

@@ -5,11 +5,10 @@
 #include <utils/utils.h>
 #include <wsi.hpp>
 
-
 namespace N64 {
 namespace PRDPWrapper {
 
-void init_prdp(Vulkan::WSI &wsi, uint8_t* rdram);
+void init_prdp(Vulkan::WSI &wsi, uint8_t *rdram);
 
 void fini_prdp();
 

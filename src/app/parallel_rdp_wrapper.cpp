@@ -101,9 +101,9 @@ void render_screen(Vulkan::WSI &wsi, Util::IntrusivePtr<Vulkan::Image> image) {
     // https://github.com/simple64/simple64/blob/1e4ab555054a659c6e6a91db16ce46714be7ac00/parallel-rdp-standalone/parallel_imp.cpp#L211
     if (image.get() != NULL) {
         // TODO: remove from here...
-        //rp.clear_color[0].float32[0] = 0.1f;
-        //rp.clear_color[0].float32[1] = 0.2f;
-        //rp.clear_color[0].float32[2] = 0.3f;
+        // rp.clear_color[0].float32[0] = 0.1f;
+        // rp.clear_color[0].float32[1] = 0.2f;
+        // rp.clear_color[0].float32[2] = 0.3f;
         // ...to here
 
         VkViewport vp = cmd->get_viewport();
