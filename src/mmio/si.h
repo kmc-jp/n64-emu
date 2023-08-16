@@ -37,9 +37,12 @@ class Pif {
       }
       */
 
-    void run_joybus_commands();
+    void control_write();
 
     std::array<uint8_t, PIF_RAM_SIZE> ram;
+
+  private:
+    void process_controller_command(int channel, uint8_t* cmd);
 };
 
 namespace SiStatusFlags {

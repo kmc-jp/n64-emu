@@ -12,27 +12,72 @@ namespace SI {
 
 constexpr uint32_t SI_DMA_DELAY = 65536 * 2;
 
-void Pif::run_joybus_commands() {
+void Pif::control_write() {
+    Utils::debug("PIF: control_write");
+    Utils::debug("{}", ram[63]);
     if (ram[63] > 1) {
         Utils::unimplemented("PIF_RAM[63] > 1");
+        // TODO: what should be done here?
+        // https://github.com/project64/project64/blob/353ef5ed897cb72a8904603feddbdc649dff9eca/Source/Project64-core/N64System/MemoryHandler/PifRamHandler.cpp#L377
     }
 
     // https://github.com/SimoneN64/Kaizen/blob/74dccb6ac6a679acbf41b497151e08af6302b0e9/src/backend/core/mmio/PIF.cpp#L155
-    // https://github.com/project64/project64/blob/353ef5ed897cb72a8904603feddbdc649dff9eca/Source/Project64-core/N64System/MemoryHandler/PifRamHandler.cpp#L430
+    // https://github.com/project64/project64/blob/353ef5ed897cb72a8904603feddbdc649dff9eca/Source/Project64-core/N64System/MemoryHandler/PifRamHandler.cpp#L594
     uint8_t control = ram[63];
+    int channel = 0;
 
     // For details of command,
     // see: https://n64brew.dev/wiki/Joybus_Protocol#Command_Details
     for (int cursor = 0; cursor < 64; cursor++) {
+        Utils::debug("Joybus: channel = {}, cursor = {}, ram[cursor] = ",
+                     channel, cursor, ram[cursor]);
         switch (ram[cursor]) {
-        case 0xFF: // Reset & Info. fallthrough.
+        case 0x00: {
+            channel++;
+            if (channel > 6)
+                cursor = 0x40;
+        } break;
+        case 0xFD: // fallthrough
+        case 0xFE: {
+            cursor = 0x40;
+        } break;
+        case 0xFF: // fallthrough
+        case 0xB4: // fallthrough
+        case 0x56: // fallthrough
+        case 0xB8:
             break;
         default: {
-            Utils::critical("Unknown command: PIF_RAM[{}] = {}", cursor,
-                            ram[cursor]);
-            Utils::abort("Aborted");
+            if (channel < 4) {
+                process_controller_command(channel, &ram[cursor]);
+            } else {
+                Utils::critical("PIF: channel = {} >= 4", channel);
+                Utils::unimplemented("Aborted");
+            }
+            // cursor advances by command length + command result length
+            cursor += ram[cursor] + (ram[cursor] & 0x3F) + 1;
+            channel++;
         } break;
         }
+    }
+}
+
+void Pif::process_controller_command(int channel, uint8_t *cmd) {
+    switch (cmd[2]) {
+    case 0x00: // Info. fallthrough
+    case 0xFF: // Reset/Info
+    {
+        // TODO: Add more kinds of joypad
+
+        // N64 Controller
+        cmd[3] = 0x05;
+        cmd[4] = 0x00;
+        // Pak installed
+        cmd[5] = 0x01;
+    } break;
+    default: {
+        Utils::critical("Unknown controller command: {}", cmd[2]);
+        Utils::abort("Aborted");
+    } break;
     }
 }
 
@@ -45,11 +90,11 @@ void SI::reset() {
 }
 
 void SI::dma_from_pif_to_dram() {
-    Utils::debug("SI: DMA PIF to DRAM");
+    Utils::debug("SI: DMA from PIF to DRAM");
     Utils::debug("PIF_ADDR: {:#010x}, DRAM_ADDR: {:#10x}", reg_pif_addr,
                  reg_dram_addr);
     dma_busy = true;
-    pif.run_joybus_commands();
+    pif.control_write();
     // FIXME: Should use offset `SI_PIF_ADDR + i`?
     // Project64: just use i
     // Kaizen: use SI_PIF_ADDR + i
@@ -57,21 +102,25 @@ void SI::dma_from_pif_to_dram() {
         g_memory().get_rdram()[reg_dram_addr + i] = pif.ram[i];
     // TODO: should use scheduler?
     dma_busy = false;
+    Utils::debug("SI: DMA complete");
 }
 
 void SI::dma_from_dram_to_pif() {
-    Utils::debug("SI: DMA DRAM to PIF");
+    Utils::debug("SI: DMA from DRAM to PIF");
     Utils::debug("PIF_ADDR: {:#010x}, DRAM_ADDR: {:#10x}", reg_pif_addr,
                  reg_dram_addr);
     dma_busy = true;
     // FIXME: Should use offset `SI_PIF_ADDR + i`?
     // Project64: just use i
     // Kaizen: use SI_PIF_ADDR + i
-    for (int i = 0; i < 64; i++)
+    for (int i = 0; i < 64; i++) {
+        // Utils::debug("i = {}", i);
         pif.ram[i] = g_memory().get_rdram()[reg_dram_addr + i];
-    pif.run_joybus_commands();
+    }
+    pif.control_write();
     // TODO: should use scheduler?
     dma_busy = false;
+    Utils::debug("SI: DMA complete");
 }
 
 uint32_t SI::read_paddr32(uint32_t paddr) const {
