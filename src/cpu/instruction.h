@@ -44,6 +44,7 @@ typedef union {
     })
     r_type;
 
+    // TODO: rename
     PACK(struct {
         unsigned should_be_zero : 11;
         unsigned rd : 5;
@@ -60,6 +61,16 @@ typedef union {
         unsigned op : 6;
     })
     fi_type;
+
+    PACK(struct {
+        unsigned funct : 6;
+        unsigned fd : 5;
+        unsigned fs : 5;
+        unsigned ft : 5;
+        unsigned fmt : 5;
+        unsigned op : 6;
+    })
+    fr_type;
 } instruction_t;
 
 static_assert(sizeof(instruction_t) == 4, "instruction_t size is not 4");
@@ -179,9 +190,18 @@ constexpr uint8_t COP_DMTC = 0b00101; // DMT
 constexpr uint8_t COP_CFC = 0b00010;  // CFC
 constexpr uint8_t COP_CTC = 0b00110;  // CTC
 
-static void assert_encoding_is_valid(bool validity) {
+// COP FUNCT
+constexpr uint8_t COP_FUNCT_ERET = 0b011000; // ERET
+
+inline void assert_encoding_is_valid(
+    bool validity,
+    const std::source_location loc = std::source_location::current()) {
     // should be able to ignore?
-    assert(validity);
+    if (!validity) {
+        Utils::critical("Assertion failed at {}, line {}", loc.file_name(),
+                        loc.line());
+        exit(-1);
+    }
 }
 
 } // namespace Cpu

@@ -360,6 +360,20 @@ class Cpu::CpuImpl {
         cpu.lo = cpu.gpr.read(inst.r_type.rs);
     }
 
+    static void op_eret(Cpu &cpu, instruction_t inst) {
+        // https://github.com/Dillonb/n64/blob/6502f7d2f163c3f14da5bff8cd6d5ccc47143156/src/cpu/mips_instructions.c#L1151
+        Utils::trace("ERET");
+        if (cpu.cop0.reg.status.erl) {
+            cpu.set_pc64(cpu.cop0.reg.error_epc);
+            cpu.cop0.reg.status.erl = false;
+        } else {
+            cpu.set_pc64(cpu.cop0.reg.epc);
+            cpu.cop0.reg.status.exl = false;
+        }
+        cpu.cop0.llbit = false;
+    
+    }
+
     static void op_tge(Cpu &cpu, instruction_t inst) {
         // https://github.com/Dillonb/n64/blob/6502f7d2f163c3f14da5bff8cd6d5ccc47143156/src/cpu/mips_instructions.c#L1040
         int64_t rs = cpu.gpr.read(inst.r_type.rs);

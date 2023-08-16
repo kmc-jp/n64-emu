@@ -350,21 +350,34 @@ void Cpu::execute_instruction(instruction_t inst) {
     case OPCODE_CP0: // CP0 instructions
     {
         // https://hack64.net/docs/VR43XX.pdf p.86
-        assert_encoding_is_valid(inst.copz_type1.should_be_zero == 0);
-        switch (inst.copz_type1.sub) {
-        case COP_MFC: // MFC0 (COPZ format)
-            return CpuImpl::op_mfc0(*this, inst);
-        case COP_MTC: // MTC0 (COPZ format)
-            return CpuImpl::op_mtc0(*this, inst);
-        case COP_DMFC: // DMFC0 (COPZ format)
-            return CpuImpl::op_dmfc0(*this, inst);
-        case COP_DMTC: // DMTC0 (COPZ format)
-            return CpuImpl::op_dmtc0(*this, inst);
-        default: {
-            Utils::abort("Unimplemented CP0 inst. sub = {:07b}",
-                         static_cast<uint8_t>(inst.copz_type1.sub));
-        } break;
+        if (inst.copz_type1.should_be_zero == 0) {
+            // FIXME: this assertion is broken?
+            // assert_encoding_is_valid(inst.copz_type1.should_be_zero == 0);
+            switch (inst.copz_type1.sub) {
+            case COP_MFC: // MFC0 (COPZ format)
+                return CpuImpl::op_mfc0(*this, inst);
+            case COP_MTC: // MTC0 (COPZ format)
+                return CpuImpl::op_mtc0(*this, inst);
+            case COP_DMFC: // DMFC0 (COPZ format)
+                return CpuImpl::op_dmfc0(*this, inst);
+            case COP_DMTC: // DMTC0 (COPZ format)
+                return CpuImpl::op_dmtc0(*this, inst);
+            default: {
+                Utils::abort("Unimplemented CP0 inst. sub = {:07b}",
+                             static_cast<uint8_t>(inst.copz_type1.sub));
+            } break;
+            }
+        } else {
+            switch(inst.fr_type.funct) {
+                case COP_FUNCT_ERET:
+                    return CpuImpl::op_eret(*this, inst);
+                default: {
+                Utils::abort("Unimplemented CP0 inst. funct = {:07b}",
+                             static_cast<uint8_t>(inst.copz_type1.sub));
+            } break;
+            }
         }
+
     } break;
     case OPCODE_CP1: // CP1 instructions
     {

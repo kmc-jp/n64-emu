@@ -213,6 +213,8 @@ class Cop0 {
     void reset();
 
     void dump();
+
+    // void on_status_updated();
 };
 
 } // namespace Cpu

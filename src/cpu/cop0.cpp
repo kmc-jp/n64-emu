@@ -207,5 +207,20 @@ void Cpu::Cop0::dump() {
                 reg.status.cu3 ? "Enabled" : "Disabled");
 }
 
+/*
+void Cpu::Cop0::on_status_updated() {
+    // https://github.com/Dillonb/n64/blob/6502f7d2f163c3f14da5bff8cd6d5ccc47143156/src/cpu/r4300i.h#L633
+    bool exception = reg.status.exl || reg.status.erl;
+
+    N64CPU.cp0.kernel_mode     =  exception || N64CPU.cp0.status.ksu == CPU_MODE_KERNEL;
+    N64CPU.cp0.supervisor_mode = !exception && N64CPU.cp0.status.ksu == CPU_MODE_SUPERVISOR;
+    N64CPU.cp0.user_mode       = !exception && N64CPU.cp0.status.ksu == CPU_MODE_USER;
+    N64CPU.cp0.is_64bit_addressing =
+            (N64CPU.cp0.kernel_mode && N64CPU.cp0.status.kx)
+            || (N64CPU.cp0.supervisor_mode && N64CPU.cp0.status.sx)
+               || (N64CPU.cp0.user_mode && N64CPU.cp0.status.ux);
+}
+*/
+
 } // namespace Cpu
 } // namespace N64
