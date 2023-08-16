@@ -9,6 +9,8 @@ namespace N64 {
 namespace Mmio {
 namespace SI {
 
+constexpr uint32_t SI_DMA_DELAY = 65536 * 2;
+
 void SI::reset() {
     Utils::debug("Resetting SI");
     // TODO: reset registers
@@ -17,11 +19,26 @@ void SI::reset() {
     dma_busy = 0;
 }
 
+static void dma_from_pif_to_dram() {
+    // TODO:
+    Utils::debug("SI: DMA PIF to DRAM");
+    Utils::abort("Aborted");
+}
+
+static void dma_from_dram_to_pif() {
+    // TODO:
+    Utils::debug("SI: DMA DRAM to PIF");
+    Utils::abort("Aborted");
+}
+
 uint32_t SI::read_paddr32(uint32_t paddr) const {
     switch (paddr) {
     case PADDR_SI_DRAM_ADDR: {
         return reg_dram_addr;
     } break;
+    case PADDR_SI_PIF_AD_RD64B: // fallthrough
+    case PADDR_SI_PIF_AD_WR64B:
+        return reg_pif_addr;
     case PADDR_SI_STATUS: {
         uint32_t value = 0;
         value |= dma_busy ? 1 : 0;
@@ -38,9 +55,20 @@ uint32_t SI::read_paddr32(uint32_t paddr) const {
 }
 
 void SI::write_paddr32(uint32_t paddr, uint32_t value) {
+    // https://github.com/SimoneN64/Kaizen/blob/74dccb6ac6a679acbf41b497151e08af6302b0e9/src/backend/core/mmio/SI.cpp#L55
     switch (paddr) {
     case PADDR_SI_DRAM_ADDR: {
         reg_dram_addr = value & RDRAM_SIZE_MASK;
+    } break;
+    case PADDR_SI_PIF_AD_RD64B: {
+        reg_pif_addr = value & 0x1FFFFFFF;
+        dma_busy = true;
+        dma_from_pif_to_dram();
+    } break;
+    case PADDR_SI_PIF_AD_WR64B: {
+        reg_pif_addr = value & 0x1FFFFFFF;
+        dma_busy = true;
+        dma_from_dram_to_pif();
     } break;
     case PADDR_SI_STATUS: {
         // https://github.com/project64/project64/blob/353ef5ed897cb72a8904603feddbdc649dff9eca/Source/Project64-core/N64System/MemoryHandler/SerialInterfaceHandler.cpp#L98
