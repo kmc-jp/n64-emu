@@ -29,7 +29,7 @@ void Pif::control_write() {
     // For details of command,
     // see: https://n64brew.dev/wiki/Joybus_Protocol#Command_Details
     for (int cursor = 0; cursor < 64; cursor++) {
-        Utils::debug("Joybus: channel = {}, cursor = {}, ram[cursor] = ",
+        Utils::debug("Joybus: channel = {}, cursor = {}, ram[cursor] = {}",
                      channel, cursor, ram[cursor]);
         switch (ram[cursor]) {
         case 0x00: {
