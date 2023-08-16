@@ -3,7 +3,6 @@
 
 #include "app/parallel_rdp_wrapper.h"
 #include "config.h"
-#include "app/parallel_rdp_wrapper.h"
 
 namespace N64 {
 namespace N64System {
