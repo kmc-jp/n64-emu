@@ -65,7 +65,7 @@ void Pif::process_controller_command(int channel, uint8_t *cmd) {
     case 0x00: // Info. fallthrough
     case 0xFF: // Reset/Info
     {
-        // TODO: Add more kinds of joypad
+        // TODO: (controller) Add more kinds of joypad
 
         // N64 Controller
         cmd[3] = 0x05;
@@ -75,7 +75,14 @@ void Pif::process_controller_command(int channel, uint8_t *cmd) {
     } break;
     case 0x01: // Read controller
     {
-        Utils::unimplemented("PIF command: 1");
+        // TODO: (controller) implement
+        cmd[3] = 0;
+        cmd[4] = 0;
+        cmd[5] = 0;
+        cmd[6] = 0;
+
+        // if no controller is connected
+        // cmd[1] |= 0x80;
     } break;
     default: {
         Utils::critical("Unknown controller command: {}", cmd[2]);
