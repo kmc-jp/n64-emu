@@ -73,6 +73,7 @@ void PI::write_paddr32(uint32_t paddr, uint32_t value) {
 }
 
 void PI::dma_write() {
+    // https://github.com/project64/project64/blob/353ef5ed897cb72a8904603feddbdc649dff9eca/Source/Project64-core/N64System/MemoryHandler/PeripheralInterfaceHandler.cpp#L364
     uint32_t dram_addr = reg_dram_addr & 0x7FFFFE;
     uint32_t cart_addr = reg_cart_addr;
     const uint32_t transfer_len = (reg_wr_len & 0x00FF'FFFF) + 1;
@@ -107,6 +108,7 @@ void PIScheduler::on_dma_write_completed() {
     // https://github.com/project64/project64/blob/353ef5ed897cb72a8904603feddbdc649dff9eca/Source/Project64-core/N64System/Mips/SystemTiming.cpp#L210
     g_pi().reg_status &= ~PiStatusFlags::DMA_BUSY;
     g_pi().reg_status |= PiStatusFlags::INTERRUPT;
+    g_mi().get_reg_intr().pi = 1;
     N64System::check_interrupt();
     Utils::debug("DMA Write completed");
 }

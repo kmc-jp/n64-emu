@@ -30,9 +30,10 @@ void AI::write_paddr32(uint32_t paddr, uint32_t value) {
     case PADDR_AI_STATUS: {
         // https://github.com/project64/project64/blob/353ef5ed897cb72a8904603feddbdc649dff9eca/Source/Project64-core/N64System/MemoryHandler/AudioInterfaceHandler.cpp#L139
         // https://github.com/Dillonb/n64/blob/6502f7d2f163c3f14da5bff8cd6d5ccc47143156/src/interface/ai.c#L30
+        // https://github.com/SimoneN64/Kaizen/blob/74dccb6ac6a679acbf41b497151e08af6302b0e9/src/backend/core/mmio/AI.cpp#L23
         g_mi().get_reg_intr().ai = 0;
-        // FIXME: Need to update other registers?
         N64System::check_interrupt();
+        // FIXME: Need to update other registers?
     } break;
     default: {
         Utils::critical("AI: Write to paddr: {:#010x}", paddr);

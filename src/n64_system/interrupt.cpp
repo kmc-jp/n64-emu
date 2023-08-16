@@ -13,7 +13,6 @@ void check_interrupt() {
     } else {
         g_cpu().cop0.reg.cause.ip2 = 0;
     }
-
     // TODO: pi reg_status?
 }
 
