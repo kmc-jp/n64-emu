@@ -30,6 +30,7 @@ void Cpu::reset() {
 void Cpu::dump() {
     Utils::info("======= Core dump =======");
     Utils::info("PC\t= {:#x}", pc);
+    Utils::info("prevPC\t= {:#018x}\tnextPC\t= {:#018x}", prev_pc, next_pc);
     Utils::info("hi\t= {:#018x}\tlo\t= {:#018x}", hi, lo);
     for (int i = 0; i < 16; i++) {
         Utils::info("{}\t= {:#018x}\t{}\t= {:#018x}", GPR_NAMES[i], gpr.read(i),
@@ -55,6 +56,16 @@ void Cpu::set_pc32(uint32_t value) {
 
 uint64_t Cpu::get_pc64() const { return pc; }
 
+bool Cpu::should_service_interrupt() const {
+    bool interrupts_pending = (cop0.reg.status.im & cop0.reg.cause.interrupt_pending) != 0;
+    bool interrupts_enabled = cop0.reg.status.ie == 1;
+    bool currently_handling_exception = cop0.reg.status.exl == 1;
+    bool currently_handling_error = cop0.reg.status.erl == 1;
+
+    return interrupts_pending && interrupts_enabled &&
+           !currently_handling_exception && !currently_handling_error;
+}
+
 void Cpu::step() {
     Utils::trace("");
     Utils::trace("CPU cycle starts PC={:#018x}", pc);
@@ -70,7 +81,7 @@ void Cpu::step() {
     delay_slot = false;
 
     // check for interrupt/exception
-    if (cop0.reg.cause.interrupt_pending & cop0.reg.status.im) {
+    if (should_service_interrupt()) {
         handle_exception(ExceptionCode::INTERRUPT, 0, false);
     }
 
@@ -96,6 +107,7 @@ void Cpu::step() {
     cop0.reg.count &= 0x1FFFFFFFF;
 }
 
+// https://github.com/SimoneN64/Kaizen/blob/74dccb6ac6a679acbf41b497151e08af6302b0e9/src/backend/core/registers/Cop0.cpp#L253
 void Cpu::handle_exception(ExceptionCode exception_code,
                            uint8_t coprocessor_error, bool use_prev_pc) {
     bool old_exl = cop0.reg.status.exl;

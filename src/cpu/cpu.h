@@ -82,6 +82,8 @@ class Cpu {
 
     uint64_t get_pc64() const;
 
+    bool should_service_interrupt() const;
+
     // CPUの1ステップを実行する
     // https://github.com/Dillonb/n64/blob/6502f7d2f163c3f14da5bff8cd6d5ccc47143156/src/cpu/r4300i.c#L758
     void step();

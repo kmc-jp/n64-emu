@@ -100,11 +100,17 @@ void step(Config &config, Vulkan::WSI &wsi) {
             for (int i = 0; i < g_vi().get_cycles_per_half_line(); i++) {
                 // TODO: refine breakpoint
                 /*
-                if ((g_cpu().get_pc64()) == 0xffffffff800000dc - 1) {
-                    stop = true;
+                if ((g_cpu().get_pc64()) == 0x80000184) {
                     Utils::abort("Reached break point 1");
                 }
                 */
+
+                /*
+                   if ((g_cpu().get_pc64()) == 0x80000184) {
+                        Utils::critical("Reached break point");
+                        Utils::set_log_level(Utils::LogLevel::TRACE);
+                    }
+                    */
 
                 // CPU step
                 g_cpu().step();
