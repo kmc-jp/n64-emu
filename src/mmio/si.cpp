@@ -54,7 +54,7 @@ void Pif::control_write() {
                 Utils::unimplemented("Aborted");
             }
             // cursor advances by command length + command result length
-            cursor += ram[cursor] + (ram[cursor] & 0x3F) + 1;
+            cursor += ram[cursor] + (ram[cursor + 1] & 0x3F) + 1;
             channel++;
         } break;
         }
@@ -73,6 +73,10 @@ void Pif::process_controller_command(int channel, uint8_t *cmd) {
         cmd[4] = 0x00;
         // Pak installed
         cmd[5] = 0x01;
+    } break;
+    case 0x01: // Read controller
+    {
+        Utils::unimplemented("PIF command: 1");
     } break;
     default: {
         Utils::critical("Unknown controller command: {}", cmd[2]);
