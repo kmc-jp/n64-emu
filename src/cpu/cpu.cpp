@@ -211,6 +211,10 @@ void Cpu::execute_instruction(instruction_t inst) {
             return CpuImpl::op_mfhi(*this, inst);
         case SPECIAL_FUNCT_MFLO: // MFLO
             return CpuImpl::op_mflo(*this, inst);
+        case SPECIAL_FUNCT_MTHI: // MTHI
+            return CpuImpl::op_mthi(*this, inst);
+        case SPECIAL_FUNCT_MTLO: // MTLO
+            return CpuImpl::op_mtlo(*this, inst);
         case SPECIAL_FUNCT_TGE: // TGE
             return CpuImpl::op_tge(*this, inst);
         case SPECIAL_FUNCT_TGEU: // TGEU
