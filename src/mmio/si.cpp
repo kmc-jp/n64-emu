@@ -14,7 +14,6 @@ constexpr uint32_t SI_DMA_DELAY = 65536 * 2;
 
 void Pif::control_write() {
     Utils::debug("PIF: control_write");
-    Utils::debug("{}", ram[63]);
     if (ram[63] > 1) {
         Utils::unimplemented("PIF_RAM[63] > 1");
         // TODO: what should be done here?
