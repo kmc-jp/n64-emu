@@ -159,6 +159,7 @@ constexpr uint8_t SPECIAL_FUNCT_DSRA = 0b111011;
 constexpr uint8_t SPECIAL_FUNCT_DSLL32 = 0b111100;
 constexpr uint8_t SPECIAL_FUNCT_DSRL32 = 0b111110;
 constexpr uint8_t SPECIAL_FUNCT_DSRA32 = 0b111111;
+constexpr uint8_t SPECIAL_FUNCT_SYNC = 0b001111;
 
 // Regimm
 constexpr uint8_t REGIMM_RT_BLTZ = 0b00000;   // BLTZ

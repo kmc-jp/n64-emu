@@ -462,6 +462,10 @@ class Cpu::CpuImpl {
                      GPR_NAMES[inst.r_type.rt], (uint8_t)inst.r_type.sa);
     }
 
+    static void op_sync(Cpu &cpu, instruction_t inst) {
+        Utils::trace("SYNC");
+    }
+
     static void op_bltz(Cpu &cpu, instruction_t inst) {
         // https://github.com/Dillonb/n64/blob/6502f7d2f163c3f14da5bff8cd6d5ccc47143156/src/cpu/mips_instructions.c#L1113
         int64_t rs = cpu.gpr.read(inst.i_type.rs);

@@ -222,7 +222,8 @@ void Cpu::execute_instruction(instruction_t inst) {
             return CpuImpl::op_dsrl32(*this, inst);
         case SPECIAL_FUNCT_DSRA32: // DSRA32
             return CpuImpl::op_dsra32(*this, inst);
-
+        case SPECIAL_FUNCT_SYNC: // SYNC
+            return CpuImpl::op_sync(*this, inst);
         default: {
             Utils::abort("Unimplemented funct = {:#08b} for opcode = SPECIAL.",
                          static_cast<uint32_t>(inst.r_type.funct));
