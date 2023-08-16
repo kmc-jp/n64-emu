@@ -1,4 +1,5 @@
 #include "mmio/si.h"
+#include "memory/memory.h"
 #include "memory/memory_map.h"
 #include "mmio/mi.h"
 #include "n64_system/interrupt.h"
@@ -19,16 +20,47 @@ void SI::reset() {
     dma_busy = 0;
 }
 
-static void dma_from_pif_to_dram() {
-    // TODO:
+void SI::dma_from_pif_to_dram() {
     Utils::debug("SI: DMA PIF to DRAM");
-    Utils::abort("Aborted");
+    Utils::debug("PIF_ADDR: {:#010x}, DRAM_ADDR: {:#10x}", reg_pif_addr, reg_dram_addr);
+    dma_busy = true;
+    run_joybus_commands();
+    for (int i = 0; i < 64; i++)
+        g_memory().get_rdram()[reg_dram_addr + i] = pif_ram[reg_pif_addr + i];
+    // TODO: should use scheduler?
+    dma_busy = false;
 }
 
-static void dma_from_dram_to_pif() {
-    // TODO:
+void SI::dma_from_dram_to_pif() {
     Utils::debug("SI: DMA DRAM to PIF");
-    Utils::abort("Aborted");
+    Utils::debug("PIF_ADDR: {:#010x}, DRAM_ADDR: {:#10x}", reg_pif_addr, reg_dram_addr);
+    dma_busy = true;
+    for (int i = 0; i < 64; i++)
+        pif_ram[reg_pif_addr + i] = g_memory().get_rdram()[reg_dram_addr + i];
+    run_joybus_commands();
+    // TODO: should use scheduler?
+    dma_busy = false;
+}
+
+void SI::run_joybus_commands() {
+    if (pif_ram[63] > 1) {
+        Utils::unimplemented("PIF_RAM[63] > 1");
+    }
+
+    // https://github.com/SimoneN64/Kaizen/blob/74dccb6ac6a679acbf41b497151e08af6302b0e9/src/backend/core/mmio/PIF.cpp#L155
+    // https://github.com/project64/project64/blob/353ef5ed897cb72a8904603feddbdc649dff9eca/Source/Project64-core/N64System/MemoryHandler/PifRamHandler.cpp#L430
+    uint8_t control = pif_ram[63];
+
+    for (int cursor = 0; cursor < 64; cursor++) {
+        switch (pif_ram[cursor]) {
+
+        default: {
+            Utils::critical("Unknown command: PIF_RAM[{}] = {}", cursor,
+                            pif_ram[cursor]);
+            Utils::abort("Aborted");
+        } break;
+        }
+    }
 }
 
 uint32_t SI::read_paddr32(uint32_t paddr) const {
@@ -62,12 +94,10 @@ void SI::write_paddr32(uint32_t paddr, uint32_t value) {
     } break;
     case PADDR_SI_PIF_AD_RD64B: {
         reg_pif_addr = value & 0x1FFFFFFF;
-        dma_busy = true;
         dma_from_pif_to_dram();
     } break;
     case PADDR_SI_PIF_AD_WR64B: {
         reg_pif_addr = value & 0x1FFFFFFF;
-        dma_busy = true;
         dma_from_dram_to_pif();
     } break;
     case PADDR_SI_STATUS: {

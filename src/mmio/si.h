@@ -37,6 +37,12 @@ class SI {
 
     void write_paddr32(uint32_t paddr, uint32_t value);
 
+    void dma_from_pif_to_dram();
+
+    void dma_from_dram_to_pif();
+
+    void run_joybus_commands();
+
     inline static SI &get_instance() { return instance; }
 
   private:
