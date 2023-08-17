@@ -350,10 +350,10 @@ void Cpu::execute_instruction(instruction_t inst) {
     case OPCODE_CP0: // CP0 instructions
     {
         // https://hack64.net/docs/VR43XX.pdf p.86
-        if (inst.copz_type1.should_be_zero == 0) {
+        if (inst.cop_r_like.should_be_zero == 0) {
             // FIXME: this assertion is broken?
-            // assert_encoding_is_valid(inst.copz_type1.should_be_zero == 0);
-            switch (inst.copz_type1.sub) {
+            // assert_encoding_is_valid(inst.cop_r_like.should_be_zero == 0);
+            switch (inst.cop_r_like.sub) {
             case COP_MFC: // MFC0 (COPZ format)
                 return CpuImpl::op_mfc0(*this, inst);
             case COP_MTC: // MTC0 (COPZ format)
@@ -364,7 +364,7 @@ void Cpu::execute_instruction(instruction_t inst) {
                 return CpuImpl::op_dmtc0(*this, inst);
             default: {
                 Utils::abort("Unimplemented CP0 inst. sub = {:07b}",
-                             static_cast<uint8_t>(inst.copz_type1.sub));
+                             static_cast<uint8_t>(inst.cop_r_like.sub));
             } break;
             }
         } else {
@@ -373,7 +373,7 @@ void Cpu::execute_instruction(instruction_t inst) {
                     return CpuImpl::op_eret(*this, inst);
                 default: {
                 Utils::abort("Unimplemented CP0 inst. funct = {:07b}",
-                             static_cast<uint8_t>(inst.copz_type1.sub));
+                             static_cast<uint8_t>(inst.cop_r_like.sub));
             } break;
             }
         }

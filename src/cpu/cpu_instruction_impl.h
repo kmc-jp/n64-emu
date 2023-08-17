@@ -1025,41 +1025,41 @@ class Cpu::CpuImpl {
 
     static void op_mfc0(Cpu &cpu, instruction_t inst) {
         // https://github.com/Dillonb/n64/blob/6502f7d2f163c3f14da5bff8cd6d5ccc47143156/src/cpu/mips_instructions.c#L220
-        instruction_trace("MFC0: {} <= COP0.reg[{}]", GPR_NAMES[inst.copz_type1.rt],
-                     static_cast<uint32_t>(inst.copz_type1.rd));
-        int32_t tmp = cpu.cop0.reg.read(inst.copz_type1.rd);
+        instruction_trace("MFC0: {} <= COP0.reg[{}]", GPR_NAMES[inst.cop_r_like.rt],
+                     static_cast<uint32_t>(inst.cop_r_like.rd));
+        int32_t tmp = cpu.cop0.reg.read(inst.cop_r_like.rd);
         int64_t stmp = tmp; // sext
         // FIXME: T+1 (delay)
-        cpu.gpr.write(inst.copz_type1.rt, stmp);
+        cpu.gpr.write(inst.cop_r_like.rt, stmp);
     }
 
     static void op_mtc0(Cpu &cpu, instruction_t inst) {
         // https://github.com/Dillonb/n64/blob/6502f7d2f163c3f14da5bff8cd6d5ccc47143156/src/cpu/mips_instructions.c#L225
         instruction_trace("MTC0: COP0.reg[{}] <= {}",
-                     static_cast<uint32_t>(inst.copz_type1.rd),
-                     GPR_NAMES[inst.copz_type1.rt]);
-        uint32_t tmp = cpu.gpr.read(inst.copz_type1.rt);
+                     static_cast<uint32_t>(inst.cop_r_like.rd),
+                     GPR_NAMES[inst.cop_r_like.rt]);
+        uint32_t tmp = cpu.gpr.read(inst.cop_r_like.rt);
         // FIXME: T+1 (delay)
-        cpu.cop0.reg.write(inst.copz_type1.rd, tmp);
+        cpu.cop0.reg.write(inst.cop_r_like.rd, tmp);
     }
 
     static void op_dmfc0(Cpu &cpu, instruction_t inst) {
         // https://github.com/Dillonb/n64/blob/6502f7d2f163c3f14da5bff8cd6d5ccc47143156/src/cpu/mips_instructions.c#L230
-        instruction_trace("DMFC0: {} <= COP0.reg[{}]", GPR_NAMES[inst.copz_type1.rt],
-                     static_cast<uint32_t>(inst.copz_type1.rd));
-        uint64_t tmp = cpu.cop0.reg.read(inst.copz_type1.rd);
+        instruction_trace("DMFC0: {} <= COP0.reg[{}]", GPR_NAMES[inst.cop_r_like.rt],
+                     static_cast<uint32_t>(inst.cop_r_like.rd));
+        uint64_t tmp = cpu.cop0.reg.read(inst.cop_r_like.rd);
         // FIXME: T+1 (delay)
-        cpu.gpr.write(inst.copz_type1.rt, tmp);
+        cpu.gpr.write(inst.cop_r_like.rt, tmp);
     }
 
     static void op_dmtc0(Cpu &cpu, instruction_t inst) {
         // https://github.com/Dillonb/n64/blob/6502f7d2f163c3f14da5bff8cd6d5ccc47143156/src/cpu/mips_instructions.c#L235
         instruction_trace("DMTC0: COP0.reg[{}] <= {}",
-                     static_cast<uint32_t>(inst.copz_type1.rd),
-                     GPR_NAMES[inst.copz_type1.rt]);
-        const uint64_t tmp = cpu.gpr.read(inst.copz_type1.rt);
+                     static_cast<uint32_t>(inst.cop_r_like.rd),
+                     GPR_NAMES[inst.cop_r_like.rt]);
+        const uint64_t tmp = cpu.gpr.read(inst.cop_r_like.rt);
         // FIXME: T+1 (delay)
-        cpu.cop0.reg.write(inst.copz_type1.rd, tmp);
+        cpu.cop0.reg.write(inst.cop_r_like.rd, tmp);
     }
 };
 

@@ -54,7 +54,7 @@ typedef union {
         unsigned sub : 5;
         unsigned op : 6;
     })
-    copz_type1;
+    cop_r_like;
 
     PACK(struct {
         unsigned offset : 16;
