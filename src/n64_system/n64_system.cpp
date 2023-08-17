@@ -54,7 +54,14 @@ void set_up(Config &config) {
     }
 }
 
-static void cpu_debug_callback(Config &config) {
+static void check_breakpoint(Config &config) {
+    // TODO: configure brakpoint
+    if ((g_cpu().get_pc64()) == 0x1) {
+        Utils::abort("Reached break point 1");
+    }
+}
+
+static void cpu_step_callback(Config &config) {
     // Check condition for n64-tests
     // https://github.com/Dillonb/n64-tests
     if (config.test_mode) {
@@ -98,17 +105,13 @@ void step(Config &config, Vulkan::WSI &wsi) {
 
             // FIXME: what if a CPU step take more than one cycle?
             for (int i = 0; i < g_vi().get_cycles_per_half_line(); i++) {
-                // TODO: refine breakpoint
-                /*
-                if ((g_cpu().get_pc64()) == 0x80000184) {
-                    Utils::abort("Reached break point 1");
-                }
-                */
+                check_breakpoint(config);
 
                 // CPU step
                 g_cpu().step();
                 consumed_cpu_cycles += Cpu::CPU_CYCLES_PER_INST;
-                cpu_debug_callback(config);
+
+                cpu_step_callback(config);
 
                 // RSP step. RSP ticks 2/3x faster than CPU
                 while (consumed_cpu_cycles >= 3) {
