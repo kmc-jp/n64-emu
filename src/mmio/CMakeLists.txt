@@ -1,6 +1,7 @@
 add_library(mmio
     pi.h pi.cpp
     si.h si.cpp
+    pif.h pif.cpp
     mi.h mi.cpp
     ai.h ai.cpp
     vi.h vi.cpp

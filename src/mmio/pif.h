@@ -1,7 +1,7 @@
 ﻿#ifndef PIF_H
 #define PIF_H
 
-#include "bus.h"
+#include "memory/bus.h"
 #include "cpu/cpu.h"
 #include "rcp/rsp.h"
 

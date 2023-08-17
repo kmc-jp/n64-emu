@@ -1,7 +1,7 @@
-﻿#include "bus.h"
+﻿#include "memory/bus.h"
 #include "cpu/cpu.h"
-#include "memory.h"
-#include "memory_map.h"
+#include "memory/memory.h"
+#include "memory/memory_map.h"
 #include "rcp/rsp.h"
 #include <cstdint>
 

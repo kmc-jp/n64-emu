@@ -3,7 +3,7 @@
 #include "config.h"
 #include "cpu/cpu.h"
 #include "memory/memory.h"
-#include "memory/pif.h"
+#include "mmio/pif.h"
 #include "memory/tlb.h"
 #include "mmio/ai.h"
 #include "mmio/mi.h"
