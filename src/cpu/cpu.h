@@ -96,10 +96,10 @@ class Cpu {
         // 分岐成立時のみ遅延スロットを実行する
         cpu.delay_slot = true; // FIXME: correct?
         if (cond) {
-            Utils::trace("branch likely taken");
+            // Utils::trace("branch likely taken");
             cpu.next_pc = vaddr;
         } else {
-            Utils::trace("branch likely not taken");
+            // Utils::trace("branch likely not taken");
             cpu.set_pc64(cpu.pc + 4);
         }
     }
@@ -107,10 +107,10 @@ class Cpu {
     static void branch_addr64(Cpu &cpu, bool cond, uint64_t vaddr) {
         cpu.delay_slot = true;
         if (cond) {
-            Utils::trace("branch taken");
+            // Utils::trace("branch taken");
             cpu.next_pc = vaddr;
         } else {
-            Utils::trace("branch not taken");
+            // Utils::trace("branch not taken");
         }
     }
 
@@ -119,7 +119,7 @@ class Cpu {
         int64_t offset = (int16_t)inst.i_type.imm; // sext
         // 負数の左シフトはUBなので乗算で実装
         offset *= 4;
-        Utils::trace("pc <= pc {:+#x}?", (int64_t)offset);
+        // Utils::trace("pc <= pc {:+#x}?", (int64_t)offset);
         branch_likely_addr64(cpu, cond, cpu.pc + offset);
     }
 
@@ -127,7 +127,7 @@ class Cpu {
         int64_t offset = (int16_t)inst.i_type.imm; // sext
         // 負数の左シフトはUBなので乗算で実装
         offset *= 4;
-        Utils::trace("pc <= pc {:+#x}?", (int64_t)offset);
+        // Utils::trace("pc <= pc {:+#x}?", (int64_t)offset);
         branch_addr64(cpu, cond, cpu.pc + offset);
     }
 

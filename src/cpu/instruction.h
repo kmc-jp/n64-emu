@@ -7,6 +7,8 @@
 namespace N64 {
 namespace Cpu {
 
+constexpr bool LOG_INSTRUCTION = true;
+
 // rawはbig endianなので、逆順(opが最後)になる.
 // 命令形式は以下のURLを参照
 // https://hack64.net/docs/VR43XX.pdf
@@ -192,6 +194,12 @@ constexpr uint8_t COP_CTC = 0b00110;  // CTC
 
 // COP FUNCT
 constexpr uint8_t COP_FUNCT_ERET = 0b011000; // ERET
+
+template <typename... Args>
+inline void instruction_trace(fmt::format_string<Args...> fmt, Args &&...args) {
+    if (LOG_INSTRUCTION)
+        Utils::trace(fmt, std::forward<Args>(args)...);
+}
 
 inline void assert_encoding_is_valid(
     bool validity,

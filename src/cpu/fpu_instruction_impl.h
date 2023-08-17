@@ -47,7 +47,7 @@ class Cpu::FpuImpl {
         } break;
         }
         cpu.gpr.write(inst.r_type.rt, (int64_t)value);
-        Utils::trace("CFC1 FCR[{}], {}", fs, GPR_NAMES[inst.r_type.rt]);
+        instruction_trace("CFC1 FCR[{}], {}", fs, GPR_NAMES[inst.r_type.rt]);
     }
 
     static void op_ctc1(Cpu &cpu, instruction_t inst) {
