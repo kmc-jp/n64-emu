@@ -9,8 +9,8 @@ No commercial ROM can run on it.
 
 ## Build
 
-We do not distribute pre-build binaries. 
-You need to build from source.
+We do not distribute pre-built binaries. 
+Sorry!
 
 ### Prerequisites
 
@@ -54,7 +54,7 @@ make # or cmake --build .
 
 ### macOS
 
-TODO
+TODO: Asking for help!
 
 ## Run
 
