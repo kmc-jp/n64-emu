@@ -7,7 +7,6 @@
 
 namespace N64 {
 namespace Mmio {
-namespace SI {
 
 class Pif {
   public:
@@ -30,6 +29,8 @@ class Pif {
       }
       */
 
+    void execute_rom_hle();
+
     void control_write();
 
     std::array<uint8_t, PIF_RAM_SIZE> ram;
@@ -38,10 +39,7 @@ class Pif {
     void process_controller_command(int channel, uint8_t *cmd);
 };
 
-// TODO: move this to si.h
-void pif_rom_execute();
 
-} // namespace SI
 } // namespace Mmio
 } // namespace N64
 

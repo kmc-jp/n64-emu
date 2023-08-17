@@ -50,7 +50,7 @@ void set_up(Config &config) {
     } else {
         // PIF ROM execution
         Utils::debug("Executing PIF ROM");
-        Mmio::SI::pif_rom_execute();
+        N64::g_si().pif.execute_rom_hle();
     }
 }
 

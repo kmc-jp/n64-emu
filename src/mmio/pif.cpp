@@ -8,12 +8,11 @@
 
 namespace N64 {
 namespace Mmio {
-namespace SI {
 
 using Memory::CicType;
 
 // https://github.com/SimoneN64/Kaizen/blob/dffd36fc31731a0391a9b90f88ac2e5ed5d3f9ec/src/backend/core/mmio/PIF.cpp#L338
-void pif_hle_execute() {
+static void rom_hle() {
     // https://github.com/SimoneN64/Kaizen/blob/dffd36fc31731a0391a9b90f88ac2e5ed5d3f9ec/src/backend/core/mmio/PIF.cpp#L379
     // FIXME: check PAL
     bool pal = false;
@@ -302,7 +301,7 @@ void pif_hle_execute() {
 }
 
 // ROMのブートコード(PIF ROM)の副作用をエミュレートする
-void pif_rom_execute() {
+void Pif::execute_rom_hle() {
 
     switch (g_memory().rom.get_cic()) {
     case CicType::CIC_UNKNOWN: {
@@ -320,7 +319,7 @@ void pif_rom_execute() {
     case CicType::CIC_NUS_6106_7106:
         break;
     }
-    pif_hle_execute();
+    rom_hle();
 }
 
 void Pif::control_write() {
@@ -402,6 +401,5 @@ void Pif::process_controller_command(int channel, uint8_t *cmd) {
     }
 }
 
-} // namespace SI
 } // namespace Mmio
 } // namespace N64
