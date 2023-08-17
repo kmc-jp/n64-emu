@@ -50,7 +50,7 @@ void set_up(Config &config) {
     } else {
         // PIF ROM execution
         Utils::debug("Executing PIF ROM");
-        Memory::pif_rom_execute();
+        Mmio::SI::pif_rom_execute();
     }
 }
 
