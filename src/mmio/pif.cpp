@@ -4,6 +4,8 @@
 #include "memory/memory.h"
 #include "memory/memory_map.h"
 #include "rcp/rsp.h"
+#include <SDL.h>
+#include <SDL_keyboard.h>
 #include <cstdint>
 
 namespace N64 {
@@ -370,35 +372,105 @@ void Pif::control_write() {
     }
 }
 
+// https://n64brew.dev/wiki/Joybus_Protocol#Command_Details
 void Pif::process_controller_command(int channel, uint8_t *cmd) {
     switch (cmd[2]) {
     case 0x00: // Info. fallthrough
     case 0xFF: // Reset/Info
     {
         // TODO: (controller) Add more kinds of joypad
-
-        // N64 Controller
-        cmd[3] = 0x05;
-        cmd[4] = 0x00;
-        // Pak installed
-        cmd[5] = 0x01;
+        switch (joycon_type) {
+        case JoyBusControllerType::NONE: {
+            // FIXME: nothing to do? I am not sure.
+        } break;
+        case JoyBusControllerType::N64_CONTROLLER: {
+            cmd[3] = 0x05;
+            cmd[4] = 0x00;
+        } break;
+        default: {
+            Utils::abort("Unsupported controller type!");
+        } break;
+        }
+        switch (joycon_plugin) {
+        case JoyBusControllerPlugin::TRANSFER_PAK:
+        case JoyBusControllerPlugin::RUMBLE_PAK:
+        case JoyBusControllerPlugin::MEM_PAK:
+        case JoyBusControllerPlugin::RAW: {
+            // FIXME: correct?
+            cmd[5] = 1;
+        } break;
+        default: {
+            Utils::abort("Unsupported controller plugin");
+        } break;
+        }
     } break;
     case 0x01: // Read controller
     {
-        // TODO: (controller) implement
-        cmd[3] = 0;
-        cmd[4] = 0;
-        cmd[5] = 0;
-        cmd[6] = 0;
-
-        // if no controller is connected
-        // cmd[1] |= 0x80;
+        switch (joycon_type) {
+        case JoyBusControllerType::NONE: {
+            cmd[3] = 0;
+            cmd[4] = 0;
+            cmd[5] = 0;
+            cmd[6] = 0;
+        } break;
+        case JoyBusControllerType::N64_CONTROLLER: {
+            // FIXME: memory leaked :(
+            const N64ControllerState s; // = poll_n64_controller();
+            cmd[3] = s.byte1;
+            cmd[4] = s.byte2;
+            cmd[5] = s.joy_x;
+            cmd[6] = s.joy_y;
+        } break;
+        default: {
+            Utils::abort(
+                "Unsupported controller type. Could not read buttons.");
+        }
+        }
     } break;
     default: {
         Utils::critical("Unknown controller command: {}", cmd[2]);
         Utils::abort("Aborted");
     } break;
     }
+}
+
+N64ControllerState Pif::poll_n64_controller() const {
+    N64ControllerState ret;
+    // TODO: Support multiple controllers. (Use controller channel)
+    SDL_PumpEvents();
+    const uint8_t *state = SDL_GetKeyboardState(NULL);
+    if (state[SDLK_PAGEUP])
+        ret.byte2 |= N64ControllerByte2::C_UP;
+    if (state[SDLK_PAGEDOWN])
+        ret.byte2 |= N64ControllerByte2::C_DOWN;
+    if (state[SDLK_HOME])
+        ret.byte2 |= N64ControllerByte2::C_LEFT;
+    if (state[SDLK_END])
+        ret.byte2 |= N64ControllerByte2::C_RIGHT;
+
+    if (state[SDLK_w])
+        ret.byte1 |= N64ControllerByte1::DP_UP;
+    if (state[SDLK_s])
+        ret.byte1 |= N64ControllerByte1::DP_DOWN;
+    if (state[SDLK_a])
+        ret.byte1 |= N64ControllerByte1::DP_LEFT;
+    if (state[SDLK_d])
+        ret.byte1 |= N64ControllerByte1::DP_RIGHT;
+
+    // TODO: read more buttons
+    /*
+    ret.a = 0;
+    ret.b = 0;
+    ret.z = 0;
+    ret.l = 0;
+    ret.r = 0;
+    ret.zero = 0;
+    ret.start = 0;
+    ret.joy_reset = 0;
+    ret.joy_x = 0;
+    ret.joy_y = 0;
+    */
+    return ret;
 }
 
 } // namespace Mmio
