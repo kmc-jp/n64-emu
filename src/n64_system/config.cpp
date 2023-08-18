@@ -25,9 +25,10 @@ bool read_config_from_command_line(Config &config, int argc, char *argv[]) {
             }
             config.log_filepath = argv[i + 1];
             i++;
-        } else if (current == "--log-level") {
+        } else if (current.starts_with("--log-level=")) {
             // ログレベル指定
-            std::string_view level_str = argv[i + 1];
+            std::string_view level_str =
+                current.substr(std::string("--log-level=").size());
             if (level_str == "debug")
                 config.log_level = Utils::LogLevel::DEBUG;
             else if (level_str == "info")
@@ -45,7 +46,6 @@ bool read_config_from_command_line(Config &config, int argc, char *argv[]) {
                           << std::endl;
                 return false;
             }
-            i++;
         } else if (current == "--test") {
             config.test_mode = true;
         } else if (current.empty() == false && !current.starts_with('-')) {
