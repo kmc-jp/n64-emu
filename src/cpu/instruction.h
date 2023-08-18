@@ -197,7 +197,7 @@ constexpr uint8_t COP_FUNCT_ERET = 0b011000; // ERET
 
 template <typename... Args>
 inline void instruction_trace(fmt::format_string<Args...> fmt, Args &&...args) {
-    if (LOG_INSTRUCTION)
+    if constexpr (LOG_INSTRUCTION)
         Utils::trace(fmt, std::forward<Args>(args)...);
 }
 
