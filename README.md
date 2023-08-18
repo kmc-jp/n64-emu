@@ -1,6 +1,8 @@
 # n64-emu
 
-An experimental Nintendo 64 emulator.
+n64-emu is an experimental Nintendo 64 emulator, 
+which aims to complete graphic and audio emulation for commercial ROMs
+such as *Kirby 64: The Crystal Shards* and *The legend of Zelda: Ocarina of Time*.
 
 ### NOTE
 
@@ -18,7 +20,7 @@ Sorry!
 - a C++ compiler compatible with C++20
 - CMake
 
-We support MSVC++. Clang and GCC are not tested for now.
+We support MSVC++. Clang and GCC are not tested.
 
 ### Linux
 
