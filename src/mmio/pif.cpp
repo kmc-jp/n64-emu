@@ -468,10 +468,10 @@ N64ControllerState Pif::poll_n64_controller() const {
     if (state[SDL_SCANCODE_D])
         ret.byte1 |= N64ControllerByte1::DP_RIGHT;
 
-    Utils::critical("byte1 {:#10b}", ret.byte1);
-    Utils::critical("byte2 {:#10b}", ret.byte2);
-    Utils::critical("joy_x {:#10b}", ret.joy_x);
-    Utils::critical("joy_y {:#10b}", ret.joy_y);
+    Utils::debug("byte1 {:#10b}", ret.byte1);
+    Utils::debug("byte2 {:#10b}", ret.byte2);
+    Utils::debug("joy_x {:#10b}", ret.joy_x);
+    Utils::debug("joy_y {:#10b}", ret.joy_y);
 
     // TODO: read more buttons
     /*
