@@ -376,6 +376,8 @@ template <typename Wire> void write_paddr(uint32_t paddr, Wire value) {
         } else {
             static_assert(always_false<Wire>);
         }
+        // Run Joy bus commands immidiately after pif ram updated
+        g_si().pif.control_write();
     } else {
         abort_unimplemented_write<uint32_t>(paddr);
     }

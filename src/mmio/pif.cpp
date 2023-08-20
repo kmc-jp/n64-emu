@@ -326,15 +326,27 @@ void Pif::execute_rom_hle() {
 
 void Pif::control_write() {
     Utils::debug("PIF: control_write");
-    if (ram[63] > 1) {
-        Utils::unimplemented("PIF_RAM[63] > 1");
-        // TODO: what should be done here?
-        // https://github.com/project64/project64/blob/353ef5ed897cb72a8904603feddbdc649dff9eca/Source/Project64-core/N64System/MemoryHandler/PifRamHandler.cpp#L377
+    // The last byte of PIF RAM is called 'control' (or 'command'). The control
+    // byte contains bit flags representings a command performed by PIF.
+    // See: https://n64brew.dev/wiki/PIF-NUS
+    uint8_t control = ram[63];
+    // https://github.com/project64/project64/blob/353ef5ed897cb72a8904603feddbdc649dff9eca/Source/Project64-core/N64System/MemoryHandler/PifRamHandler.cpp#L377
+    if (control > 1) {
+        switch (control) {
+        case 0x08: // Terminate boot process.
+            // PIF expects this command is sent before 5 seconds from boot.
+            // Nothing to emulate.
+            break;
+        default: {
+            Utils::critical("control = {:#b}", control);
+            Utils::unimplemented("Abort");
+        } break;
+        }
     }
 
+    // Run Joy bus commands (64 bytes)
     // https://github.com/SimoneN64/Kaizen/blob/74dccb6ac6a679acbf41b497151e08af6302b0e9/src/backend/core/mmio/PIF.cpp#L155
     // https://github.com/project64/project64/blob/353ef5ed897cb72a8904603feddbdc649dff9eca/Source/Project64-core/N64System/MemoryHandler/PifRamHandler.cpp#L594
-    uint8_t control = ram[63];
     int channel = 0;
 
     // For details of command,
