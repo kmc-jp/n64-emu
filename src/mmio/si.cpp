@@ -25,6 +25,7 @@ void SI::dma_from_pif_to_dram() {
     Utils::debug("PIF_ADDR: {:#010x}, DRAM_ADDR: {:#10x}", reg_pif_addr,
                  reg_dram_addr);
     dma_busy = true;
+    // FIXME: Is this unnecessary code?
     pif.control_write();
     // FIXME: Should use offset `SI_PIF_ADDR + i`?
     // Project64: just use i
@@ -34,6 +35,9 @@ void SI::dma_from_pif_to_dram() {
     // TODO: should use scheduler?
     dma_busy = false;
     Utils::debug("SI: DMA complete");
+    // raise interrupt
+    g_mi().get_reg_intr().si = 1;
+    N64System::check_interrupt();
 }
 
 void SI::dma_from_dram_to_pif() {
@@ -52,6 +56,9 @@ void SI::dma_from_dram_to_pif() {
     // TODO: should use scheduler?
     dma_busy = false;
     Utils::debug("SI: DMA complete");
+    // raise interrupt
+    g_mi().get_reg_intr().si = 1;
+    N64System::check_interrupt();
 }
 
 uint32_t SI::read_paddr32(uint32_t paddr) const {

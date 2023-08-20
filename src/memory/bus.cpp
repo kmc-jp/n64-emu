@@ -371,13 +371,15 @@ template <typename Wire> void write_paddr(uint32_t paddr, Wire value) {
         } else if constexpr (wire32) {
             uint64_t offs = paddr - PHYS_PIF_RAM_BASE;
             Utils::write_to_byte_array32(g_si().pif.ram, offs, value);
+            // Run Joy bus commands immidiately after the last byte of pif ram
+            // updated
+            if (paddr == 0x1FC007C0)
+                g_si().pif.control_write();
         } else if constexpr (wire64) {
             abort_unimplemented_write<uint64_t>(paddr);
         } else {
             static_assert(always_false<Wire>);
         }
-        // Run Joy bus commands immidiately after pif ram updated
-        g_si().pif.control_write();
     } else {
         abort_unimplemented_write<uint32_t>(paddr);
     }

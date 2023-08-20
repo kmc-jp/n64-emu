@@ -105,14 +105,11 @@ void VI::write_paddr32(uint32_t paddr, uint32_t value) {
     } break;
     case PADDR_VI_INTR: // 0x0440000C
     {
-        // Project64: set VI_INTR_REG
-        // Kaizen: set intr
         reg_intr = value & 0x3ff;
     } break;
     case PADDR_VI_V_CURRENT: // 0x04400010
     {
-        // Project64: interrupt lower
-        // Kaizen: interrupt lower
+        // lower interrupt
         g_mi().get_reg_intr().vi = 0;
         N64System::check_interrupt();
     } break;
