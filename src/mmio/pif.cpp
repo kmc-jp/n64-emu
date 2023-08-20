@@ -414,8 +414,7 @@ void Pif::process_controller_command(int channel, uint8_t *cmd) {
             cmd[6] = 0;
         } break;
         case JoyBusControllerType::N64_CONTROLLER: {
-            // FIXME: memory leaked :(
-            const N64ControllerState s; // = poll_n64_controller();
+            const N64ControllerState s = poll_n64_controller();
             cmd[3] = s.byte1;
             cmd[4] = s.byte2;
             cmd[5] = s.joy_x;
@@ -439,23 +438,28 @@ N64ControllerState Pif::poll_n64_controller() const {
     // TODO: Support multiple controllers. (Use controller channel)
     SDL_PumpEvents();
     const uint8_t *state = SDL_GetKeyboardState(NULL);
-    if (state[SDLK_PAGEUP])
+    if (state[SDL_SCANCODE_PAGEUP])
         ret.byte2 |= N64ControllerByte2::C_UP;
-    if (state[SDLK_PAGEDOWN])
+    if (state[SDL_SCANCODE_PAGEDOWN])
         ret.byte2 |= N64ControllerByte2::C_DOWN;
-    if (state[SDLK_HOME])
+    if (state[SDL_SCANCODE_HOME])
         ret.byte2 |= N64ControllerByte2::C_LEFT;
-    if (state[SDLK_END])
+    if (state[SDL_SCANCODE_END])
         ret.byte2 |= N64ControllerByte2::C_RIGHT;
 
-    if (state[SDLK_w])
+    if (state[SDL_SCANCODE_W])
         ret.byte1 |= N64ControllerByte1::DP_UP;
-    if (state[SDLK_s])
+    if (state[SDL_SCANCODE_S])
         ret.byte1 |= N64ControllerByte1::DP_DOWN;
-    if (state[SDLK_a])
+    if (state[SDL_SCANCODE_A])
         ret.byte1 |= N64ControllerByte1::DP_LEFT;
-    if (state[SDLK_d])
+    if (state[SDL_SCANCODE_D])
         ret.byte1 |= N64ControllerByte1::DP_RIGHT;
+
+    Utils::critical("byte1 {:#10b}", ret.byte1);
+    Utils::critical("byte2 {:#10b}", ret.byte2);
+    Utils::critical("joy_x {:#10b}", ret.joy_x);
+    Utils::critical("joy_y {:#10b}", ret.joy_y);
 
     // TODO: read more buttons
     /*

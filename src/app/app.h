@@ -107,8 +107,6 @@ class App {
             exit(-1);
         }
         // TODO: vulkan, wsi, etc.
-
-        SDL_ResetKeyboard();
     }
 
     ~App() {
