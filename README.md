@@ -4,10 +4,9 @@ n64-emu is an experimental Nintendo 64 emulator,
 which aims to complete graphic and audio emulation for commercial ROMs
 such as *Kirby 64: The Crystal Shards* and *The legend of Zelda: Ocarina of Time*.
 
-### NOTE
-
-n64-emu is in a very early stage of development now.
-No commercial ROM can run on it.
+> **Note**
+> n64-emu is in a very early stage of development now.
+> No commercial ROM can run on it.
 
 ## Build
 
@@ -17,10 +16,10 @@ Sorry!
 ### Prerequisites
 
 - Little endian machine
-- a C++ compiler compatible with C++20
+- C++ compiler compatible with C++20
 - CMake
 
-We support MSVC++. Clang and GCC are not tested.
+We support MSVC++. Clang and GCC are not tested, but probably OK 🤞
 
 ### Linux
 
@@ -40,7 +39,7 @@ make # or cmake --build .
 ### Windows 
 
 1. Donwload SDL2 from https://github.com/libsdl-org/SDL/releases and extract it.
-2. Set `SDL2_DIR` environment variable point that to the location where you extracted the SDL2 development package.
+2. Set `SDL2_DIR` environment variable to poiont the location where you extracted the SDL2 development package.
 3. Run the follwoing commands
 
 ```bash
@@ -76,12 +75,12 @@ ctest -C Debug
 ## Contributing
 
 We do not currently accept pull requests to add new feature.
-But bug reports and bug fixes are always welcome 😀
+But bug reports/fixes and adding tests are always welcome 😀
 See [CONTRIBUTING.md](CONTRIBUTING.md)(ja).
 
 ## Related Projects
 
-We are much inspired by the following projects ❤
+We are much inspired by the following projects ❤️
 
 - [Project64](https://github.com/project64/project64): N64 Emulator
 - [Simple64](https://github.com/simple64/simple64): Accurate N64 Emulator
