@@ -7,7 +7,8 @@
 namespace N64 {
 namespace Cpu {
 
-constexpr bool LOG_INSTRUCTION = true;
+// Set true if you want to debug CPU.
+constexpr bool LOG_INSTRUCTION = false;
 
 // rawはbig endianなので、逆順(opが最後)になる.
 // 命令形式は以下のURLを参照
