@@ -38,6 +38,13 @@ typedef struct rom_header {
 static_assert(sizeof(rom_header_t) == 0x40,
               "rom_header_t size must be 0x40 bytes");
 
+enum class RomType {
+    Z64,
+    N64,
+    V64,
+    UNKNOWN,
+};
+
 enum class CicType : uint32_t {
     CIC_UNKNOWN = 0,
     CIC_NUS_6101 = 1,
@@ -59,6 +66,22 @@ class Rom {
     Rom() : rom({}) { rom.assign(ROM_SIZE, 0); }
 
     void load_file(const std::string &filepath);
+
+    RomType rom_type() {
+        // initial value as big endian
+        uint32_t initial_value_be =
+            Utils::read_from_byte_array32(header.initial_values, 0);
+        switch (initial_value_be) {
+        case 0x80371240:
+            return RomType::Z64;
+        case 0x40123780:
+            return RomType::N64;
+        case 0x37804012:
+            return RomType::V64;
+        default:
+            return RomType::UNKNOWN;
+        }
+    }
 
     CicType get_cic() const { return cic; }
 

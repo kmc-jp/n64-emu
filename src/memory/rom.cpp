@@ -90,6 +90,24 @@ void Rom::load_file(const std::string &filepath) {
     // set header
     header = *reinterpret_cast<rom_header_t *>(rom.data());
 
+    switch (rom_type()) {
+    case RomType::Z64:
+        Utils::info("ROM type: Z64");
+        break;
+    case RomType::N64:
+        Utils::abort("Unsupported ROM type: N64");
+        break;
+    case RomType::V64:
+        Utils::abort("Unsupported ROM type: V64");
+        break;
+    case RomType::UNKNOWN:
+        Utils::abort("Unknown ROM type");
+        break;
+    default:
+        // unreachable
+        break;
+    }
+
     // set cic
     const uint32_t checksum = crc32(0, &rom[0x40], 0x9C0);
     cic = checksum_to_cic(checksum);
