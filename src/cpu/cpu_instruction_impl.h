@@ -371,7 +371,10 @@ class Cpu::CpuImpl {
             cpu.cop0.reg.status.exl = false;
         }
         cpu.cop0.llbit = false;
-    
+    }
+
+    static void op_tlbwi(Cpu &cpu, instruction_t inst) {
+        g_tlb().write_entry(false);
     }
 
     static void op_tge(Cpu &cpu, instruction_t inst) {

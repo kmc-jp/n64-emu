@@ -11,9 +11,9 @@ uint64_t Cpu::Cop0::Reg::read(uint8_t reg_num) const {
     case Cop0Reg::RANDOM:
         return random;
     case Cop0Reg::ENTRY_LO0:
-        return entry_lo0;
+        return entry_lo0.raw;
     case Cop0Reg::ENTRY_LO1:
-        return entry_lo1;
+        return entry_lo1.raw;
     case Cop0Reg::CONTEXT:
         return context;
     case Cop0Reg::PAGE_MASK:
@@ -73,10 +73,10 @@ void Cpu::Cop0::Reg::write(uint8_t reg_num, uint64_t value) {
         random = value;
     } break;
     case Cop0Reg::ENTRY_LO0: {
-        entry_lo0 = value;
+        entry_lo0.raw = value;
     } break;
     case Cop0Reg::ENTRY_LO1: {
-        entry_lo1 = value;
+        entry_lo1.raw = value;
     } break;
     case Cop0Reg::CONTEXT: {
         context = value;
@@ -209,12 +209,14 @@ void Cpu::Cop0::dump() {
 
 /*
 void Cpu::Cop0::on_status_updated() {
-    // https://github.com/Dillonb/n64/blob/6502f7d2f163c3f14da5bff8cd6d5ccc47143156/src/cpu/r4300i.h#L633
+    //
+https://github.com/Dillonb/n64/blob/6502f7d2f163c3f14da5bff8cd6d5ccc47143156/src/cpu/r4300i.h#L633
     bool exception = reg.status.exl || reg.status.erl;
 
-    N64CPU.cp0.kernel_mode     =  exception || N64CPU.cp0.status.ksu == CPU_MODE_KERNEL;
-    N64CPU.cp0.supervisor_mode = !exception && N64CPU.cp0.status.ksu == CPU_MODE_SUPERVISOR;
-    N64CPU.cp0.user_mode       = !exception && N64CPU.cp0.status.ksu == CPU_MODE_USER;
+    N64CPU.cp0.kernel_mode     =  exception || N64CPU.cp0.status.ksu ==
+CPU_MODE_KERNEL; N64CPU.cp0.supervisor_mode = !exception &&
+N64CPU.cp0.status.ksu == CPU_MODE_SUPERVISOR; N64CPU.cp0.user_mode       =
+!exception && N64CPU.cp0.status.ksu == CPU_MODE_USER;
     N64CPU.cp0.is_64bit_addressing =
             (N64CPU.cp0.kernel_mode && N64CPU.cp0.status.kx)
             || (N64CPU.cp0.supervisor_mode && N64CPU.cp0.status.sx)
