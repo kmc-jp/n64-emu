@@ -46,6 +46,7 @@ void fini_prdp() {
 constexpr RDP::ScanoutOptions get_prdp_scanout_options() {
     RDP::ScanoutOptions opts;
     opts.persist_frame_on_invalid_input = true;
+    // anti-alias
     opts.vi.aa = true;
     opts.vi.scale = true;
     opts.vi.dither_filter = true;
