@@ -4,7 +4,7 @@
 #include "fpu_instruction_impl.h"
 #include "instruction.h"
 #include "memory/bus.h"
-#include "memory/tlb.h"
+#include "mmu/tlb.h"
 #include "mmu/mmu.h"
 #include "n64_system/interrupt.h"
 #include "utils/utils.h"
@@ -349,10 +349,8 @@ void Cpu::execute_instruction(instruction_t inst) {
         return CpuImpl::op_sltiu(*this, inst);
     case OPCODE_CP0: // CP0 instructions
     {
-        // https://hack64.net/docs/VR43XX.pdf p.86
-        if (inst.cop_r_like.should_be_zero == 0) {
-            // FIXME: this assertion is broken?
-            // assert_encoding_is_valid(inst.cop_r_like.should_be_zero == 0);
+        // https://github.com/Dillonb/n64/blob/6502f7d2f163c3f14da5bff8cd6d5ccc47143156/src/cpu/r4300i.c#L133
+        if (inst.cop_r_like.last11 == 0) {
             switch (inst.cop_r_like.sub) {
             case COP_MFC: // MFC0 (COPZ format)
                 return CpuImpl::op_mfc0(*this, inst);
@@ -363,17 +361,21 @@ void Cpu::execute_instruction(instruction_t inst) {
             case COP_DMTC: // DMTC0 (COPZ format)
                 return CpuImpl::op_dmtc0(*this, inst);
             default: {
-                Utils::abort("Unimplemented CP0 inst. sub = {:07b}",
+                Utils::abort("Unimplemented CP0 inst. sub = {:#07b}",
                              static_cast<uint8_t>(inst.cop_r_like.sub));
             } break;
             }
         } else {
-            switch(inst.fr_type.funct) {
-                case COP_FUNCT_ERET:
-                    return CpuImpl::op_eret(*this, inst);
-                default: {
-                Utils::abort("Unimplemented CP0 inst. funct = {:07b}",
-                             static_cast<uint8_t>(inst.cop_r_like.sub));
+            // https://github.com/Dillonb/n64/blob/6502f7d2f163c3f14da5bff8cd6d5ccc47143156/src/cpu/r4300i.c#L152
+            // TODO: TLBWI, TLBP, TLBR, WAIT, TLBWR
+            switch (inst.fr_type.funct) {
+            case COP0_FUNCT_TLBWI:
+                return CpuImpl::op_tlbwi(*this, inst);
+            case COP0_FUNCT_ERET:
+                return CpuImpl::op_eret(*this, inst);
+            default: {
+                Utils::abort("Unimplemented CP0 inst. funct = {:#07b}",
+                             static_cast<uint8_t>(inst.fr_type.funct));
             } break;
             }
         }

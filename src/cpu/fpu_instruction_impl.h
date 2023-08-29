@@ -5,7 +5,7 @@
 #include "cpu.h"
 #include "instruction.h"
 #include "memory/bus.h"
-#include "memory/tlb.h"
+#include "mmu/tlb.h"
 #include "mmu/mmu.h"
 #include "utils/utils.h"
 #include <cstdint>

@@ -6,6 +6,35 @@
 #include <spdlog/spdlog.h>
 
 namespace N64 {
+
+typedef union {
+    uint32_t raw;
+    PACK(struct {
+        unsigned global : 1;
+        unsigned v : 1;
+        unsigned d : 1;
+        unsigned c : 3;
+        unsigned pfn : 20;
+        unsigned : 6;
+    });
+} entry_lo0_t;
+
+static_assert(sizeof(entry_lo0_t) == 4);
+
+typedef union {
+    uint32_t raw;
+    PACK(struct {
+        unsigned global : 1;
+        unsigned v : 1;
+        unsigned d : 1;
+        unsigned c : 3;
+        unsigned pfn : 20;
+        unsigned : 6;
+    });
+} entry_lo1_t;
+
+static_assert(sizeof(entry_lo1_t) == 4);
+
 namespace Cpu {
 
 namespace Cop0Reg {
@@ -162,21 +191,21 @@ class Cop0 {
     class Reg {
       public:
         // COP0 registers
-        // > The on-chip system control coprocessor (CP0) uses 25 registers.
-        // These > registers are 32 bits wide > except for EntryHi, XContext,
-        // EPC, and > ErrorPC, which are 64 bits wide. 以下の1.3を参照
+        // The on-chip system control coprocessor (CP0) uses 25 registers.
+        // These registers are 32 bits wide except for EntryHi, XContext,
+        // EPC, and ErrorPC, which are 64 bits wide.
         // https://ultra64.ca/files/documentation/silicon-graphics/SGI_R4300_RISC_Processor_Specification_REV2.2.pdf
         uint32_t index;
         uint32_t random;
-        uint32_t entry_lo0; // TODO: refine type?
-        uint32_t entry_lo1; // TODO: refine type?
+        entry_lo0_t entry_lo0;
+        entry_lo1_t entry_lo1;
         uint32_t context;   // TODO: refine type?
         uint32_t page_mask; // TODO: refine type?
         uint32_t wired;
         // 7th register is unknown
         uint32_t bad_vaddr;
         uint32_t count;
-        uint64_t entry_hi; // 64bit TODO: refine type?
+        uint64_t entry_hi; // 64bit
         uint32_t compare;
         cop0_status_t status; // TODO: refine type?
         cop0_cause_t cause;   // TODO: refine type?F
