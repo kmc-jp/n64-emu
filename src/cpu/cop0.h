@@ -10,30 +10,30 @@ namespace N64 {
 typedef union {
     uint32_t raw;
     PACK(struct {
-        unsigned g : 1;
+        unsigned global : 1;
         unsigned v : 1;
         unsigned d : 1;
         unsigned c : 3;
         unsigned pfn : 20;
         unsigned : 6;
     });
-} entry_lo_t;
+} entry_lo0_t;
 
-static_assert(sizeof(entry_lo_t) == 4);
+static_assert(sizeof(entry_lo0_t) == 4);
 
-typedef PACK(union {
-    uint64_t raw;
+typedef union {
+    uint32_t raw;
     PACK(struct {
-        unsigned asid : 8;
-        unsigned : 5;
-        unsigned vpn2 : 27;
-        unsigned fill : 22;
-        unsigned r : 2;
+        unsigned global : 1;
+        unsigned v : 1;
+        unsigned d : 1;
+        unsigned c : 3;
+        unsigned pfn : 20;
+        unsigned : 6;
     });
-}) entry_hi_t;
+} entry_lo1_t;
 
-constexpr int size = sizeof(entry_hi_t);
-static_assert(sizeof(entry_hi_t) == 8);
+static_assert(sizeof(entry_lo1_t) == 4);
 
 namespace Cpu {
 
@@ -197,15 +197,15 @@ class Cop0 {
         // https://ultra64.ca/files/documentation/silicon-graphics/SGI_R4300_RISC_Processor_Specification_REV2.2.pdf
         uint32_t index;
         uint32_t random;
-        entry_lo_t entry_lo0;
-        entry_lo_t entry_lo1;
+        entry_lo0_t entry_lo0;
+        entry_lo1_t entry_lo1;
         uint32_t context;   // TODO: refine type?
         uint32_t page_mask; // TODO: refine type?
         uint32_t wired;
         // 7th register is unknown
         uint32_t bad_vaddr;
         uint32_t count;
-        uint64_t entry_hi; // 64bit TODO: refine type?
+        uint64_t entry_hi; // 64bit
         uint32_t compare;
         cop0_status_t status; // TODO: refine type?
         cop0_cause_t cause;   // TODO: refine type?F

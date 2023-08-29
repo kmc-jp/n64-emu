@@ -65,6 +65,8 @@ uint64_t Cpu::Cop0::Reg::read(uint8_t reg_num) const {
 }
 
 void Cpu::Cop0::Reg::write(uint8_t reg_num, uint64_t value) {
+    // FIXME: Write to some registers should be ignored or masked.
+    // https://github.com/project64/project64/blob/353ef5ed897cb72a8904603feddbdc649dff9eca/Source/Project64-core/N64System/Mips/Register.cpp#L367
     switch (reg_num) {
     case Cop0Reg::INDEX: {
         index = value;
@@ -73,10 +75,12 @@ void Cpu::Cop0::Reg::write(uint8_t reg_num, uint64_t value) {
         random = value;
     } break;
     case Cop0Reg::ENTRY_LO0: {
-        entry_lo0.raw = value;
+        // FIXME: Correct?
+        entry_lo0.raw = value & 0x3fff'ffff;
     } break;
     case Cop0Reg::ENTRY_LO1: {
-        entry_lo1.raw = value;
+        // FIXME: Correct?
+        entry_lo1.raw = value & 0x3fff'ffff;
     } break;
     case Cop0Reg::CONTEXT: {
         context = value;
@@ -94,6 +98,7 @@ void Cpu::Cop0::Reg::write(uint8_t reg_num, uint64_t value) {
         count = value;
     } break;
     case Cop0Reg::ENTRY_HI: {
+        // FIXME: should be masked with 0xC00000FFFFFFE0FF?
         entry_hi = value;
     } break;
     case Cop0Reg::COMPARE: {
@@ -101,6 +106,7 @@ void Cpu::Cop0::Reg::write(uint8_t reg_num, uint64_t value) {
     } break;
     case Cop0Reg::STATUS: {
         status.raw = value;
+        // FIXME: should check interrupt?
     } break;
     case Cop0Reg::CAUSE: {
         cause.raw = value;

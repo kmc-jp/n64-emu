@@ -196,6 +196,7 @@ constexpr uint8_t COP_CTC = 0b00110;  // CTC
 // COP0 FUNCT
 constexpr uint8_t COP0_FUNCT_ERET = 0b011000; // ERET
 constexpr uint8_t COP0_FUNCT_TLBWI = 0b000010; // TLBWI
+// TODO: LTBWR, TLBR, TLBP
 
 template <typename... Args>
 inline void instruction_trace(fmt::format_string<Args...> fmt, Args &&...args) {

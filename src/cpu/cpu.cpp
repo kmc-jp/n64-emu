@@ -4,7 +4,7 @@
 #include "fpu_instruction_impl.h"
 #include "instruction.h"
 #include "memory/bus.h"
-#include "memory/tlb.h"
+#include "mmu/tlb.h"
 #include "mmu/mmu.h"
 #include "n64_system/interrupt.h"
 #include "utils/utils.h"
