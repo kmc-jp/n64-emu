@@ -1,15 +1,78 @@
-﻿#ifndef CPU_INSTRUCTION_CPP
-#define CPU_INSTRUCTION_CPP
+﻿#ifndef CPU_INSTRUCTION_IMPL_H
+#define CPU_INSTRUCTION_IMPL_H
 
 #include "cop0.h"
 #include "cpu.h"
 #include "instruction.h"
 #include "memory/bus.h"
-#include "mmu/tlb.h"
 #include "mmu/mmu.h"
+#include "mmu/tlb.h"
 #include "utils/utils.h"
 #include <cstdint>
 #include <optional>
+
+// This macro defines mul_unsigned_hi, which returns uppper 64bit of u64 * u64
+// This code is retrieved from
+// https://stackoverflow.com/questions/28868367/getting-the-high-part-of-64-bit-integer-multiplication
+#ifdef __SIZEOF_INT128__ // GNU C
+static inline uint64_t mul_unsigned_hi(uint64_t a, uint64_t b) {
+    unsigned __int128 prod = a * (unsigned __int128)b;
+    return prod >> 64;
+}
+#elif defined(_M_X64) || defined(_M_ARM64) // MSVC
+// MSVC for x86-64 or AArch64
+// possibly also  || defined(_M_IA64) || defined(_WIN64)
+// but the docs only guarantee x86-64!  Don't use *just* _WIN64; it doesn't
+// include AArch64 Android / Linux
+
+// https://learn.microsoft.com/en-gb/cpp/intrinsics/umulh
+#include <intrin.h>
+#define mul_unsigned_hi __umulh
+#elif defined(_M_IA64) // || defined(_M_ARM)       // MSVC again
+// https://learn.microsoft.com/en-gb/cpp/intrinsics/umul128
+// incorrectly say that _umul128 is available for ARM
+// which would be weird because there's no single insn on AArch32
+#include <intrin.h>
+static inline uint64_t mul_unsigned_hi(uint64_t a, uint64_t b) {
+    unsigned __int64 HighProduct;
+    (void)_umul128(a, b, &HighProduct);
+    return HighProduct;
+}
+#else
+static_assert(false, "mul_unsigned_hi not implemented for this compiler");
+#endif
+
+// This macro defines mul_signed_hi, which returns uppper 64bit of i64 * i64
+// TODO: Testing
+#ifdef __SIZEOF_INT128__ // GNU C
+// TODO: not tested
+static inline uint64_t mul_signed_hi(int64_t a, int64_t b) {
+    __int128 prod = a * (__int128)b;
+    return (__uint128)prod >> 64;
+}
+#elif defined(_M_X64) || defined(_M_ARM64) // MSVC
+// MSVC for x86-64 or AArch64
+// possibly also  || defined(_M_IA64) || defined(_WIN64)
+// but the docs only guarantee x86-64!  Don't use *just* _WIN64; it doesn't
+// include AArch64 Android / Linux
+
+// https://learn.microsoft.com/en-gb/cpp/intrinsics/umulh
+#include <intrin.h>
+#define mul_signed_hi __mulh
+#elif defined(_M_IA64) // || defined(_M_ARM)       // MSVC again
+// TODO: not tested
+// https://learn.microsoft.com/en-gb/cpp/intrinsics/umul128
+// incorrectly say that _umul128 is available for ARM
+// which would be weird because there's no single insn on AArch32
+#include <intrin.h>
+static inline uint64_t mul_signed_hi(int64_t a, int64_t b) {
+    __int64 HighProduct;
+    (void)_mul128(a, b, &HighProduct);
+    return (__uint64)HighProduct;
+}
+#else
+static_assert(false, "mul_signed_hi not implemented for this compiler");
+#endif
 
 namespace N64 {
 namespace Cpu {
@@ -24,7 +87,7 @@ class Cpu::CpuImpl {
         uint32_t rt = cpu.gpr.read(inst.r_type.rt);
         uint32_t res = rs + rt;
         instruction_trace("ADD: {} <= {} + {}", GPR_NAMES[inst.r_type.rd],
-                     GPR_NAMES[inst.r_type.rs], GPR_NAMES[inst.r_type.rt]);
+                          GPR_NAMES[inst.r_type.rs], GPR_NAMES[inst.r_type.rt]);
         cpu.gpr.write(inst.r_type.rd, (int64_t)((int32_t)res));
     }
 
@@ -35,7 +98,7 @@ class Cpu::CpuImpl {
         uint32_t rt = cpu.gpr.read(inst.r_type.rt);
         int32_t res = rs + rt;
         instruction_trace("ADDU: {} <= {} + {}", GPR_NAMES[inst.r_type.rd],
-                     GPR_NAMES[inst.r_type.rs], GPR_NAMES[inst.r_type.rt]);
+                          GPR_NAMES[inst.r_type.rs], GPR_NAMES[inst.r_type.rt]);
         cpu.gpr.write(inst.r_type.rd, (int64_t)res);
     }
 
@@ -46,7 +109,7 @@ class Cpu::CpuImpl {
         uint64_t rt = cpu.gpr.read(inst.r_type.rt);
         uint64_t res = rs + rt;
         instruction_trace("DADD: {} <= {} + {}", GPR_NAMES[inst.r_type.rd],
-                     GPR_NAMES[inst.r_type.rs], GPR_NAMES[inst.r_type.rt]);
+                          GPR_NAMES[inst.r_type.rs], GPR_NAMES[inst.r_type.rt]);
         cpu.gpr.write(inst.r_type.rd, (int64_t)res);
     }
 
@@ -56,7 +119,7 @@ class Cpu::CpuImpl {
         uint64_t rt = cpu.gpr.read(inst.r_type.rt);
         uint64_t res = rs + rt;
         instruction_trace("DADDU: {} <= {} + {}", GPR_NAMES[inst.r_type.rd],
-                     GPR_NAMES[inst.r_type.rs], GPR_NAMES[inst.r_type.rt]);
+                          GPR_NAMES[inst.r_type.rs], GPR_NAMES[inst.r_type.rt]);
         cpu.gpr.write(inst.r_type.rd, (int64_t)res);
     }
 
@@ -68,7 +131,7 @@ class Cpu::CpuImpl {
         int32_t rt = cpu.gpr.read(inst.r_type.rt);
         int32_t res = rs - rt;
         instruction_trace("SUB: {} <= {} - {}", GPR_NAMES[inst.r_type.rd],
-                     GPR_NAMES[inst.r_type.rs], GPR_NAMES[inst.r_type.rt]);
+                          GPR_NAMES[inst.r_type.rs], GPR_NAMES[inst.r_type.rt]);
         cpu.gpr.write(inst.r_type.rd, (int64_t)res);
     }
 
@@ -79,7 +142,7 @@ class Cpu::CpuImpl {
         uint32_t rt = cpu.gpr.read(inst.r_type.rt);
         int32_t res = rs - rt;
         instruction_trace("SUBU: {} <= {} - {}", GPR_NAMES[inst.r_type.rd],
-                     GPR_NAMES[inst.r_type.rs], GPR_NAMES[inst.r_type.rt]);
+                          GPR_NAMES[inst.r_type.rs], GPR_NAMES[inst.r_type.rt]);
         cpu.gpr.write(inst.r_type.rd, (int64_t)res);
     }
 
@@ -91,7 +154,7 @@ class Cpu::CpuImpl {
         int64_t diff = minuend - subtrahend;
         cpu.gpr.write(inst.r_type.rd, diff);
         instruction_trace("DSUB: {} <= {} - {}", GPR_NAMES[inst.r_type.rd],
-                     GPR_NAMES[inst.r_type.rs], GPR_NAMES[inst.r_type.rt]);
+                          GPR_NAMES[inst.r_type.rs], GPR_NAMES[inst.r_type.rt]);
     }
 
     static void op_dsubu(Cpu &cpu, instruction_t inst) {
@@ -101,7 +164,7 @@ class Cpu::CpuImpl {
         uint64_t diff = minuend - subtrahend;
         cpu.gpr.write(inst.r_type.rd, diff);
         instruction_trace("DSUBU: {} <= {} - {}", GPR_NAMES[inst.r_type.rd],
-                     GPR_NAMES[inst.r_type.rs], GPR_NAMES[inst.r_type.rt]);
+                          GPR_NAMES[inst.r_type.rs], GPR_NAMES[inst.r_type.rt]);
     }
 
     static void op_mult(Cpu &cpu, instruction_t inst) {
@@ -117,7 +180,7 @@ class Cpu::CpuImpl {
         int64_t sext_lo = lo; // sext
         int64_t sext_hi = hi; // sext
         instruction_trace("MULT {}, {}", GPR_NAMES[inst.r_type.rs],
-                     GPR_NAMES[inst.r_type.rt]);
+                          GPR_NAMES[inst.r_type.rt]);
         cpu.lo = sext_lo;
         cpu.hi = sext_hi;
     }
@@ -133,9 +196,31 @@ class Cpu::CpuImpl {
         int64_t sext_lo = lo; // sext
         int64_t sext_hi = hi; // sext
         instruction_trace("MULTU {}, {}", GPR_NAMES[inst.r_type.rs],
-                     GPR_NAMES[inst.r_type.rt]);
+                          GPR_NAMES[inst.r_type.rt]);
         cpu.lo = sext_lo;
         cpu.hi = sext_hi;
+    }
+
+    static void op_dmult(Cpu &cpu, instruction_t inst) {
+        instruction_trace("DMULT {}, {}", GPR_NAMES[inst.r_type.rs],
+                          GPR_NAMES[inst.r_type.rt]);
+        uint64_t rs = cpu.gpr.read(inst.r_type.rs);
+        uint64_t rt = cpu.gpr.read(inst.r_type.rt);
+        uint64_t lower = rs * rt;
+        cpu.lo = lower;
+        uint64_t upper = mul_signed_hi(rs, rt);
+        cpu.hi = upper;
+    }
+
+    static void op_dmultu(Cpu &cpu, instruction_t inst) {
+        instruction_trace("DMULTU {}, {}", GPR_NAMES[inst.r_type.rs],
+                          GPR_NAMES[inst.r_type.rt]);
+        int64_t rs = cpu.gpr.read(inst.r_type.rs);
+        int64_t rt = cpu.gpr.read(inst.r_type.rt);
+        int64_t lower = rs * rt;
+        cpu.lo = static_cast<uint64_t>(lower);
+        uint64_t upper = mul_unsigned_hi(rs, rt);
+        cpu.hi = upper;
     }
 
     static void op_div(Cpu &cpu, instruction_t inst) {
@@ -143,7 +228,7 @@ class Cpu::CpuImpl {
         int64_t dividend = (int32_t)cpu.gpr.read(inst.r_type.rs);
         int64_t divisor = (int32_t)cpu.gpr.read(inst.r_type.rt);
         instruction_trace("DIV {}, {}", GPR_NAMES[inst.r_type.rs],
-                     GPR_NAMES[inst.r_type.rt]);
+                          GPR_NAMES[inst.r_type.rt]);
         if (divisor == 0) {
             Utils::warn("division by zero");
             cpu.hi = dividend;
@@ -165,7 +250,7 @@ class Cpu::CpuImpl {
         uint32_t dividend = cpu.gpr.read(inst.r_type.rs);
         uint32_t divisor = cpu.gpr.read(inst.r_type.rt);
         instruction_trace("DIVU {}, {}", GPR_NAMES[inst.r_type.rs],
-                     GPR_NAMES[inst.r_type.rt]);
+                          GPR_NAMES[inst.r_type.rt]);
 
         if (divisor == 0) {
             Utils::warn("division by zero");
@@ -188,7 +273,8 @@ class Cpu::CpuImpl {
             instruction_trace("NOP");
         } else {
             instruction_trace("SLL: {} <= {} << {}", GPR_NAMES[inst.r_type.rd],
-                         GPR_NAMES[inst.r_type.rt], (uint8_t)inst.r_type.sa);
+                              GPR_NAMES[inst.r_type.rt],
+                              (uint8_t)inst.r_type.sa);
         }
         cpu.gpr.write(inst.r_type.rd, (int64_t)res);
     }
@@ -199,7 +285,7 @@ class Cpu::CpuImpl {
         int32_t res = value >> inst.r_type.sa;
         cpu.gpr.write(inst.r_type.rd, (int64_t)res);
         instruction_trace("SRL {} {} {}", GPR_NAMES[inst.r_type.rd],
-                     GPR_NAMES[inst.r_type.rt], (uint8_t)inst.r_type.sa);
+                          GPR_NAMES[inst.r_type.rt], (uint8_t)inst.r_type.sa);
     }
 
     static void op_sra(Cpu &cpu, instruction_t inst) {
@@ -208,7 +294,7 @@ class Cpu::CpuImpl {
         int32_t res = (int64_t)(value >> (uint64_t)inst.r_type.sa);
         cpu.gpr.write(inst.r_type.rd, (int64_t)res);
         instruction_trace("SRA {} {} {}", GPR_NAMES[inst.r_type.rd],
-                     GPR_NAMES[inst.r_type.rt], (uint8_t)inst.r_type.sa);
+                          GPR_NAMES[inst.r_type.rt], (uint8_t)inst.r_type.sa);
     }
 
     static void op_srav(Cpu &cpu, instruction_t inst) {
@@ -218,14 +304,14 @@ class Cpu::CpuImpl {
             (int64_t)(value >> (cpu.gpr.read(inst.r_type.rs) & 0b11111));
         cpu.gpr.write(inst.r_type.rd, (int64_t)res);
         instruction_trace("SRAV {}, {}, {}", GPR_NAMES[inst.r_type.rd],
-                     GPR_NAMES[inst.r_type.rt], GPR_NAMES[inst.r_type.rs]);
+                          GPR_NAMES[inst.r_type.rt], GPR_NAMES[inst.r_type.rs]);
     }
 
     static void op_sllv(Cpu &cpu, instruction_t inst) {
         // https://github.com/Dillonb/n64/blob/6502f7d2f163c3f14da5bff8cd6d5ccc47143156/src/cpu/mips_instructions.c#L721
         assert_encoding_is_valid(inst.r_type.sa == 0);
         instruction_trace("SLLV {}, {}, {}", GPR_NAMES[inst.r_type.rd],
-                     GPR_NAMES[inst.r_type.rt], GPR_NAMES[inst.r_type.rs]);
+                          GPR_NAMES[inst.r_type.rt], GPR_NAMES[inst.r_type.rs]);
         uint32_t value = cpu.gpr.read(inst.r_type.rt); // as 32bit
         int32_t res = value << (cpu.gpr.read(inst.r_type.rs) & 0b11111);
         cpu.gpr.write(inst.r_type.rd, (int64_t)res);
@@ -235,7 +321,7 @@ class Cpu::CpuImpl {
         // https://github.com/Dillonb/n64/blob/6502f7d2f163c3f14da5bff8cd6d5ccc47143156/src/cpu/mips_instructions.c#L727
         assert_encoding_is_valid(inst.r_type.sa == 0);
         instruction_trace("SRLV {}, {}, {}", GPR_NAMES[inst.r_type.rd],
-                     GPR_NAMES[inst.r_type.rt], GPR_NAMES[inst.r_type.rs]);
+                          GPR_NAMES[inst.r_type.rt], GPR_NAMES[inst.r_type.rs]);
         uint32_t value = cpu.gpr.read(inst.r_type.rt); // as 32bit
         int32_t res = value >> (cpu.gpr.read(inst.r_type.rs) & 0b11111);
         cpu.gpr.write(inst.r_type.rd, (int64_t)res);
@@ -246,7 +332,7 @@ class Cpu::CpuImpl {
         int64_t rs = cpu.gpr.read(inst.r_type.rs);
         int64_t rt = cpu.gpr.read(inst.r_type.rt);
         instruction_trace("SLT {} {} {} ", GPR_NAMES[inst.r_type.rd],
-                     GPR_NAMES[inst.r_type.rs], GPR_NAMES[inst.r_type.rt]);
+                          GPR_NAMES[inst.r_type.rs], GPR_NAMES[inst.r_type.rt]);
         cpu.gpr.write(inst.r_type.rd, rs < rt ? 1 : 0);
     }
 
@@ -256,7 +342,7 @@ class Cpu::CpuImpl {
         uint64_t rs = cpu.gpr.read(inst.r_type.rs); // unsigned
         uint64_t rt = cpu.gpr.read(inst.r_type.rt); // unsigned
         instruction_trace("SLTU {} {} {}", GPR_NAMES[inst.r_type.rd],
-                     GPR_NAMES[inst.r_type.rs], GPR_NAMES[inst.r_type.rt]);
+                          GPR_NAMES[inst.r_type.rs], GPR_NAMES[inst.r_type.rt]);
         cpu.gpr.write(inst.r_type.rd, rs < rt ? 1 : 0);
     }
 
@@ -265,7 +351,7 @@ class Cpu::CpuImpl {
         int16_t imm = inst.i_type.imm;
         int64_t rs = cpu.gpr.read(inst.i_type.rs);
         instruction_trace("SLTI {} {} {}", GPR_NAMES[inst.i_type.rt],
-                     GPR_NAMES[inst.i_type.rs], imm);
+                          GPR_NAMES[inst.i_type.rs], imm);
         cpu.gpr.write(inst.i_type.rt, rs < imm ? 1 : 0);
     }
 
@@ -274,7 +360,7 @@ class Cpu::CpuImpl {
         int16_t imm = inst.i_type.imm;
         uint64_t rs = cpu.gpr.read(inst.i_type.rs);
         instruction_trace("SLTIU {} {} {}", GPR_NAMES[inst.i_type.rt],
-                     GPR_NAMES[inst.i_type.rs], imm);
+                          GPR_NAMES[inst.i_type.rs], imm);
         cpu.gpr.write(inst.i_type.rt, rs < imm ? 1 : 0);
     }
 
@@ -282,7 +368,7 @@ class Cpu::CpuImpl {
         // https://github.com/Dillonb/n64/blob/6502f7d2f163c3f14da5bff8cd6d5ccc47143156/src/cpu/mips_instructions.c#L922
         assert_encoding_is_valid(inst.r_type.sa == 0);
         instruction_trace("AND: {} <= {} & {}", GPR_NAMES[inst.r_type.rd],
-                     GPR_NAMES[inst.r_type.rs], GPR_NAMES[inst.r_type.rt]);
+                          GPR_NAMES[inst.r_type.rs], GPR_NAMES[inst.r_type.rt]);
         cpu.gpr.write(inst.r_type.rd, cpu.gpr.read(inst.r_type.rs) &
                                           cpu.gpr.read(inst.r_type.rt));
     }
@@ -291,7 +377,7 @@ class Cpu::CpuImpl {
         // https://github.com/Dillonb/n64/blob/6502f7d2f163c3f14da5bff8cd6d5ccc47143156/src/cpu/mips_instructions.c#L954
         assert_encoding_is_valid(inst.r_type.sa == 0);
         instruction_trace("OR: {} <= {} | {}", GPR_NAMES[inst.r_type.rd],
-                     GPR_NAMES[inst.r_type.rs], GPR_NAMES[inst.r_type.rt]);
+                          GPR_NAMES[inst.r_type.rs], GPR_NAMES[inst.r_type.rt]);
         cpu.gpr.write(inst.r_type.rd, cpu.gpr.read(inst.r_type.rs) |
                                           cpu.gpr.read(inst.r_type.rt));
     }
@@ -300,7 +386,7 @@ class Cpu::CpuImpl {
         // https://github.com/Dillonb/n64/blob/6502f7d2f163c3f14da5bff8cd6d5ccc47143156/src/cpu/mips_instructions.c#L958
         assert_encoding_is_valid(inst.r_type.sa == 0);
         instruction_trace("XOR: {} <= {} ^ {}", GPR_NAMES[inst.r_type.rd],
-                     GPR_NAMES[inst.r_type.rs], GPR_NAMES[inst.r_type.rt]);
+                          GPR_NAMES[inst.r_type.rs], GPR_NAMES[inst.r_type.rt]);
         cpu.gpr.write(inst.r_type.rd, cpu.gpr.read(inst.r_type.rs) ^
                                           cpu.gpr.read(inst.r_type.rt));
     }
@@ -308,7 +394,7 @@ class Cpu::CpuImpl {
     static void op_nor(Cpu &cpu, instruction_t inst) {
         // https://github.com/Dillonb/n64/blob/6502f7d2f163c3f14da5bff8cd6d5ccc47143156/src/cpu/mips_instructions.c#L958
         instruction_trace("NOR: {}, {}, {}", GPR_NAMES[inst.r_type.rd],
-                     GPR_NAMES[inst.r_type.rs], GPR_NAMES[inst.r_type.rt]);
+                          GPR_NAMES[inst.r_type.rs], GPR_NAMES[inst.r_type.rt]);
         uint64_t res =
             ~(cpu.gpr.read(inst.r_type.rs) | cpu.gpr.read(inst.r_type.rt));
         cpu.gpr.write(inst.r_type.rd, res);
@@ -329,7 +415,7 @@ class Cpu::CpuImpl {
         branch_addr64(cpu, true, rs);
         link(cpu, inst.r_type.rd);
         instruction_trace("JALR addr={} dest={}", GPR_NAMES[inst.r_type.rs],
-                     GPR_NAMES[inst.r_type.rd]);
+                          GPR_NAMES[inst.r_type.rd]);
     }
 
     static void op_mfhi(Cpu &cpu, instruction_t inst) {
@@ -382,7 +468,7 @@ class Cpu::CpuImpl {
         int64_t rs = cpu.gpr.read(inst.r_type.rs);
         int64_t rt = cpu.gpr.read(inst.r_type.rt);
         instruction_trace("TGE: {}, {}", GPR_NAMES[inst.r_type.rs],
-                     GPR_NAMES[inst.r_type.rt]);
+                          GPR_NAMES[inst.r_type.rt]);
         if (rs >= rt)
             cpu.handle_exception(ExceptionCode::TRAP, 0, true);
     }
@@ -392,7 +478,7 @@ class Cpu::CpuImpl {
         uint64_t rs = cpu.gpr.read(inst.r_type.rs);
         uint64_t rt = cpu.gpr.read(inst.r_type.rt);
         instruction_trace("TGEU: {}, {}", GPR_NAMES[inst.r_type.rs],
-                     GPR_NAMES[inst.r_type.rt]);
+                          GPR_NAMES[inst.r_type.rt]);
         if (rs >= rt)
             cpu.handle_exception(ExceptionCode::TRAP, 0, true);
     }
@@ -402,7 +488,7 @@ class Cpu::CpuImpl {
         int64_t rs = cpu.gpr.read(inst.r_type.rs);
         int64_t rt = cpu.gpr.read(inst.r_type.rt);
         instruction_trace("TLT: {}, {}", GPR_NAMES[inst.r_type.rs],
-                     GPR_NAMES[inst.r_type.rt]);
+                          GPR_NAMES[inst.r_type.rt]);
         if (rs < rt)
             cpu.handle_exception(ExceptionCode::TRAP, 0, true);
     }
@@ -412,7 +498,7 @@ class Cpu::CpuImpl {
         uint64_t rs = cpu.gpr.read(inst.r_type.rs);
         uint64_t rt = cpu.gpr.read(inst.r_type.rt);
         instruction_trace("TLTU: {}, {}", GPR_NAMES[inst.r_type.rs],
-                     GPR_NAMES[inst.r_type.rt]);
+                          GPR_NAMES[inst.r_type.rt]);
         if (rs < rt)
             cpu.handle_exception(ExceptionCode::TRAP, 0, true);
     }
@@ -422,7 +508,7 @@ class Cpu::CpuImpl {
         uint64_t rs = cpu.gpr.read(inst.r_type.rs);
         uint64_t rt = cpu.gpr.read(inst.r_type.rt);
         instruction_trace("TEQ: {}, {}", GPR_NAMES[inst.r_type.rs],
-                     GPR_NAMES[inst.r_type.rt]);
+                          GPR_NAMES[inst.r_type.rt]);
         if (rs == rt)
             cpu.handle_exception(ExceptionCode::TRAP, 0, true);
     }
@@ -432,7 +518,7 @@ class Cpu::CpuImpl {
         uint64_t rs = cpu.gpr.read(inst.r_type.rs);
         uint64_t rt = cpu.gpr.read(inst.r_type.rt);
         instruction_trace("TNE: {}, {}", GPR_NAMES[inst.r_type.rs],
-                     GPR_NAMES[inst.r_type.rt]);
+                          GPR_NAMES[inst.r_type.rt]);
         if (rs != rt)
             cpu.handle_exception(ExceptionCode::TRAP, 0, true);
     }
@@ -443,7 +529,7 @@ class Cpu::CpuImpl {
         value <<= inst.r_type.sa;
         cpu.gpr.write(inst.r_type.rd, value);
         instruction_trace("DSLL {} <= {} << {}", GPR_NAMES[inst.r_type.rd],
-                     GPR_NAMES[inst.r_type.rt], (uint8_t)inst.r_type.sa);
+                          GPR_NAMES[inst.r_type.rt], (uint8_t)inst.r_type.sa);
     }
 
     static void op_dsrl(Cpu &cpu, instruction_t inst) {
@@ -452,7 +538,7 @@ class Cpu::CpuImpl {
         value >>= inst.r_type.sa;
         cpu.gpr.write(inst.r_type.rd, value);
         instruction_trace("DSRL {} <= {} >> {}", GPR_NAMES[inst.r_type.rd],
-                     GPR_NAMES[inst.r_type.rt], (uint8_t)inst.r_type.sa);
+                          GPR_NAMES[inst.r_type.rt], (uint8_t)inst.r_type.sa);
     }
 
     static void op_dsra(Cpu &cpu, instruction_t inst) {
@@ -461,7 +547,7 @@ class Cpu::CpuImpl {
         value >>= inst.r_type.sa;
         cpu.gpr.write(inst.r_type.rd, value);
         instruction_trace("DSRA {} <= {} >> {}", GPR_NAMES[inst.r_type.rd],
-                     GPR_NAMES[inst.r_type.rt], (uint8_t)inst.r_type.sa);
+                          GPR_NAMES[inst.r_type.rt], (uint8_t)inst.r_type.sa);
     }
 
     static void op_dsll32(Cpu &cpu, instruction_t inst) {
@@ -470,7 +556,7 @@ class Cpu::CpuImpl {
         value <<= (inst.r_type.sa + 32);
         cpu.gpr.write(inst.r_type.rd, value);
         instruction_trace("DSLL32 {} <= {} << {}", GPR_NAMES[inst.r_type.rd],
-                     GPR_NAMES[inst.r_type.rt], (uint8_t)inst.r_type.sa);
+                          GPR_NAMES[inst.r_type.rt], (uint8_t)inst.r_type.sa);
     }
 
     static void op_dsrl32(Cpu &cpu, instruction_t inst) {
@@ -479,7 +565,7 @@ class Cpu::CpuImpl {
         value >>= (inst.r_type.sa + 32);
         cpu.gpr.write(inst.r_type.rd, value);
         instruction_trace("DSRL32 {} <= {} >> {}", GPR_NAMES[inst.r_type.rd],
-                     GPR_NAMES[inst.r_type.rt], (uint8_t)inst.r_type.sa);
+                          GPR_NAMES[inst.r_type.rt], (uint8_t)inst.r_type.sa);
     }
 
     static void op_dsra32(Cpu &cpu, instruction_t inst) {
@@ -488,10 +574,12 @@ class Cpu::CpuImpl {
         value >>= (inst.r_type.sa + 32);
         cpu.gpr.write(inst.r_type.rd, value);
         instruction_trace("DSRA32 {} <= {} >> {}", GPR_NAMES[inst.r_type.rd],
-                     GPR_NAMES[inst.r_type.rt], (uint8_t)inst.r_type.sa);
+                          GPR_NAMES[inst.r_type.rt], (uint8_t)inst.r_type.sa);
     }
 
-    static void op_sync(Cpu &cpu, instruction_t inst) { instruction_trace("SYNC"); }
+    static void op_sync(Cpu &cpu, instruction_t inst) {
+        instruction_trace("SYNC");
+    }
 
     static void op_bltz(Cpu &cpu, instruction_t inst) {
         // https://github.com/Dillonb/n64/blob/6502f7d2f163c3f14da5bff8cd6d5ccc47143156/src/cpu/mips_instructions.c#L1113
@@ -563,7 +651,7 @@ class Cpu::CpuImpl {
         int16_t offset = inst.i_type.imm;
         uint64_t vaddr = cpu.gpr.read(inst.i_type.rs) + offset;
         instruction_trace("LB {} <= *({} + {:#x})", GPR_NAMES[inst.i_type.rt],
-                     GPR_NAMES[inst.i_type.rs], offset);
+                          GPR_NAMES[inst.i_type.rs], offset);
         std::optional<uint32_t> paddr = Mmu::resolve_vaddr(vaddr);
 
         if (paddr.has_value()) {
@@ -580,7 +668,7 @@ class Cpu::CpuImpl {
         int16_t offset = inst.i_type.imm;
         uint64_t vaddr = cpu.gpr.read(inst.i_type.rs) + offset;
         instruction_trace("LBU {} <= *({} + {:#x})", GPR_NAMES[inst.i_type.rt],
-                     GPR_NAMES[inst.i_type.rs], offset);
+                          GPR_NAMES[inst.i_type.rs], offset);
         std::optional<uint32_t> paddr = Mmu::resolve_vaddr(vaddr);
 
         if (paddr.has_value()) {
@@ -598,7 +686,7 @@ class Cpu::CpuImpl {
         int16_t offset = inst.i_type.imm;
         uint64_t vaddr = cpu.gpr.read(inst.i_type.rs) + offset;
         instruction_trace("LH {} <= *({} + {:#x})", GPR_NAMES[inst.i_type.rt],
-                     GPR_NAMES[inst.i_type.rs], offset);
+                          GPR_NAMES[inst.i_type.rs], offset);
         std::optional<uint32_t> paddr = Mmu::resolve_vaddr(vaddr);
 
         if (paddr.has_value()) {
@@ -616,7 +704,7 @@ class Cpu::CpuImpl {
         int16_t offset = inst.i_type.imm;
         uint64_t vaddr = cpu.gpr.read(inst.i_type.rs) + offset;
         instruction_trace("LHU: {} <= *({} + {:#x})", GPR_NAMES[inst.i_type.rt],
-                     GPR_NAMES[inst.i_type.rs], offset);
+                          GPR_NAMES[inst.i_type.rs], offset);
         std::optional<uint32_t> paddr = Mmu::resolve_vaddr(vaddr);
 
         if (paddr.has_value()) {
@@ -632,7 +720,7 @@ class Cpu::CpuImpl {
         // https://github.com/Dillonb/n64/blob/6502f7d2f163c3f14da5bff8cd6d5ccc47143156/src/cpu/mips_instructions.c#L317
         int16_t offset = inst.i_type.imm;
         instruction_trace("LW: {} <= *({} + {:#x})", GPR_NAMES[inst.i_type.rt],
-                     GPR_NAMES[inst.i_type.rs], offset);
+                          GPR_NAMES[inst.i_type.rs], offset);
         uint64_t vaddr = cpu.gpr.read(inst.i_type.rs) + offset;
         std::optional<uint32_t> paddr = Mmu::resolve_vaddr(vaddr);
 
@@ -649,7 +737,7 @@ class Cpu::CpuImpl {
         // https://github.com/Dillonb/n64/blob/6502f7d2f163c3f14da5bff8cd6d5ccc47143156/src/cpu/mips_instructions.c#L336
         int16_t offset = inst.i_type.imm;
         instruction_trace("LWU: {} <= *({} + {:#x})", GPR_NAMES[inst.i_type.rt],
-                     GPR_NAMES[inst.i_type.rs], offset);
+                          GPR_NAMES[inst.i_type.rs], offset);
         uint64_t vaddr = cpu.gpr.read(inst.i_type.rs) + offset;
         std::optional<uint32_t> paddr = Mmu::resolve_vaddr(vaddr);
 
@@ -677,7 +765,7 @@ class Cpu::CpuImpl {
         // https://github.com/Dillonb/n64/blob/6502f7d2f163c3f14da5bff8cd6d5ccc47143156/src/cpu/mips_instructions.c#L282
         int16_t offset = inst.i_type.imm;
         instruction_trace("LD: {} <= *({} + {:#x})", GPR_NAMES[inst.i_type.rt],
-                     GPR_NAMES[inst.i_type.rs], offset);
+                          GPR_NAMES[inst.i_type.rs], offset);
         uint64_t vaddr = cpu.gpr.read(inst.i_type.rs) + offset;
         std::optional<uint32_t> paddr = Mmu::resolve_vaddr(vaddr);
 
@@ -731,7 +819,7 @@ class Cpu::CpuImpl {
         int16_t offset = inst.i_type.imm;
         uint64_t vaddr = cpu.gpr.read(inst.i_type.rs) + offset;
         instruction_trace("LL: {} <= *({} + {:#x})", GPR_NAMES[inst.i_type.rt],
-                     GPR_NAMES[inst.i_type.rs], offset);
+                          GPR_NAMES[inst.i_type.rs], offset);
         std::optional<uint32_t> paddr = Mmu::resolve_vaddr(vaddr);
 
         if (paddr.has_value()) {
@@ -752,7 +840,7 @@ class Cpu::CpuImpl {
         int16_t offset = inst.i_type.imm;
         uint64_t vaddr = cpu.gpr.read(inst.i_type.rs) + offset;
         instruction_trace("LLD: {} <= *({} + {:#x})", GPR_NAMES[inst.i_type.rt],
-                     GPR_NAMES[inst.i_type.rs], offset);
+                          GPR_NAMES[inst.i_type.rs], offset);
         std::optional<uint32_t> paddr = Mmu::resolve_vaddr(vaddr);
 
         if (paddr.has_value()) {
@@ -772,7 +860,7 @@ class Cpu::CpuImpl {
         int16_t offset = inst.i_type.imm;
         uint64_t vaddr = cpu.gpr.read(inst.i_type.rs) + offset;
         instruction_trace("SB: *({} + {:#x}) <= {}", GPR_NAMES[inst.i_type.rs],
-                     offset, GPR_NAMES[inst.r_type.rt]);
+                          offset, GPR_NAMES[inst.r_type.rt]);
         std::optional<uint32_t> paddr = Mmu::resolve_vaddr(vaddr);
 
         if (paddr.has_value()) {
@@ -789,7 +877,7 @@ class Cpu::CpuImpl {
         int16_t offset = inst.i_type.imm;
         uint64_t vaddr = cpu.gpr.read(inst.i_type.rs) + offset;
         instruction_trace("SH: *({} + {:#x}) <= {}", GPR_NAMES[inst.i_type.rs],
-                     offset, GPR_NAMES[inst.r_type.rt]);
+                          offset, GPR_NAMES[inst.r_type.rt]);
         std::optional<uint32_t> paddr = Mmu::resolve_vaddr(vaddr);
 
         if (paddr.has_value()) {
@@ -806,7 +894,7 @@ class Cpu::CpuImpl {
         int16_t offset = inst.i_type.imm;
         uint64_t vaddr = cpu.gpr.read(inst.i_type.rs) + offset;
         instruction_trace("SW: *({} + {:#x}) <= {}", GPR_NAMES[inst.i_type.rs],
-                     offset, GPR_NAMES[inst.r_type.rt]);
+                          offset, GPR_NAMES[inst.r_type.rt]);
         std::optional<uint32_t> paddr = Mmu::resolve_vaddr(vaddr);
 
         if (paddr.has_value()) {
@@ -822,7 +910,7 @@ class Cpu::CpuImpl {
         // https://github.com/Dillonb/n64/blob/6502f7d2f163c3f14da5bff8cd6d5ccc47143156/src/cpu/mips_instructions.c#L402
         int16_t offset = inst.i_type.imm;
         instruction_trace("SD: *({} + {:#x}) <= {}", GPR_NAMES[inst.i_type.rs],
-                     offset, GPR_NAMES[inst.r_type.rt]);
+                          offset, GPR_NAMES[inst.r_type.rt]);
         uint64_t vaddr = cpu.gpr.read(inst.i_type.rs) + offset;
         std::optional<uint32_t> paddr = Mmu::resolve_vaddr(vaddr);
 
@@ -887,7 +975,7 @@ class Cpu::CpuImpl {
         uint32_t addend = (int32_t)((int16_t)inst.i_type.imm); // sext
         uint32_t res = rs + addend;
         instruction_trace("ADDI: {} <= {} + {:#x}", GPR_NAMES[inst.i_type.rt],
-                     GPR_NAMES[inst.i_type.rs], addend);
+                          GPR_NAMES[inst.i_type.rs], addend);
         // TODO: check overflow
         cpu.gpr.write(inst.i_type.rt, (int64_t)((int32_t)res));
     }
@@ -898,7 +986,7 @@ class Cpu::CpuImpl {
         int16_t addend = inst.i_type.imm; // sext
         int32_t res = rs + addend;
         instruction_trace("ADDIU: {} <= {} + {:#x}", GPR_NAMES[inst.i_type.rt],
-                     GPR_NAMES[inst.i_type.rs], addend);
+                          GPR_NAMES[inst.i_type.rs], addend);
         cpu.gpr.write(inst.i_type.rt, (int64_t)res);
     }
 
@@ -909,7 +997,7 @@ class Cpu::CpuImpl {
         uint64_t res = rs + addend;
         // TODO: check overflow
         instruction_trace("DADDI: {} <= {} + {:#x}", GPR_NAMES[inst.i_type.rt],
-                     GPR_NAMES[inst.i_type.rs], addend);
+                          GPR_NAMES[inst.i_type.rs], addend);
         cpu.gpr.write(inst.i_type.rt, res);
     }
 
@@ -919,7 +1007,7 @@ class Cpu::CpuImpl {
         uint64_t rs = cpu.gpr.read(inst.i_type.rs);
         uint64_t res = rs + addend;
         instruction_trace("DADDIU: {} <= {} + {:#x}", GPR_NAMES[inst.i_type.rt],
-                     GPR_NAMES[inst.i_type.rs], addend);
+                          GPR_NAMES[inst.i_type.rs], addend);
         cpu.gpr.write(inst.i_type.rt, res);
     }
 
@@ -927,7 +1015,7 @@ class Cpu::CpuImpl {
         // https://github.com/Dillonb/n64/blob/6502f7d2f163c3f14da5bff8cd6d5ccc47143156/src/cpu/mips_instructions.c#L131
         uint64_t imm = inst.i_type.imm; // zext
         instruction_trace("ANDI: {} <= {} & {:#x}", GPR_NAMES[inst.i_type.rt],
-                     GPR_NAMES[inst.i_type.rs], imm);
+                          GPR_NAMES[inst.i_type.rs], imm);
         cpu.gpr.write(inst.i_type.rt, cpu.gpr.read(inst.i_type.rs) & imm);
     }
 
@@ -935,7 +1023,7 @@ class Cpu::CpuImpl {
         // https://github.com/Dillonb/n64/blob/6502f7d2f163c3f14da5bff8cd6d5ccc47143156/src/cpu/mips_instructions.c#L422
         uint64_t imm = inst.i_type.imm; // zext
         instruction_trace("ORI: {} <= {} | {:#x}", GPR_NAMES[inst.i_type.rt],
-                     GPR_NAMES[inst.i_type.rs], imm);
+                          GPR_NAMES[inst.i_type.rs], imm);
         cpu.gpr.write(inst.i_type.rt, cpu.gpr.read(inst.i_type.rs) | imm);
     }
 
@@ -943,14 +1031,14 @@ class Cpu::CpuImpl {
         // https://github.com/Dillonb/n64/blob/6502f7d2f163c3f14da5bff8cd6d5ccc47143156/src/cpu/mips_instructions.c#L426
         uint64_t imm = inst.i_type.imm; // zext
         instruction_trace("XORI: {} <= {} ^ {:#x}", GPR_NAMES[inst.i_type.rt],
-                     GPR_NAMES[inst.i_type.rs], imm);
+                          GPR_NAMES[inst.i_type.rs], imm);
         cpu.gpr.write(inst.i_type.rt, cpu.gpr.read(inst.i_type.rs) ^ imm);
     }
 
     static void op_beq(Cpu &cpu, instruction_t inst) {
         // https://github.com/Dillonb/n64/blob/6502f7d2f163c3f14da5bff8cd6d5ccc47143156/src/cpu/mips_instructions.c#L137
         instruction_trace("BEQ: cond {} == {}", GPR_NAMES[inst.i_type.rs],
-                     GPR_NAMES[inst.i_type.rt]);
+                          GPR_NAMES[inst.i_type.rt]);
         branch_offset16(
             cpu, cpu.gpr.read(inst.i_type.rs) == cpu.gpr.read(inst.i_type.rt),
             inst);
@@ -959,7 +1047,7 @@ class Cpu::CpuImpl {
     static void op_beql(Cpu &cpu, instruction_t inst) {
         // https://github.com/Dillonb/n64/blob/6502f7d2f163c3f14da5bff8cd6d5ccc47143156/src/cpu/mips_instructions.c#L141
         instruction_trace("BEQL: cond {} == {}", GPR_NAMES[inst.i_type.rs],
-                     GPR_NAMES[inst.i_type.rt]);
+                          GPR_NAMES[inst.i_type.rt]);
         branch_likely_offset16(
             cpu, cpu.gpr.read(inst.i_type.rs) == cpu.gpr.read(inst.i_type.rt),
             inst);
@@ -968,10 +1056,11 @@ class Cpu::CpuImpl {
     static void op_bne(Cpu &cpu, instruction_t inst) {
         // https://github.com/Dillonb/n64/blob/6502f7d2f163c3f14da5bff8cd6d5ccc47143156/src/cpu/mips_instructions.c#L165
         instruction_trace("BNE: cond {} != {}", GPR_NAMES[inst.i_type.rs],
-                     GPR_NAMES[inst.i_type.rt]);
+                          GPR_NAMES[inst.i_type.rt]);
         instruction_trace("{} : {:#x}, {} = {:#x}", GPR_NAMES[inst.i_type.rs],
-                     cpu.gpr.read(inst.i_type.rs), GPR_NAMES[inst.i_type.rt],
-                     cpu.gpr.read(inst.i_type.rt));
+                          cpu.gpr.read(inst.i_type.rs),
+                          GPR_NAMES[inst.i_type.rt],
+                          cpu.gpr.read(inst.i_type.rt));
         branch_offset16(
             cpu, cpu.gpr.read(inst.i_type.rs) != cpu.gpr.read(inst.i_type.rt),
             inst);
@@ -980,7 +1069,7 @@ class Cpu::CpuImpl {
     static void op_bnel(Cpu &cpu, instruction_t inst) {
         // https://github.com/Dillonb/n64/blob/6502f7d2f163c3f14da5bff8cd6d5ccc47143156/src/cpu/mips_instructions.c#L169
         instruction_trace("BNEL: cond {} != {}", GPR_NAMES[inst.i_type.rs],
-                     GPR_NAMES[inst.i_type.rt]);
+                          GPR_NAMES[inst.i_type.rt]);
         branch_likely_offset16(
             cpu, cpu.gpr.read(inst.i_type.rs) != cpu.gpr.read(inst.i_type.rt),
             inst);
@@ -1028,8 +1117,9 @@ class Cpu::CpuImpl {
 
     static void op_mfc0(Cpu &cpu, instruction_t inst) {
         // https://github.com/Dillonb/n64/blob/6502f7d2f163c3f14da5bff8cd6d5ccc47143156/src/cpu/mips_instructions.c#L220
-        instruction_trace("MFC0: {} <= COP0.reg[{}]", GPR_NAMES[inst.cop_r_like.rt],
-                     static_cast<uint32_t>(inst.cop_r_like.rd));
+        instruction_trace("MFC0: {} <= COP0.reg[{}]",
+                          GPR_NAMES[inst.cop_r_like.rt],
+                          static_cast<uint32_t>(inst.cop_r_like.rd));
         int32_t tmp = cpu.cop0.reg.read(inst.cop_r_like.rd);
         int64_t stmp = tmp; // sext
         // FIXME: T+1 (delay)
@@ -1039,8 +1129,8 @@ class Cpu::CpuImpl {
     static void op_mtc0(Cpu &cpu, instruction_t inst) {
         // https://github.com/Dillonb/n64/blob/6502f7d2f163c3f14da5bff8cd6d5ccc47143156/src/cpu/mips_instructions.c#L225
         instruction_trace("MTC0: COP0.reg[{}] <= {}",
-                     static_cast<uint32_t>(inst.cop_r_like.rd),
-                     GPR_NAMES[inst.cop_r_like.rt]);
+                          static_cast<uint32_t>(inst.cop_r_like.rd),
+                          GPR_NAMES[inst.cop_r_like.rt]);
         uint32_t tmp = cpu.gpr.read(inst.cop_r_like.rt);
         // FIXME: T+1 (delay)
         cpu.cop0.reg.write(inst.cop_r_like.rd, tmp);
@@ -1048,8 +1138,9 @@ class Cpu::CpuImpl {
 
     static void op_dmfc0(Cpu &cpu, instruction_t inst) {
         // https://github.com/Dillonb/n64/blob/6502f7d2f163c3f14da5bff8cd6d5ccc47143156/src/cpu/mips_instructions.c#L230
-        instruction_trace("DMFC0: {} <= COP0.reg[{}]", GPR_NAMES[inst.cop_r_like.rt],
-                     static_cast<uint32_t>(inst.cop_r_like.rd));
+        instruction_trace("DMFC0: {} <= COP0.reg[{}]",
+                          GPR_NAMES[inst.cop_r_like.rt],
+                          static_cast<uint32_t>(inst.cop_r_like.rd));
         uint64_t tmp = cpu.cop0.reg.read(inst.cop_r_like.rd);
         // FIXME: T+1 (delay)
         cpu.gpr.write(inst.cop_r_like.rt, tmp);
@@ -1058,8 +1149,8 @@ class Cpu::CpuImpl {
     static void op_dmtc0(Cpu &cpu, instruction_t inst) {
         // https://github.com/Dillonb/n64/blob/6502f7d2f163c3f14da5bff8cd6d5ccc47143156/src/cpu/mips_instructions.c#L235
         instruction_trace("DMTC0: COP0.reg[{}] <= {}",
-                     static_cast<uint32_t>(inst.cop_r_like.rd),
-                     GPR_NAMES[inst.cop_r_like.rt]);
+                          static_cast<uint32_t>(inst.cop_r_like.rd),
+                          GPR_NAMES[inst.cop_r_like.rt]);
         const uint64_t tmp = cpu.gpr.read(inst.cop_r_like.rt);
         // FIXME: T+1 (delay)
         cpu.cop0.reg.write(inst.cop_r_like.rd, tmp);

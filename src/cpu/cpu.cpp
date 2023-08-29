@@ -4,8 +4,8 @@
 #include "fpu_instruction_impl.h"
 #include "instruction.h"
 #include "memory/bus.h"
-#include "mmu/tlb.h"
 #include "mmu/mmu.h"
+#include "mmu/tlb.h"
 #include "n64_system/interrupt.h"
 #include "utils/utils.h"
 #include <cstdint>
@@ -175,6 +175,10 @@ void Cpu::execute_instruction(instruction_t inst) {
             return CpuImpl::op_mult(*this, inst);
         case SPECIAL_FUNCT_MULTU: // MULTU
             return CpuImpl::op_multu(*this, inst);
+        case SPECIAL_FUNCT_DMULT: // DMULT
+            return CpuImpl::op_dmult(*this, inst);
+        case SPECIAL_FUNCT_DMULTU: // DMULTU
+            return CpuImpl::op_dmultu(*this, inst);
         case SPECIAL_FUNCT_DIV: // DIV
             return CpuImpl::op_div(*this, inst);
         case SPECIAL_FUNCT_DIVU: // DIVU
