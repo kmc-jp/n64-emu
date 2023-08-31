@@ -183,6 +183,10 @@ void Cpu::execute_instruction(instruction_t inst) {
             return CpuImpl::op_div(*this, inst);
         case SPECIAL_FUNCT_DIVU: // DIVU
             return CpuImpl::op_divu(*this, inst);
+        case SPECIAL_FUNCT_DDIV: // DDIV
+            return CpuImpl::op_ddiv(*this, inst);
+        case SPECIAL_FUNCT_DDIVU: // DDIVU
+            return CpuImpl::op_ddivu(*this, inst);
         case SPECIAL_FUNCT_SLL: // SLL
             return CpuImpl::op_sll(*this, inst);
         case SPECIAL_FUNCT_SRL: // SRL

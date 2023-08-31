@@ -202,6 +202,45 @@ class Cpu::CpuImpl {
         }
     }
 
+    static void op_ddiv(Cpu &cpu, instruction_t inst) {
+        // https://github.com/Dillonb/n64/blob/6502f7d2f163c3f14da5bff8cd6d5ccc47143156/src/cpu/mips_instructions.c#L863
+        instruction_trace("DDIVU {}, {}", GPR_NAMES[inst.r_type.rs],
+                          GPR_NAMES[inst.r_type.rt]);
+        int64_t dividend = cpu.gpr.read(inst.r_type.rs);
+        int64_t divisor = cpu.gpr.read(inst.r_type.rt);
+
+        if (divisor == 0) {
+            Utils::unimplemented("DDIV division by zero");
+        } else if (divisor == -1 && dividend == INT64_MIN) {
+            Utils::unimplemented("DDIV overflow");
+            // cpu.lo = dividend;
+            // cpu.hi = 0;
+        } else {
+            int64_t quotient = (int64_t)(dividend / divisor);
+            int64_t remainder = (int64_t)(dividend % divisor);
+            cpu.lo = quotient;
+            cpu.hi = remainder;
+        }
+    }
+
+    static void op_ddivu(Cpu &cpu, instruction_t inst) {
+        // https://github.com/Dillonb/n64/blob/6502f7d2f163c3f14da5bff8cd6d5ccc47143156/src/cpu/mips_instructions.c#L887
+        instruction_trace("DDIVU {}, {}", GPR_NAMES[inst.r_type.rs],
+                          GPR_NAMES[inst.r_type.rt]);
+        uint64_t dividend = cpu.gpr.read(inst.r_type.rs);
+        uint64_t divisor = cpu.gpr.read(inst.r_type.rt);
+
+        if (divisor == 0) {
+            cpu.lo = 0xFFFFFFFF'FFFFFFFF;
+            cpu.hi = dividend;
+        } else {
+            uint64_t quotient = dividend / divisor;
+            uint64_t remainder = dividend % divisor;
+            cpu.lo = quotient;
+            cpu.hi = remainder;
+        }
+    }
+
     static void op_sll(Cpu &cpu, instruction_t inst) {
         // https://github.com/Dillonb/n64/blob/6502f7d2f163c3f14da5bff8cd6d5ccc47143156/src/cpu/mips_instructions.c#L698
         assert_encoding_is_valid(inst.r_type.rs == 0);
