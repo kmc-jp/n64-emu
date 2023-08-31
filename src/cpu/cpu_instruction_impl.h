@@ -144,8 +144,8 @@ class Cpu::CpuImpl {
         uint64_t rs = cpu.gpr.read(inst.r_type.rs);
         uint64_t rt = cpu.gpr.read(inst.r_type.rt);
         uint64_t lower = rs * rt;
-        cpu.lo = lower;
         uint64_t upper = mul_signed_hi(rs, rt);
+        cpu.lo = lower;
         cpu.hi = upper;
     }
 
@@ -155,8 +155,8 @@ class Cpu::CpuImpl {
         int64_t rs = cpu.gpr.read(inst.r_type.rs);
         int64_t rt = cpu.gpr.read(inst.r_type.rt);
         int64_t lower = rs * rt;
-        cpu.lo = static_cast<uint64_t>(lower);
         uint64_t upper = mul_unsigned_hi(rs, rt);
+        cpu.lo = static_cast<uint64_t>(lower);
         cpu.hi = upper;
     }
 
