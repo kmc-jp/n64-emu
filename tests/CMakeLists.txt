@@ -1,4 +1,4 @@
-# TODO: テスト用実行ファイルの作成
+# Smoke testing
 # 時間かかるので最適化が強いReleaseでは走らせるようにする
 
 # Dillonb's n64-tests
