@@ -45,6 +45,7 @@ enum N64ControllerByte1 : uint8_t {
 
 // State of Nintendo64 Standard Controller
 // https://n64brew.dev/wiki/Joybus_Protocol#0x01_-_Controller_State
+// https://en-americas-support.nintendo.com/app/answers/detail/a_id/56673/~/nintendo-64-controller-diagram
 namespace N64ControllerByte2 {
 enum N64ControllerByte1 : uint8_t {
     RESET = 128,
@@ -58,7 +59,8 @@ enum N64ControllerByte1 : uint8_t {
 };
 }
 
-// https://en-americas-support.nintendo.com/app/answers/detail/a_id/56673/~/nintendo-64-controller-diagram
+// State of Nintendo64 Standard Controller
+// https://n64brew.dev/wiki/Joybus_Protocol#0x01_-_Controller_State
 struct N64ControllerState {
     uint8_t byte1{};
     uint8_t byte2{};
