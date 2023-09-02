@@ -7,6 +7,7 @@ such as *Kirby 64: The Crystal Shards* and *The legend of Zelda: Ocarina of Time
 > **Note**
 > n64-emu is in a very early stage of development now.
 > No commercial ROM can run on it.
+> However, simple ROMs such as [Mimi Controller Test](https://github.com/wermipls/mimi) can run on it.
 
 ## Build
 
