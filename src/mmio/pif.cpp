@@ -458,6 +458,10 @@ N64ControllerState Pif::poll_n64_controller() const {
         ret.byte2 |= N64ControllerByte2::C_LEFT;
     if (state[SDL_SCANCODE_END] | state[SDL_SCANCODE_RIGHT])
         ret.byte2 |= N64ControllerByte2::C_RIGHT;
+    if (state[SDL_SCANCODE_P])
+        ret.byte2 |= N64ControllerByte2::R;
+    if (state[SDL_SCANCODE_Q])
+        ret.byte2 |= N64ControllerByte2::L;
 
     // DP, A, B , Z, Start
     if (state[SDL_SCANCODE_W])
@@ -472,6 +476,10 @@ N64ControllerState Pif::poll_n64_controller() const {
         ret.byte1 |= N64ControllerByte1::A;
     if (state[SDL_SCANCODE_RSHIFT])
         ret.byte1 |= N64ControllerByte1::B;
+    if (state[SDL_SCANCODE_Z])
+        ret.byte1 |= N64ControllerByte1::Z;
+    if (state[SDL_SCANCODE_X])
+        ret.byte1 |= N64ControllerByte1::START;
 
     if (state[SDL_SCANCODE_I])
         ret.joy_y = 127;

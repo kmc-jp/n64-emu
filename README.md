@@ -72,6 +72,9 @@ Only the z64 format (big enddian) is supported.
 - A Button : Space
 - B Button : Right Shift
 - Control Stick : I/J/K/L
+- L/R Button : Q/P
+- Z Button : Z
+- Start : X
 
 See https://en-americas-support.nintendo.com/app/answers/detail/a_id/56673/~/nintendo-64-controller-diagram
 
