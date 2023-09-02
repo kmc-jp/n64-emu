@@ -132,7 +132,7 @@ class Cpu {
     }
 
     static void link(Cpu &cpu, uint8_t reg) { cpu.gpr.write(reg, cpu.pc + 4); }
-    
+
     void handle_exception(ExceptionCode exception_code,
                           uint8_t coprocessor_error, bool use_prev_pc);
 

@@ -89,9 +89,8 @@ void Cpu::step() {
     // instruction fetch
     std::optional<uint32_t> paddr_of_pc = Mmu::resolve_vaddr(pc);
     if (!paddr_of_pc.has_value()) {
-        // FIXME: what if IF causes TLB miss?
-        Utils::critical("PC fetch causes TLB miss");
-        Utils::abort("Aborted");
+        handle_exception(g_tlb().get_tlb_exception_code(Mmu::BusAccess::LOAD),
+                         0, true);
     }
 
     instruction_t inst;
@@ -106,6 +105,21 @@ void Cpu::step() {
 
     cop0.reg.count += CPU_CYCLES_PER_INST;
     cop0.reg.count &= 0x1FFFFFFFF;
+}
+
+static bool is_xtlb_miss(uint64_t bad_vaddr, cop0_status_t status) {
+    // Assume 64bit addressing mode.
+    switch ((bad_vaddr >> 62) & 3) {
+    case 0b00: // user
+        return status.ux;
+    case 0b01: // supervisor
+        return status.sx;
+    case 0b11: // kernel
+        return status.kx;
+    default:
+        Utils::critical("BadVaddr >> 62 == 0b10");
+        Utils::abort("Aborted");
+    }
 }
 
 // https://github.com/SimoneN64/Kaizen/blob/74dccb6ac6a679acbf41b497151e08af6302b0e9/src/backend/core/registers/Cop0.cpp#L253
@@ -134,12 +148,22 @@ void Cpu::handle_exception(ExceptionCode exception_code,
         Utils::unimplemented("BEV is set");
     }
 
-    // FIXME: Add case of TLB Error
     switch (exception_code) {
-    case ExceptionCode::INTERRUPT: {
-        // The log below outputs too much log. Should commented out
-        // Utils::trace("Handling exception/interruption");
+    case ExceptionCode::INTERRUPT:          // fallthrough
+    case ExceptionCode::TLB_MODIFICATION:   // fallthrough
+    case ExceptionCode::ADDRESS_ERROR_LOAD: // fallthrough
+    case ExceptionCode::ADDRESS_ERROR_STORE: {
         set_pc32(0x80000180);
+    } break;
+    case ExceptionCode::TLB_MISS_LOAD: // fallthrough
+    case ExceptionCode::TLB_MISS_STORE: {
+        if (old_exl || g_tlb().get_last_error() == Mmu::TLBError::INVALID) {
+            set_pc32(0x80000180);
+        } else if (is_xtlb_miss(cop0.reg.bad_vaddr, cop0.reg.status)) {
+            set_pc32(0x80000080);
+        } else {
+            set_pc32(0x80000000);
+        }
     } break;
     default: {
         Utils::critical("Unimplemented. exception code = {}",

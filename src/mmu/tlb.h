@@ -12,8 +12,7 @@ enum class TLBError {
     MISS,
     INVALID,
     MODIFICATION,
-    // DISALLOWED_ADDRESS,
-    NONE,
+    DISALLOWED_ADDRESS,
 };
 
 enum class BusAccess {
@@ -68,20 +67,21 @@ class TLB {
         }
     }
 
-    inline static TLB &get_instance() { return instance; }
-
-    /*
-      void generate_exception(uint32_t vaddr) {
-          Utils::critical("TLB exception: vaddr = {:#010x}", vaddr);
-          Utils::unimplemented("Aborted");
-      }
-    */
-
-    static inline Cpu::ExceptionCode
-    get_tlb_exception_code(Mmu::BusAccess bus_access) {
-        Utils::unimplemented("get_tlb_exception_code");
-        exit(-1);
-        return Cpu::ExceptionCode::INTERRUPT;
+    Cpu::ExceptionCode get_tlb_exception_code(BusAccess bus_access) {
+        switch (error) {
+        case TLBError::MISS: // fallthrough
+        case TLBError::INVALID:
+            return bus_access == BusAccess::LOAD
+                       ? Cpu::ExceptionCode::TLB_MISS_LOAD
+                       : Cpu::ExceptionCode::TLB_MISS_STORE;
+        case TLBError::MODIFICATION:
+            return Cpu::ExceptionCode::TLB_MODIFICATION;
+        case TLBError::DISALLOWED_ADDRESS:
+            return bus_access == BusAccess::LOAD
+                       ? Cpu::ExceptionCode::ADDRESS_ERROR_LOAD
+                       : Cpu::ExceptionCode::ADDRESS_ERROR_STORE;
+        }
+        Utils::abort("unreachable");
     }
 
     void write_entry(bool random) {
@@ -130,6 +130,10 @@ class TLB {
 
         return std::nullopt;
     }
+
+    TLBError get_last_error() const { return error; }
+
+    inline static TLB &get_instance() { return instance; }
 
   private:
     TLBEntry entries[32];
