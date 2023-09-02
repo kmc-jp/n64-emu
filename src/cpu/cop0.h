@@ -35,6 +35,19 @@ typedef union {
 
 static_assert(sizeof(entry_lo1_t) == 4);
 
+// FIXME: 64bit?
+typedef PACK(union {
+    uint32_t raw;
+    PACK(struct {
+        unsigned asid : 8;
+        unsigned : 4;
+        unsigned g : 1;
+        unsigned vpn2 : 19;
+    });
+}) entry_hi_t;
+
+static_assert(sizeof(entry_hi_t) == 4);
+
 namespace Cpu {
 
 namespace Cop0Reg {
@@ -205,7 +218,7 @@ class Cop0 {
         // 7th register is unknown
         uint32_t bad_vaddr;
         uint32_t count;
-        uint64_t entry_hi; // 64bit
+        entry_hi_t entry_hi; // 64bit
         uint32_t compare;
         cop0_status_t status; // TODO: refine type?
         cop0_cause_t cause;   // TODO: refine type?F

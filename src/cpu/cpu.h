@@ -132,20 +132,7 @@ class Cpu {
     }
 
     static void link(Cpu &cpu, uint8_t reg) { cpu.gpr.write(reg, cpu.pc + 4); }
-
-    // TODO: move to somewhere else
-    enum class BusAccess {
-        LOAD,
-        STORE,
-    };
-
-    // TODO: move to somewhere else
-    static inline ExceptionCode get_tlb_exception_code(BusAccess bus_access) {
-        Utils::unimplemented("get_tlb_exception_code");
-        exit(-1);
-        return ExceptionCode::INTERRUPT;
-    }
-
+    
     void handle_exception(ExceptionCode exception_code,
                           uint8_t coprocessor_error, bool use_prev_pc);
 

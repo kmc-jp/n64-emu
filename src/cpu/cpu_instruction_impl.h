@@ -634,7 +634,7 @@ class Cpu::CpuImpl {
             int8_t value = Memory::read_paddr8(paddr.value());
             cpu.gpr.write(inst.i_type.rt, (int64_t)value);
         } else {
-            cpu.handle_exception(get_tlb_exception_code(BusAccess::LOAD), 0,
+            cpu.handle_exception(g_tlb().get_tlb_exception_code(Mmu::BusAccess::LOAD), 0,
                                  true);
         }
     }
@@ -651,7 +651,7 @@ class Cpu::CpuImpl {
             uint8_t value = Memory::read_paddr8(paddr.value());
             cpu.gpr.write(inst.i_type.rt, value);
         } else {
-            cpu.handle_exception(get_tlb_exception_code(BusAccess::LOAD), 0,
+            cpu.handle_exception(g_tlb().get_tlb_exception_code(Mmu::BusAccess::LOAD), 0,
                                  true);
         }
     }
@@ -669,7 +669,7 @@ class Cpu::CpuImpl {
             int16_t value = Memory::read_paddr16(paddr.value());
             cpu.gpr.write(inst.i_type.rt, (int64_t)value);
         } else {
-            cpu.handle_exception(get_tlb_exception_code(BusAccess::LOAD), 0,
+            cpu.handle_exception(g_tlb().get_tlb_exception_code(Mmu::BusAccess::LOAD), 0,
                                  true);
         }
     }
@@ -687,7 +687,7 @@ class Cpu::CpuImpl {
             uint16_t value = Memory::read_paddr16(paddr.value());
             cpu.gpr.write(inst.i_type.rt, static_cast<uint64_t>(value)); // zext
         } else {
-            cpu.handle_exception(get_tlb_exception_code(BusAccess::LOAD), 0,
+            cpu.handle_exception(g_tlb().get_tlb_exception_code(Mmu::BusAccess::LOAD), 0,
                                  true);
         }
     }
@@ -704,7 +704,7 @@ class Cpu::CpuImpl {
             int32_t word = Memory::read_paddr32(paddr.value());
             cpu.gpr.write(inst.i_type.rt, (int64_t)word); // sext
         } else {
-            cpu.handle_exception(get_tlb_exception_code(BusAccess::LOAD), 0,
+            cpu.handle_exception(g_tlb().get_tlb_exception_code(Mmu::BusAccess::LOAD), 0,
                                  true);
         }
     }
@@ -721,7 +721,7 @@ class Cpu::CpuImpl {
             uint32_t word = Memory::read_paddr32(paddr.value());
             cpu.gpr.write(inst.i_type.rt, (uint64_t)word); // zext
         } else {
-            cpu.handle_exception(get_tlb_exception_code(BusAccess::LOAD), 0,
+            cpu.handle_exception(g_tlb().get_tlb_exception_code(Mmu::BusAccess::LOAD), 0,
                                  true);
         }
     }
@@ -749,7 +749,7 @@ class Cpu::CpuImpl {
             uint64_t value = Memory::read_paddr64(paddr.value());
             cpu.gpr.write(inst.i_type.rt, value);
         } else {
-            cpu.handle_exception(get_tlb_exception_code(BusAccess::LOAD), 0,
+            cpu.handle_exception(g_tlb().get_tlb_exception_code(Mmu::BusAccess::LOAD), 0,
                                  true);
         }
     }
@@ -767,7 +767,7 @@ class Cpu::CpuImpl {
             uint64_t old = cpu.gpr.read(inst.i_type.rt);
             cpu.gpr.write(inst.i_type.rt, (old & ~mask) | (data << shift));
         } else {
-            cpu.handle_exception(get_tlb_exception_code(BusAccess::LOAD), 0,
+            cpu.handle_exception(g_tlb().get_tlb_exception_code(Mmu::BusAccess::LOAD), 0,
                                  true);
         }
     }
@@ -785,7 +785,7 @@ class Cpu::CpuImpl {
             uint64_t old = cpu.gpr.read(inst.i_type.rt);
             cpu.gpr.write(inst.i_type.rt, (old & ~mask) | (data >> shift));
         } else {
-            cpu.handle_exception(get_tlb_exception_code(BusAccess::LOAD), 0,
+            cpu.handle_exception(g_tlb().get_tlb_exception_code(Mmu::BusAccess::LOAD), 0,
                                  true);
         }
     }
@@ -805,7 +805,7 @@ class Cpu::CpuImpl {
             cpu.cop0.reg.lladdr = paddr.value() >> 4;
             cpu.cop0.llbit = 1;
         } else {
-            cpu.handle_exception(get_tlb_exception_code(BusAccess::LOAD), 0,
+            cpu.handle_exception(g_tlb().get_tlb_exception_code(Mmu::BusAccess::LOAD), 0,
                                  true);
         }
     }
@@ -826,7 +826,7 @@ class Cpu::CpuImpl {
             cpu.cop0.reg.lladdr = paddr.value() >> 4;
             cpu.cop0.llbit = 1;
         } else {
-            cpu.handle_exception(get_tlb_exception_code(BusAccess::LOAD), 0,
+            cpu.handle_exception(g_tlb().get_tlb_exception_code(Mmu::BusAccess::LOAD), 0,
                                  true);
         }
     }
@@ -843,7 +843,7 @@ class Cpu::CpuImpl {
             uint8_t value = cpu.gpr.read(inst.r_type.rt);
             Memory::write_paddr8(paddr.value(), value);
         } else {
-            cpu.handle_exception(get_tlb_exception_code(BusAccess::STORE), 0,
+            cpu.handle_exception(g_tlb().get_tlb_exception_code(Mmu::BusAccess::STORE), 0,
                                  true);
         }
     }
@@ -860,7 +860,7 @@ class Cpu::CpuImpl {
             uint16_t value = cpu.gpr.read(inst.r_type.rt);
             Memory::write_paddr8(paddr.value(), value);
         } else {
-            cpu.handle_exception(get_tlb_exception_code(BusAccess::STORE), 0,
+            cpu.handle_exception(g_tlb().get_tlb_exception_code(Mmu::BusAccess::STORE), 0,
                                  true);
         }
     }
@@ -877,7 +877,7 @@ class Cpu::CpuImpl {
             uint32_t word = cpu.gpr.read(inst.r_type.rt);
             Memory::write_paddr32(paddr.value(), word);
         } else {
-            cpu.handle_exception(get_tlb_exception_code(BusAccess::STORE), 0,
+            cpu.handle_exception(g_tlb().get_tlb_exception_code(Mmu::BusAccess::STORE), 0,
                                  true);
         }
     }
@@ -894,7 +894,7 @@ class Cpu::CpuImpl {
             uint64_t dword = cpu.gpr.read(inst.r_type.rt);
             Memory::write_paddr64(paddr.value(), dword);
         } else {
-            cpu.handle_exception(get_tlb_exception_code(BusAccess::STORE), 0,
+            cpu.handle_exception(g_tlb().get_tlb_exception_code(Mmu::BusAccess::STORE), 0,
                                  true);
         }
     }
@@ -913,7 +913,7 @@ class Cpu::CpuImpl {
             Memory::write_paddr64(paddr.value() & ~7,
                                   (data & ~mask) | (old >> shift));
         } else {
-            cpu.handle_exception(get_tlb_exception_code(BusAccess::STORE), 0,
+            cpu.handle_exception(g_tlb().get_tlb_exception_code(Mmu::BusAccess::STORE), 0,
                                  true);
         }
     }
@@ -932,7 +932,7 @@ class Cpu::CpuImpl {
             Memory::write_paddr64(paddr.value() & ~7,
                                   (data & ~mask) | (old << shift));
         } else {
-            cpu.handle_exception(get_tlb_exception_code(BusAccess::STORE), 0,
+            cpu.handle_exception(g_tlb().get_tlb_exception_code(Mmu::BusAccess::STORE), 0,
                                  true);
         }
     }

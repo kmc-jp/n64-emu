@@ -1,4 +1,5 @@
 ﻿#include "mmu.h"
+#include "tlb.h"
 #include "utils/utils.h"
 #include <cstdint>
 #include <optional>
@@ -19,8 +20,10 @@ std::optional<uint32_t> resolve_vaddr(uint32_t vaddr) {
     } else if (KSEG1_BASE <= vaddr && vaddr <= KSEG1_END) {
         // KSEG1 is direct mapped. subtract vaddr with base
         paddr = vaddr - KSEG1_BASE;
+    } else if (KUSEG_BASE <= vaddr && vaddr <= KUSEG_END) {
+        return g_tlb().probe(vaddr);
     } else {
-        Utils::debug("Unimplemented: address translation {:#010x}", vaddr);
+        Utils::critical("address translation {:#010x}", vaddr);
         Utils::abort("Aborted");
     }
     Utils::trace("address translation vaddr {:#010x} => paddr {:#010x}", vaddr,

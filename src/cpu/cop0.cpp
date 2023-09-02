@@ -25,7 +25,7 @@ uint64_t Cpu::Cop0::Reg::read(uint8_t reg_num) const {
     case Cop0Reg::COUNT:
         return count;
     case Cop0Reg::ENTRY_HI:
-        return entry_hi;
+        return entry_hi.raw;
     case Cop0Reg::COMPARE:
         return compare;
     case Cop0Reg::STATUS:
@@ -99,7 +99,7 @@ void Cpu::Cop0::Reg::write(uint8_t reg_num, uint64_t value) {
     } break;
     case Cop0Reg::ENTRY_HI: {
         // FIXME: should be masked with 0xC00000FFFFFFE0FF?
-        entry_hi = value;
+        entry_hi.raw = value;
     } break;
     case Cop0Reg::COMPARE: {
         compare = value;
