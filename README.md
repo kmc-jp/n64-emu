@@ -65,6 +65,20 @@ Only the z64 format (big enddian) is supported.
 ./n64[.exe] <rom_file.z64>
 ```
 
+### Key mappings
+
+- \+ Control Pad : W/A/S/D
+- C Buttons (Directional Pad) : ↑/←/↓/→
+- A Button : Space
+- B Button : Right Shift
+- Control Stick : I/J/K/L
+
+See https://en-americas-support.nintendo.com/app/answers/detail/a_id/56673/~/nintendo-64-controller-diagram
+
+We plan to make N64 controllers available on this emulator.
+
+TODO: Other buttons
+
 ## Test
 
 ```bash

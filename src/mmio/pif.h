@@ -28,29 +28,33 @@ enum class JoyBusControllerPlugin {
 const JoyBusControllerType joycon_type = JoyBusControllerType::N64_CONTROLLER;
 const JoyBusControllerPlugin joycon_plugin = JoyBusControllerPlugin::RUMBLE_PAK;
 
+// State of Nintendo64 Standard Controller
+// https://n64brew.dev/wiki/Joybus_Protocol#0x01_-_Controller_State
 namespace N64ControllerByte1 {
 enum N64ControllerByte1 : uint8_t {
-    A = 1,
-    B = 2,
-    Z = 4,
-    START = 8,
-    DP_UP = 16,
-    DP_DOWN = 32,
-    DP_LEFT = 64,
-    DP_RIGHT = 128,
+    A = 128,
+    B = 64,
+    Z = 32,
+    START = 16,
+    DP_UP = 8,
+    DP_DOWN = 4,
+    DP_LEFT = 2,
+    DP_RIGHT = 1,
 };
 }
 
+// State of Nintendo64 Standard Controller
+// https://n64brew.dev/wiki/Joybus_Protocol#0x01_-_Controller_State
 namespace N64ControllerByte2 {
 enum N64ControllerByte1 : uint8_t {
-    RESET = 1,
-    ZERO = 2,
-    L = 4,
-    R = 8,
-    C_UP = 16,
-    C_DOWN = 32,
-    C_LEFT = 64,
-    C_RIGHT = 128,
+    RESET = 128,
+    ZERO = 64,
+    L = 32,
+    R = 16,
+    C_UP = 8,
+    C_DOWN = 4,
+    C_LEFT = 2,
+    C_RIGHT = 1,
 };
 }
 
