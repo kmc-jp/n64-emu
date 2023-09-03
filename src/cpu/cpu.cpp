@@ -91,6 +91,7 @@ void Cpu::step() {
     if (!paddr_of_pc.has_value()) {
         handle_exception(g_tlb().get_tlb_exception_code(Mmu::BusAccess::LOAD),
                          0, true);
+        return;
     }
 
     instruction_t inst;
