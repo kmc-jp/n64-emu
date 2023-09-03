@@ -24,6 +24,31 @@ clang-formatを使用してください
 
 CPUの命令ログを有効化するには定数`LOG_INSTRUCTION`にtrueをセットしてください。
 
+WindowsでVSCodeを利用している場合は、`.vscode/launch.json`を作成し、以下を書き込むことでGUIとしてデバッガを利用できます。
+
+```json
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "C++ Launch (Windows)",
+      "type": "cppvsdbg",
+      "request": "launch",
+      "program": "${workspaceFolder}\\build\\src\\Debug\\n64.exe",
+      "args": ["${workspaceFolder}\\<your-rom.z64>"],
+      "externalConsole": true,
+      "logging": {
+        "moduleLoad": false,
+        "trace": true
+      },
+      "cwd": "${fileDirname}"
+    }
+  ]
+}
+```
+
+https://code.visualstudio.com/docs/editor/debugging
+
 ## コーディング規約
 
 命名規則
