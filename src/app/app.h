@@ -135,6 +135,12 @@ class App {
 
         while (platform.is_alive) {
             N64System::step(config, wsi);
+
+            // Abort when Tab is pressed
+            SDL_PumpEvents();
+            const uint8_t *state = SDL_GetKeyboardState(NULL);
+            if (state[SDL_SCANCODE_TAB])
+                Utils::abort("Tab pressed. Aborted");
         }
 
         PRDPWrapper::fini_prdp();

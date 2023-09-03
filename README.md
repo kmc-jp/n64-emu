@@ -76,6 +76,8 @@ Only the z64 format (big enddian) is supported.
 - L/R Button : Q/P
 - Z Button : Z
 - Start : X
+- Abort emulator : Tab (Only for debugging)
+
 
 See https://en-americas-support.nintendo.com/app/answers/detail/a_id/56673/~/nintendo-64-controller-diagram
 
