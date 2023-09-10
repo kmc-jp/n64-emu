@@ -147,8 +147,12 @@ class Rsp {
         // https://github.com/Dillonb/n64/blob/6502f7d2f163c3f14da5bff8cd6d5ccc47143156/src/cpu/rsp_interface.c#L46
         sp_status_write_t write;
         write.raw = value;
-        status_reg.halt =
-            write.clear_halt ? 0 : (write.set_halt ? 1 : status_reg.halt);
+
+        if (write.clear_halt && !write.set_halt)
+            status_reg.halt = 0;
+        if (!write.clear_halt && write.set_halt)
+            status_reg.halt = 1;
+
         if (write.clear_broke)
             status_reg.broke = false;
 
