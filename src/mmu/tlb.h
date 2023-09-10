@@ -20,6 +20,19 @@ enum class BusAccess {
     STORE,
 };
 
+// https://github.com/project64/project64/blob/353ef5ed897cb72a8904603feddbdc649dff9eca/Source/Project64-core/N64System/Mips/TLB.h#L25
+// {
+typedef union {
+    uint32_t raw;
+    struct {
+        unsigned zero : 13;
+        unsigned mask : 12;
+        unsigned zero2 : 7;
+    };
+} page_mask_t;
+
+static_assert(sizeof(page_mask_t) == 4);
+
 // TLB entry. Only 32bit mode is supported.
 // See p.143
 // http://datasheets.chipdb.org/NEC/Vr-Series/Vr43xx/U10504EJ7V0UMJ1.pdf
@@ -40,7 +53,7 @@ class TLBEntry {
         entry_lo0 = lo0;
         entry_lo1 = lo1;
         entry_hi = hi;
-        page_mask = page_mask_;
+        page_mask.raw = page_mask_;
     }
 
   private:
@@ -49,7 +62,7 @@ class TLBEntry {
     entry_lo0_t entry_lo0;
     entry_lo1_t entry_lo1;
     entry_hi_t entry_hi;
-    uint32_t page_mask;
+    page_mask_t page_mask;
 };
 
 class TLB {
@@ -86,36 +99,49 @@ class TLB {
 
     void write_entry(bool random) {
         // https://github.com/project64/project64/blob/353ef5ed897cb72a8904603feddbdc649dff9eca/Source/Project64-core/N64System/Mips/TLB.cpp#L113
-        int32_t index = g_cpu().cop0.reg.index & 0x1f;
+        int32_t index = g_cpu().cop0.reg.index & 0x3f;
 
         Utils::debug("Write to TLB entry[{}]", index);
+        if (index > 31) {
+            Utils::abort("write to TLB entry[{}]", index);
+        }
 
         entries[index].validate(
             g_cpu().cop0.reg.entry_lo0, g_cpu().cop0.reg.entry_lo1,
             g_cpu().cop0.reg.entry_hi, g_cpu().cop0.reg.page_mask);
     }
 
+    // Returns index of the TLB entry which hits with the given virtual address
     std::optional<int> lookup_tlb_entry_index(uint32_t vaddr) {
         // R4300's TLB is full-assosiative.
+        // https://github.com/project64/project64/blob/353ef5ed897cb72a8904603feddbdc649dff9eca/Source/Project64-core/N64System/Mips/TLB.cpp#L75
         for (int i = 0; i < 32; i++) {
             const TLBEntry &entry = entries[i];
             if (!entry.valid())
                 continue;
 
-            uint64_t vaddr_vpn = calculate_vpn(vaddr, entry.page_mask);
-            uint64_t entry_vpn =
-                calculate_vpn(entry.entry_hi.raw, entry.page_mask);
+            uint32_t tlb_entry_hi_raw = entries[i].entry_hi.raw;
+            uint32_t mask = entries[i].page_mask.mask << 13;
+            uint32_t tlb_entry_hi_raw_masked = tlb_entry_hi_raw & mask;
+            uint32_t current_entry_hi_masked =
+                g_cpu().cop0.reg.entry_hi.raw & mask;
 
-            // Compare VPN and ASID
-            if (vaddr_vpn == entry_vpn &&
-                g_cpu().cop0.reg.entry_hi.asid == entry.entry_hi.asid) {
-                return {i};
+            if (tlb_entry_hi_raw_masked == current_entry_hi_masked) {
+                if ((tlb_entry_hi_raw & 0x100) != 0 || // Global
+                    ((tlb_entry_hi_raw & 0xFF) ==
+                     (g_cpu().cop0.reg.entry_hi.raw & 0xFF))) {
+                    return {i};
+                }
             }
         }
         return std::nullopt;
     }
 
+    // Probe the TLB entry which hits the given address.
+    // Returns the resolved address when TLB hits.
+    // Otherwise, returns nullopt and set `g_tlb().error`
     std::optional<uint32_t> probe(uint32_t vaddr) {
+        //g_cpu().cop0.reg.index |= 0x80000000;
         std::optional<int> tlb_entry_index = lookup_tlb_entry_index(vaddr);
 
         if (!tlb_entry_index.has_value()) {

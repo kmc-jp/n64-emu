@@ -256,6 +256,24 @@ class Cop0 {
 
     void dump();
 
+    // FIXME: should be 32bit address?
+    // https://github.com/project64/project64/blob/353ef5ed897cb72a8904603feddbdc649dff9eca/Source/Project64-core/N64System/Mips/Register.cpp#L615
+    void handle_tlb_miss(uint64_t vaddr) {
+
+        uint64_t vpn2 = vaddr >> 13;
+        // Set the following registers
+        // - BadVaddr
+        // - Context.BadVPN2
+        // - EntryHi
+        reg.bad_vaddr = vaddr;
+        reg.context = vpn2 << 4;
+        
+        reg.context = vpn2;
+        reg.xcontext.r = (vaddr >> 62) & 3;
+        reg.entry_hi.vpn2 = xvpn2;
+        reg.entry_hi.r = (vaddr >> 62) & 3;
+    }
+
     // void on_status_updated();
 };
 
