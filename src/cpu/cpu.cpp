@@ -127,7 +127,6 @@ static bool is_xtlb_miss(uint64_t bad_vaddr, cop0_status_t status) {
 void Cpu::handle_exception(ExceptionCode exception_code,
                            uint8_t coprocessor_error, bool use_prev_pc) {
     bool old_exl = cop0.reg.status.exl;
-    // FIXME: is this identical to pc??
     int64_t epc = use_prev_pc ? prev_pc : pc;
 
     if (cop0.reg.status.exl == 0) {
