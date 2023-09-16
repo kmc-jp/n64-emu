@@ -1,7 +1,6 @@
 ﻿#ifndef ROM_H
 #define ROM_H
 
-#include "utils/utils.h"
 #include <cstdint>
 #include <vector>
 
@@ -63,54 +62,23 @@ class Rom {
     CicType cic{};
 
   public:
-    Rom() : rom({}) { rom.assign(ROM_SIZE, 0); }
+    Rom();
 
     void load_file(const std::string &filepath);
 
-    RomType rom_type() {
-        // initial value as big endian
-        uint32_t initial_value_be =
-            Utils::read_from_byte_array32(header.initial_values, 0);
-        switch (initial_value_be) {
-        case 0x80371240:
-            return RomType::Z64;
-        case 0x40123780:
-            return RomType::N64;
-        case 0x37804012:
-            return RomType::V64;
-        default:
-            return RomType::UNKNOWN;
-        }
-    }
+    RomType rom_type();
 
-    CicType get_cic() const { return cic; }
+    CicType get_cic() const;
 
-    uint32_t get_cic_seed() const {
-        // TODO: switch文にする
-        // https://github.com/SimoneN64/Kaizen/blob/dffd36fc31731a0391a9b90f88ac2e5ed5d3f9ec/src/backend/core/mmio/PIF.hpp#L84
-        uint32_t CIC_SEEDS[] = {
-            0x0,
-            0x00043F3F, // CIC_NUS_6101
-            0x00043F3F, // CIC_NUS_7102
-            0x00043F3F, // CIC_NUS_6102_7101
-            0x00047878, // CIC_NUS_6103_7103
-            0x00049191, // CIC_NUS_6105_7105
-            0x00048585, // CIC_NUS_6106_7106
-        };
-        return CIC_SEEDS[static_cast<uint32_t>(cic)];
-    }
+    uint32_t get_cic_seed() const;
 
-    std::vector<uint8_t> &get_raw_data() { return rom; }
+    std::vector<uint8_t> &get_raw_data();
 
-    uint8_t read_offset8(uint32_t offset) const { return rom.at(offset); }
+    uint8_t read_offset8(uint32_t offset) const;
 
-    uint16_t read_offset16(uint32_t offset) const {
-        return Utils::read_from_byte_array16(rom, offset);
-    }
+    uint16_t read_offset16(uint32_t offset) const;
 
-    uint32_t read_offset32(uint32_t offset) const {
-        return Utils::read_from_byte_array32(rom, offset);
-    }
+    uint32_t read_offset32(uint32_t offset) const;
 };
 
 } // namespace Memory

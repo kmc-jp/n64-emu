@@ -1,7 +1,5 @@
 ﻿#include "rom.h"
 #include "utils/utils.h"
-
-#include <cstdint>
 #include <fstream>
 
 namespace N64 {
@@ -55,6 +53,8 @@ CicType checksum_to_cic(uint32_t checksum) {
 
     return result;
 }
+
+Rom::Rom() : rom({}) { rom.assign(ROM_SIZE, 0); }
 
 void Rom::load_file(const std::string &filepath) {
     Utils::debug("Loading ROM: {}", filepath);
@@ -114,6 +114,51 @@ void Rom::load_file(const std::string &filepath) {
 
     Utils::debug("imageName\t= \"{}\"", std::string(header.image_name));
     Utils::debug("CIC\t= {}", static_cast<int>(cic));
+}
+
+RomType Rom::rom_type() {
+    // initial value as big endian
+    uint32_t initial_value_be =
+        Utils::read_from_byte_array32(header.initial_values, 0);
+    switch (initial_value_be) {
+    case 0x80371240:
+        return RomType::Z64;
+    case 0x40123780:
+        return RomType::N64;
+    case 0x37804012:
+        return RomType::V64;
+    default:
+        return RomType::UNKNOWN;
+    }
+}
+
+CicType Rom::get_cic() const { return cic; }
+
+uint32_t Rom::get_cic_seed() const {
+    // TODO: switch文にする
+    // https://github.com/SimoneN64/Kaizen/blob/dffd36fc31731a0391a9b90f88ac2e5ed5d3f9ec/src/backend/core/mmio/PIF.hpp#L84
+    uint32_t CIC_SEEDS[] = {
+        0x0,
+        0x00043F3F, // CIC_NUS_6101
+        0x00043F3F, // CIC_NUS_7102
+        0x00043F3F, // CIC_NUS_6102_7101
+        0x00047878, // CIC_NUS_6103_7103
+        0x00049191, // CIC_NUS_6105_7105
+        0x00048585, // CIC_NUS_6106_7106
+    };
+    return CIC_SEEDS[static_cast<uint32_t>(cic)];
+}
+
+std::vector<uint8_t> &Rom::get_raw_data() { return rom; }
+
+uint8_t Rom::read_offset8(uint32_t offset) const { return rom.at(offset); }
+
+uint16_t Rom::read_offset16(uint32_t offset) const {
+    return Utils::read_from_byte_array16(rom, offset);
+}
+
+uint32_t Rom::read_offset32(uint32_t offset) const {
+    return Utils::read_from_byte_array32(rom, offset);
 }
 
 } // namespace Memory
