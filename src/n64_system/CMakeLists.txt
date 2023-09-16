@@ -5,3 +5,9 @@ add_library(n64_system
     interrupt.cpp interrupt.h
 )
 target_precompile_headers(n64_system PRIVATE ${PCH_FILES})
+target_link_libraries(n64_system PRIVATE
+    memory
+    mmio
+    mmu
+    rcp
+)
