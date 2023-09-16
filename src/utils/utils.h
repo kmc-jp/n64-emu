@@ -169,8 +169,9 @@ void write_to_byte_array8(std::span<uint8_t> span, uint64_t offset,
 
 void core_dump();
 
-void unimplemented(const std::string what, const std::source_location loc =
-                                               std::source_location::current());
+[[noreturn]] void
+unimplemented(const std::string what,
+              const std::source_location loc = std::source_location::current());
 
 enum class LogLevel {
     TRACE,
