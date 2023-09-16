@@ -1,17 +1,31 @@
 ﻿#include "cpu.h"
-#include "cop0.h"
 #include "cpu_instruction_impl.h"
 #include "fpu_instruction_impl.h"
-#include "instruction.h"
 #include "memory/bus.h"
 #include "mmu/mmu.h"
 #include "mmu/tlb.h"
 #include "n64_system/interrupt.h"
 #include "utils/utils.h"
-#include <cstdint>
+#include <optional>
 
 namespace N64 {
 namespace Cpu {
+
+uint64_t Gpr::read(uint32_t reg_num) const {
+    assert(reg_num < 32);
+    if (reg_num == 0) {
+        return 0;
+    } else {
+        return reg[reg_num];
+    }
+}
+
+void Gpr::write(uint32_t reg_num, uint64_t value) {
+    assert(reg_num < 32);
+    if (reg_num != 0) {
+        reg[reg_num] = value;
+    }
+}
 
 Cpu Cpu::instance{};
 
@@ -120,56 +134,6 @@ static bool is_xtlb_miss(uint64_t bad_vaddr, cop0_status_t status) {
     default:
         Utils::critical("BadVaddr >> 62 == 0b10");
         Utils::abort("Aborted");
-    }
-}
-
-// https://github.com/SimoneN64/Kaizen/blob/74dccb6ac6a679acbf41b497151e08af6302b0e9/src/backend/core/registers/Cop0.cpp#L253
-void Cpu::handle_exception(ExceptionCode exception_code,
-                           uint8_t coprocessor_error, bool use_prev_pc) {
-    bool old_exl = cop0.reg.status.exl;
-    int64_t epc = use_prev_pc ? prev_pc : pc;
-
-    if (cop0.reg.status.exl == 0) {
-        if (prev_delay_slot) {
-            cop0.reg.cause.branch_delay = 1;
-            // FIXME: Is just minus 4 fine?
-            epc -= 4;
-        } else {
-            cop0.reg.cause.branch_delay = 0;
-        }
-        cop0.reg.status.exl = 1;
-        cop0.reg.epc = epc;
-    }
-
-    cop0.reg.cause.coprocessor_error = coprocessor_error;
-    cop0.reg.cause.exception_code = static_cast<uint8_t>(exception_code);
-
-    if (cop0.reg.status.bev == 1) {
-        Utils::unimplemented("BEV is set");
-    }
-
-    switch (exception_code) {
-    case ExceptionCode::INTERRUPT:          // fallthrough
-    case ExceptionCode::TLB_MODIFICATION:   // fallthrough
-    case ExceptionCode::ADDRESS_ERROR_LOAD: // fallthrough
-    case ExceptionCode::ADDRESS_ERROR_STORE: {
-        set_pc32(0x80000180);
-    } break;
-    case ExceptionCode::TLB_MISS_LOAD: // fallthrough
-    case ExceptionCode::TLB_MISS_STORE: {
-        if (old_exl || g_tlb().get_last_error() == Mmu::TLBError::INVALID) {
-            set_pc32(0x80000180);
-        } else if (is_xtlb_miss(cop0.reg.bad_vaddr, cop0.reg.status)) {
-            set_pc32(0x80000080);
-        } else {
-            set_pc32(0x80000000);
-        }
-    } break;
-    default: {
-        Utils::critical("Unimplemented. exception code = {}",
-                        static_cast<uint8_t>(exception_code));
-        Utils::abort("Aborted");
-    } break;
     }
 }
 
@@ -432,6 +396,98 @@ void Cpu::execute_instruction(instruction_t inst) {
     }
 }
 
+void Cpu::branch_likely_addr64(Cpu &cpu, bool cond, uint64_t vaddr) {
+    // 分岐成立時のみ遅延スロットを実行する
+    cpu.delay_slot = true; // FIXME: correct?
+    if (cond) {
+        // Utils::trace("branch likely taken");
+        cpu.next_pc = vaddr;
+    } else {
+        // Utils::trace("branch likely not taken");
+        cpu.set_pc64(cpu.pc + 4);
+    }
+}
+
+void Cpu::branch_addr64(Cpu &cpu, bool cond, uint64_t vaddr) {
+    cpu.delay_slot = true;
+    if (cond) {
+        // Utils::trace("branch taken");
+        cpu.next_pc = vaddr;
+    } else {
+        // Utils::trace("branch not taken");
+    }
+}
+
+void Cpu::branch_likely_offset16(Cpu &cpu, bool cond, instruction_t inst) {
+    int64_t offset = (int16_t)inst.i_type.imm; // sext
+    // 負数の左シフトはUBなので乗算で実装
+    offset *= 4;
+    // Utils::trace("pc <= pc {:+#x}?", (int64_t)offset);
+    branch_likely_addr64(cpu, cond, cpu.pc + offset);
+}
+
+void Cpu::branch_offset16(Cpu &cpu, bool cond, instruction_t inst) {
+    int64_t offset = (int16_t)inst.i_type.imm; // sext
+    // 負数の左シフトはUBなので乗算で実装
+    offset *= 4;
+    // Utils::trace("pc <= pc {:+#x}?", (int64_t)offset);
+    branch_addr64(cpu, cond, cpu.pc + offset);
+}
+
+void Cpu::link(Cpu &cpu, uint8_t reg) { cpu.gpr.write(reg, cpu.pc + 4); }
+
+// https://github.com/SimoneN64/Kaizen/blob/74dccb6ac6a679acbf41b497151e08af6302b0e9/src/backend/core/registers/Cop0.cpp#L253
+void Cpu::handle_exception(ExceptionCode exception_code,
+                           uint8_t coprocessor_error, bool use_prev_pc) {
+    bool old_exl = cop0.reg.status.exl;
+    int64_t epc = use_prev_pc ? prev_pc : pc;
+
+    if (cop0.reg.status.exl == 0) {
+        if (prev_delay_slot) {
+            cop0.reg.cause.branch_delay = 1;
+            // FIXME: Is just minus 4 fine?
+            epc -= 4;
+        } else {
+            cop0.reg.cause.branch_delay = 0;
+        }
+        cop0.reg.status.exl = 1;
+        cop0.reg.epc = epc;
+    }
+
+    cop0.reg.cause.coprocessor_error = coprocessor_error;
+    cop0.reg.cause.exception_code = static_cast<uint8_t>(exception_code);
+
+    if (cop0.reg.status.bev == 1) {
+        Utils::unimplemented("BEV is set");
+    }
+
+    switch (exception_code) {
+    case ExceptionCode::INTERRUPT:          // fallthrough
+    case ExceptionCode::TLB_MODIFICATION:   // fallthrough
+    case ExceptionCode::ADDRESS_ERROR_LOAD: // fallthrough
+    case ExceptionCode::ADDRESS_ERROR_STORE: {
+        set_pc32(0x80000180);
+    } break;
+    case ExceptionCode::TLB_MISS_LOAD: // fallthrough
+    case ExceptionCode::TLB_MISS_STORE: {
+        if (old_exl || g_tlb().get_last_error() == Mmu::TLBError::INVALID) {
+            set_pc32(0x80000180);
+        } else if (is_xtlb_miss(cop0.reg.bad_vaddr, cop0.reg.status)) {
+            set_pc32(0x80000080);
+        } else {
+            set_pc32(0x80000000);
+        }
+    } break;
+    default: {
+        Utils::critical("Unimplemented. exception code = {}",
+                        static_cast<uint8_t>(exception_code));
+        Utils::abort("Aborted");
+    } break;
+    }
+}
+
 } // namespace Cpu
+
+Cpu::Cpu &g_cpu() { return Cpu::Cpu::get_instance(); }
 
 } // namespace N64

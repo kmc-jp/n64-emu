@@ -3,6 +3,7 @@
 
 #include "utils/utils.h"
 #include <cstdint>
+#include <source_location>
 
 namespace N64 {
 namespace Cpu {
@@ -208,16 +209,9 @@ inline void instruction_trace(fmt::format_string<Args...> fmt, Args &&...args) {
         Utils::trace(fmt, std::forward<Args>(args)...);
 }
 
-inline void assert_encoding_is_valid(
+void assert_encoding_is_valid(
     bool validity,
-    const std::source_location loc = std::source_location::current()) {
-    // should be able to ignore?
-    if (!validity) {
-        Utils::critical("Assertion failed at {}, line {}", loc.file_name(),
-                        loc.line());
-        exit(-1);
-    }
-}
+    const std::source_location loc = std::source_location::current());
 
 } // namespace Cpu
 } // namespace N64
