@@ -1,9 +1,13 @@
 #pragma once
 
-#include <mmio/vi.h>
-#include <rdp_device.hpp>
-#include <utils/utils.h>
-#include <wsi.hpp>
+#include <cstdint>
+
+namespace Vulkan {
+class WSI;
+}
+namespace N64::Mmio::VI {
+class VI;
+}
 
 namespace N64 {
 namespace PRDPWrapper {

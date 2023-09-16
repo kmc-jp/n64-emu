@@ -4,3 +4,6 @@ add_library(app
     parallel_rdp_wrapper.h parallel_rdp_wrapper.cpp
 )
 target_precompile_headers(app PRIVATE ${PCH_FILES})
+target_link_libraries(app PRIVATE
+    n64_system
+)
