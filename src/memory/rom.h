@@ -13,7 +13,7 @@ constexpr uint32_t ROM_SIZE = 0xF000'0000;
 
 // https://www.romhacking.net/forum/index.php?topic=19524.0
 // https://github.com/saneki/n64rom-rs/blob/757e34e039acd96a630348801a7435b16be59df0/src/header.rs#L143
-typedef struct rom_header {
+struct rom_header_t {
     uint8_t initial_values[4];
     uint32_t clock_rate;
     uint32_t program_counter;
@@ -32,7 +32,7 @@ typedef struct rom_header {
         char country_code[2];
         uint16_t country_code_int;
     };
-} rom_header_t;
+};
 
 static_assert(sizeof(rom_header_t) == 0x40,
               "rom_header_t size must be 0x40 bytes");

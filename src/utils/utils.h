@@ -9,8 +9,8 @@
 #include <string>
 
 #ifdef __SIZEOF_INT128__ // GNU C
-typedef __int128 int128_t;
-typedef unsigned __int128 uint128_t;
+using int128_t = __int128;
+using uint128_t = unsigned __int128;
 #endif
 
 // PACK

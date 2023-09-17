@@ -7,7 +7,7 @@
 namespace N64 {
 namespace Cpu {
 
-typedef union Fcr31 {
+union fcr31_t {
     PACK(struct {
         unsigned rounding_mode : 2;
         unsigned flag_inexact_operation : 1;
@@ -41,17 +41,17 @@ typedef union Fcr31 {
     });
 
     uint32_t raw;
-} fcr31_t;
+};
 
 static_assert(sizeof(fcr31_t) == 4);
 
-typedef union Fgr {
+union fgr_t {
     PACK(struct {
         uint32_t lo;
         uint32_t hi;
     });
     uint64_t raw;
-} fgr_t;
+};
 
 static_assert(sizeof(fgr_t) == 8);
 

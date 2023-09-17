@@ -20,7 +20,7 @@ class Event {
     void perform() { f(); }
 };
 
-typedef std::pair<uint64_t, Event> scheduled_event_t;
+using scheduled_event_t = std::pair<uint64_t, Event>;
 
 bool scheduled_event_compare(scheduled_event_t, scheduled_event_t);
 

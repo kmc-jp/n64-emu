@@ -14,7 +14,7 @@ constexpr uint32_t SP_IMEM_SIZE = 0x1000;
 constexpr uint32_t PADDR_SP_STATUS = 0x04040010;
 constexpr uint32_t PADDR_SP_PC = 0x04080000;
 
-typedef union sp_status_write {
+union sp_status_write_t {
     uint32_t raw;
     PACK(struct {
         unsigned clear_halt : 1;
@@ -44,12 +44,12 @@ typedef union sp_status_write {
         unsigned set_signal_7 : 1;
         unsigned : 7;
     });
-} sp_status_write_t;
+};
 
 static_assert(sizeof(sp_status_write_t) == 4,
               "sp_status_write_t size is not 4 bytes");
 
-typedef union sp_status {
+union sp_status_t {
     uint32_t raw;
     // NOTE: reverse order when using big endian machine!
     PACK(struct {
@@ -70,7 +70,7 @@ typedef union sp_status {
         unsigned signal_7 : 1;
         unsigned : 17;
     });
-} sp_status_t;
+};
 
 static_assert(sizeof(sp_status_t) == 4, "sp_status_t size is not 4 bytes");
 
