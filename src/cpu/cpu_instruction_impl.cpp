@@ -4,7 +4,7 @@
 #include "mmu/mmu.h"
 #include "mmu/tlb.h"
 #include "utils/log.h"
-#include "utils/utils.h"
+#include "utils/stdint.h"
 #include <optional>
 
 namespace {

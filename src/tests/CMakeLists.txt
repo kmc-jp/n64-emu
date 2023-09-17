@@ -7,7 +7,6 @@ target_link_libraries(n64-test PUBLIC
     common
     cpu
     n64_system
-    utils
 )
 
 add_test(NAME n64-test COMMAND n64-test)

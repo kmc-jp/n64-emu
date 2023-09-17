@@ -1,7 +1,7 @@
 // Unit testing
 #include "cpu/cpu.h"
 #include "n64_system/n64_system.h"
-#include "utils/utils.h"
+#include "utils/stdint.h"
 #include <iostream>
 
 namespace selftest {
