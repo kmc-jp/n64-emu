@@ -11,3 +11,6 @@ target_link_libraries(n64_system PRIVATE
     mmu
     rcp
 )
+target_link_libraries(n64_system PRIVATE
+    common
+)

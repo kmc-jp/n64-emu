@@ -5,3 +5,6 @@ add_library(memory
     ri.cpp
 )
 target_precompile_headers(memory PRIVATE ${PCH_FILES})
+target_link_libraries(memory PRIVATE
+    common
+)

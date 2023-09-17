@@ -7,3 +7,6 @@ add_library(mmio
     vi.cpp
 )
 target_precompile_headers(mmio PRIVATE ${PCH_FILES})
+target_link_libraries(mmio PRIVATE
+    common
+)

@@ -5,5 +5,6 @@ add_library(app
 )
 target_precompile_headers(app PRIVATE ${PCH_FILES})
 target_link_libraries(app PRIVATE
+    common
     n64_system
 )
