@@ -1,7 +1,6 @@
 ﻿#ifndef SCHEDULER_H
 #define SCHEDULER_H
 
-#include "utils/utils.h"
 #include <cstdint>
 #include <functional>
 #include <queue>
@@ -44,31 +43,10 @@ class Scheduler {
     void init() { current_time = 0; }
 
     // 現在からCPU cycles後にイベントを実行する
-    void set_timer(uint64_t cycles, Event event) {
-        event_queue.push({current_time + cycles, event});
-    }
+    void set_timer(uint64_t cycles, Event event);
 
     // TODO: スケジューラ単体をテストしたほうがいい?
-    void tick(uint64_t cycles = 1) {
-        current_time += cycles;
-        // 少し余裕をもたせる
-        if (current_time > 0x0000'FFFF'FFFF'FFFF) {
-            // FIXME: fix this
-            Utils::unimplemented("current_time is reaching max");
-        }
-
-        while (!event_queue.empty()) {
-            // seek top event
-            scheduled_event_t e = event_queue.top();
-            if (e.first > current_time) {
-                return;
-            } else {
-                // pop an event from queue and perform it
-                event_queue.pop();
-                e.second.perform();
-            }
-        }
-    }
+    void tick(uint64_t cycles = 1);
 
     uint64_t get_current_time() const { return current_time; }
 
@@ -77,9 +55,7 @@ class Scheduler {
 
 } // namespace N64System
 
-inline N64System::Scheduler &g_scheduler() {
-    return N64System::Scheduler::get_instance();
-}
+N64System::Scheduler &g_scheduler();
 
 } // namespace N64
 
