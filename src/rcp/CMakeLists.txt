@@ -1,6 +1,8 @@
-add_library(rcp
-    rsp.cpp)
-target_precompile_headers(rcp PRIVATE ${PCH_FILES})
+add_library(rcp STATIC)
+target_sources(rcp PRIVATE
+    rsp.cpp
+)
 target_link_libraries(rcp PRIVATE
     common
+    utils
 )

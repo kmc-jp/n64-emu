@@ -1,12 +1,14 @@
-add_library(mmio
-    pi.cpp
-    si.cpp
-    pif.cpp
-    mi.cpp
+add_library(mmio STATIC)
+target_sources(mmio PRIVATE
     ai.cpp
+    mi.cpp
+    pi.cpp
+    pif.cpp
+    si.cpp
     vi.cpp
 )
-target_precompile_headers(mmio PRIVATE ${PCH_FILES})
 target_link_libraries(mmio PRIVATE
     common
+    SDL2::SDL2
+    utils
 )

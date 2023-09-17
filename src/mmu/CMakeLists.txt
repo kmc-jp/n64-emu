@@ -1,7 +1,9 @@
-add_library(mmu
+add_library(mmu STATIC)
+target_sources(mmu PRIVATE
     mmu.cpp
-    tlb.cpp)
-target_precompile_headers(mmu PRIVATE ${PCH_FILES})
+    tlb.cpp
+)
 target_link_libraries(mmu PRIVATE
     common
+    utils
 )

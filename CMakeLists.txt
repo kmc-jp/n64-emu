@@ -22,8 +22,6 @@ target_precompile_headers(common INTERFACE
     <queue>
     <source_location>
     <span>
-    <spdlog/spdlog.h>
-    <spdlog/sinks/basic_file_sink.h>
     <string>
     <utility>
     <vector>
@@ -31,4 +29,4 @@ target_precompile_headers(common INTERFACE
 
 add_subdirectory(src)
 add_subdirectory(tests)
-add_subdirectory(third_party/parallel-rdp-standalone)
+add_subdirectory(third_party)

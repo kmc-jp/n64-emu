@@ -1,7 +1,10 @@
-add_library(utils
-    utils.cpp)
-target_precompile_headers(utils PRIVATE ${PCH_FILES})
-target_link_libraries(utils PRIVATE
+add_library(utils STATIC)
+target_sources(utils PRIVATE
+    utils.cpp
+)
+target_link_libraries(utils
+    PUBLIC spdlog
+    PRIVATE
     common
     cpu
 )
