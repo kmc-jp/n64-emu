@@ -1,16 +1,15 @@
 add_library(utils STATIC)
 target_sources(utils PRIVATE
-    utils.cpp
     byte_array.cpp
 )
 target_link_libraries(utils PUBLIC
     common
-    log
 )
 
 add_library(log STATIC)
 target_sources(log PRIVATE
     log.cpp
+    utils.cpp
 )
 target_link_libraries(log PUBLIC
     common
