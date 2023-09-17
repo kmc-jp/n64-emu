@@ -1,9 +1,7 @@
 ﻿#ifndef MI_H
 #define MI_H
 
-#include "memory/memory_map.h"
 #include "utils/utils.h"
-#include <array>
 #include <cstdint>
 
 namespace N64 {
@@ -101,7 +99,7 @@ class MI {
 } // namespace MI
 } // namespace Mmio
 
-inline Mmio::MI::MI &g_mi() { return Mmio::MI::MI::get_instance(); }
+Mmio::MI::MI &g_mi();
 
 } // namespace N64
 

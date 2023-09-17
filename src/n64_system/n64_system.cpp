@@ -2,6 +2,7 @@
 #include "app/parallel_rdp_wrapper.h"
 #include "config.h"
 #include "cpu/cpu.h"
+#include "memory/bus.h"
 #include "memory/memory.h"
 #include "mmio/ai.h"
 #include "mmio/mi.h"

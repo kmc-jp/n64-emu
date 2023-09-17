@@ -2,11 +2,8 @@
 #include "cpu/cpu.h"
 #include "memory/bus.h"
 #include "memory/memory.h"
-#include "memory/memory_map.h"
 #include "rcp/rsp.h"
 #include <SDL.h>
-#include <SDL_keyboard.h>
-#include <cstdint>
 
 namespace N64 {
 namespace Mmio {

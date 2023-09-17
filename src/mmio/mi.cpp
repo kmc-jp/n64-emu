@@ -110,4 +110,7 @@ MI MI::instance{};
 
 } // namespace MI
 } // namespace Mmio
+
+Mmio::MI::MI &g_mi() { return Mmio::MI::MI::get_instance(); }
+
 } // namespace N64

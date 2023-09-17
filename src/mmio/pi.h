@@ -74,7 +74,7 @@ class PI {
 } // namespace PI
 } // namespace Mmio
 
-inline Mmio::PI::PI &g_pi() { return Mmio::PI::PI::get_instance(); }
+Mmio::PI::PI &g_pi();
 
 } // namespace N64
 

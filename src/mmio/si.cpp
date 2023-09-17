@@ -1,10 +1,8 @@
 #include "mmio/si.h"
 #include "memory/memory.h"
-#include "memory/memory_map.h"
 #include "mmio/mi.h"
 #include "n64_system/interrupt.h"
 #include "utils/utils.h"
-#include <cstdint>
 
 namespace N64 {
 namespace Mmio {
@@ -115,4 +113,7 @@ SI SI::instance{};
 
 } // namespace SI
 } // namespace Mmio
+
+Mmio::SI::SI &g_si() { return Mmio::SI::SI::get_instance(); }
+
 } // namespace N64

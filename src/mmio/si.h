@@ -1,10 +1,7 @@
 ﻿#ifndef SI_H
 #define SI_H
 
-#include "memory/memory_map.h"
 #include "mmio/pif.h"
-#include "utils/utils.h"
-#include <array>
 #include <cstdint>
 
 namespace N64 {
@@ -57,7 +54,7 @@ class SI {
 } // namespace SI
 } // namespace Mmio
 
-inline Mmio::SI::SI &g_si() { return Mmio::SI::SI::get_instance(); }
+Mmio::SI::SI &g_si();
 
 } // namespace N64
 

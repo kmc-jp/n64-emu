@@ -1,8 +1,6 @@
 ﻿#ifndef VI_H
 #define VI_H
 
-#include "memory/memory_map.h"
-#include <array>
 #include <cstdint>
 
 namespace N64 {
@@ -75,9 +73,7 @@ class VI {
 
     int get_cycles_per_half_line() const { return cycles_per_half_line; }
 
-    int get_num_fields() const {
-        return (reg_status & N64::Mmio::VI::ViStatusFlags::SERRATE) ? 2 : 1;
-    }
+    int get_num_fields() const;
 
     inline static VI &get_instance() { return instance; }
 };
@@ -85,7 +81,7 @@ class VI {
 } // namespace VI
 } // namespace Mmio
 
-inline Mmio::VI::VI &g_vi() { return Mmio::VI::VI::get_instance(); }
+Mmio::VI::VI &g_vi();
 
 } // namespace N64
 
