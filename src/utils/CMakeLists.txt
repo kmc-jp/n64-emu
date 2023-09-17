@@ -4,6 +4,7 @@ target_sources(utils PRIVATE
 )
 target_link_libraries(utils PUBLIC
     common
+    log
 )
 
 add_library(log STATIC)

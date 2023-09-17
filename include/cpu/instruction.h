@@ -1,16 +1,11 @@
 ﻿#ifndef INSTRUCTION_H
 #define INSTRUCTION_H
 
-#include "utils/log.h"
 #include "utils/pack.h"
 #include <cstdint>
-#include <source_location>
 
 namespace N64 {
 namespace Cpu {
-
-// Set true if you want to debug CPU.
-constexpr bool LOG_INSTRUCTION = false;
 
 // rawはbig endianなので、逆順(opが最後)になる.
 // 命令形式は以下のURLを参照
@@ -203,16 +198,6 @@ constexpr uint8_t COP_CTC = 0b00110;  // CTC
 constexpr uint8_t COP0_FUNCT_ERET = 0b011000;  // ERET
 constexpr uint8_t COP0_FUNCT_TLBWI = 0b000010; // TLBWI
 // TODO: LTBWR, TLBR, TLBP
-
-template <typename... Args>
-inline void instruction_trace(fmt::format_string<Args...> fmt, Args &&...args) {
-    if constexpr (LOG_INSTRUCTION)
-        Utils::trace(fmt, std::forward<Args>(args)...);
-}
-
-void assert_encoding_is_valid(
-    bool validity,
-    const std::source_location loc = std::source_location::current());
 
 } // namespace Cpu
 } // namespace N64

@@ -6,6 +6,8 @@
 #include <string>
 
 namespace Utils {
+// Set true if you want to debug CPU.
+constexpr bool LOG_INSTRUCTION = false;
 
 enum class LogLevel {
     TRACE,
@@ -63,6 +65,11 @@ template <typename... Args>
     exit(-1);
 }
 
+template <typename... Args>
+inline void instruction_trace(fmt::format_string<Args...> fmt, Args &&...args) {
+    if constexpr (LOG_INSTRUCTION)
+        Utils::trace(fmt, std::forward<Args>(args)...);
+}
 } // namespace Utils
 
 #endif // INCLUDE_GUARD_7F6A882F_D897_4355_86DB_CA9487CA4FB2

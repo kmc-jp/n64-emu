@@ -1,4 +1,5 @@
 ﻿#include "cpu/cpu.h"
+#include "utils/log.h"
 #include <cassert>
 #include <cstdint>
 #include <source_location>

@@ -3,6 +3,7 @@
 #include "memory/bus.h"
 #include "memory/memory.h"
 #include "rcp/rsp.h"
+#include "utils/log.h"
 #include <SDL.h>
 
 namespace N64 {

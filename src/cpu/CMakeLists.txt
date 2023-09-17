@@ -5,7 +5,6 @@ target_sources(cpu PRIVATE
     cpu.cpp
     cpu_instruction_impl.cpp
     fpu_instruction_impl.cpp
-    instruction.cpp
 )
 target_link_libraries(cpu PUBLIC
     common

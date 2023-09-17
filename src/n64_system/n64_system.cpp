@@ -79,7 +79,7 @@ static void cpu_step_callback(Config &config) {
     }
 
     // For debugging
-    if constexpr (Cpu::LOG_INSTRUCTION) {
+    if constexpr (Utils::LOG_INSTRUCTION) {
         if (N64::g_scheduler().get_current_time() % 0x10'0000 == 0) {
             Utils::set_log_level(Utils::LogLevel::TRACE);
             Utils::debug("");
