@@ -9,6 +9,7 @@
 #include "mmio/si.h"
 #include "mmio/vi.h"
 #include "mmu/tlb.h"
+#include "n64_system/interrupt.h"
 #include "n64_system/scheduler.h"
 #include "rcp/rsp.h"
 
