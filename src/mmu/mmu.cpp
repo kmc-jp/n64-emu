@@ -1,8 +1,6 @@
 ﻿#include "mmu.h"
 #include "tlb.h"
 #include "utils/utils.h"
-#include <cstdint>
-#include <optional>
 
 namespace N64 {
 namespace Mmu {
