@@ -1,6 +1,7 @@
 ﻿#ifndef INSTRUCTION_H
 #define INSTRUCTION_H
 
+#include "utils/pack.h"
 #include "utils/utils.h"
 #include <cstdint>
 #include <source_location>

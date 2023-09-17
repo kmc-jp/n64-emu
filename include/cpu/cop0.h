@@ -1,7 +1,7 @@
 ﻿#ifndef CPU_COP0_H
 #define CPU_COP0_H
 
-#include "utils/utils.h"
+#include "utils/pack.h"
 #include <cstdint>
 
 namespace N64 {

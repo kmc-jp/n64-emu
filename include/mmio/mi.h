@@ -1,7 +1,7 @@
 ﻿#ifndef MI_H
 #define MI_H
 
-#include "utils/utils.h"
+#include "utils/pack.h"
 #include <cstdint>
 
 namespace N64 {

@@ -13,16 +13,6 @@ using int128_t = __int128;
 using uint128_t = unsigned __int128;
 #endif
 
-// PACK
-#ifdef __GNUC__
-#define PACK(__Declaration__) __Declaration__ __attribute__((__packed__))
-#endif
-
-#ifdef _MSC_VER
-#define PACK(__Declaration__)                                                  \
-    __pragma(pack(push, 1)) __Declaration__ __pragma(pack(pop))
-#endif
-
 // This macro defines mul_unsigned_hi, which returns uppper 64bit of u64 * u64
 // This code is retrieved from
 // https://stackoverflow.com/questions/28868367/getting-the-high-part-of-64-bit-integer-multiplication
