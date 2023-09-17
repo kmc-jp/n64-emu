@@ -1,7 +1,7 @@
-#include "parallel_rdp_wrapper.h"
+#include "app/parallel_rdp_wrapper.h"
+#include "app/spirv.h"
 #include "mmio/vi.h"
 #include "rdp_device.hpp"
-#include "spirv.h"
 #include "utils/utils.h"
 #include "wsi.hpp"
 

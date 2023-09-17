@@ -1,7 +1,7 @@
 ﻿#ifndef FPU_INSTRUCTIONS_CPP
 #define FPU_INSTRUCTIONS_CPP
 
-#include "instruction.h"
+#include "cpu/instruction.h"
 
 namespace N64::Cpu {
 class Cpu;

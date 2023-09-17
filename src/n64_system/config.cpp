@@ -1,4 +1,4 @@
-﻿#include "config.h"
+﻿#include "n64_system/config.h"
 #include "utils/utils.h"
 #include <iostream>
 #include <string_view>

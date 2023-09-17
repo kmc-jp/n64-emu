@@ -1,5 +1,5 @@
-﻿#include "mmu.h"
-#include "tlb.h"
+﻿#include "mmu/mmu.h"
+#include "mmu/tlb.h"
 #include "utils/utils.h"
 
 namespace N64 {

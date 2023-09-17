@@ -1,4 +1,4 @@
-﻿#include "cpu.h"
+﻿#include "cpu/cpu.h"
 #include "cpu_instruction_impl.h"
 #include "fpu_instruction_impl.h"
 #include "memory/bus.h"

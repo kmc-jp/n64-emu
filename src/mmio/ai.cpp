@@ -1,5 +1,5 @@
-#include "ai.h"
-#include "mi.h"
+#include "mmio/ai.h"
+#include "mmio/mi.h"
 #include "n64_system/interrupt.h"
 #include "utils/utils.h"
 

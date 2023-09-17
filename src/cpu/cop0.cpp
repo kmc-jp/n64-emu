@@ -1,4 +1,4 @@
-﻿#include "cop0.h"
+﻿#include "cpu/cop0.h"
 #include <spdlog/spdlog.h>
 
 namespace N64 {

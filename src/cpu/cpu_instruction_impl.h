@@ -1,7 +1,7 @@
 ﻿#ifndef CPU_INSTRUCTION_IMPL_H
 #define CPU_INSTRUCTION_IMPL_H
 
-#include "instruction.h"
+#include "cpu/instruction.h"
 
 namespace N64::Cpu {
 class Cpu;

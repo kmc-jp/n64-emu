@@ -1,4 +1,4 @@
-﻿#include "mi.h"
+﻿#include "mmio/mi.h"
 #include "n64_system/interrupt.h"
 #include "utils/utils.h"
 #include <cstdint>

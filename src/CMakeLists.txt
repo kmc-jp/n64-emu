@@ -48,7 +48,7 @@ set(IMGUI_SOURCES
     ${CMAKE_SOURCE_DIR}/third_party/imgui/backends/imgui_impl_sdlrenderer2.cpp)
 
 include_directories(
-    .
+    ${CMAKE_SOURCE_DIR}/include
     ${SPDLOG_INCLUDE_DIRS}
     ${SDL2_INCLUDE_DIRS}
     ${PARALLEL_RDP_INCLUDE_DIRS}
@@ -63,7 +63,6 @@ target_link_libraries(imgui PUBLIC SDL2::SDL2)
 
 # Is this unnecessary?
 # target_link_libraries(n64 PRIVATE SDL2::SDL2)
-
 add_subdirectory(cpu)
 add_subdirectory(memory)
 add_subdirectory(mmio)

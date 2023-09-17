@@ -1,9 +1,9 @@
 add_library(mmio
-    pi.h pi.cpp
-    si.h si.cpp
-    pif.h pif.cpp
-    mi.h mi.cpp
-    ai.h ai.cpp
-    vi.h vi.cpp
+    pi.cpp
+    si.cpp
+    pif.cpp
+    mi.cpp
+    ai.cpp
+    vi.cpp
 )
 target_precompile_headers(mmio PRIVATE ${PCH_FILES})

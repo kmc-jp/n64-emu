@@ -1,12 +1,6 @@
 #include "fpu_instruction_impl.h"
-// #include "cop0.h"
 #include "cpu/cpu.h"
-// #include "memory/bus.h"
-// #include "mmu/mmu.h"
-// #include "mmu/tlb.h"
 #include "utils/utils.h"
-// #include <cstdint>
-// #include <optional>
 
 namespace N64::Cpu {
 

@@ -1,7 +1,7 @@
 add_library(memory
-    memory.h memory.cpp
-    bus.h bus.cpp
-    rom.h rom.cpp
-    ri.h ri.cpp
-    memory_map.h)
+    memory.cpp
+    bus.cpp
+    rom.cpp
+    ri.cpp
+)
 target_precompile_headers(memory PRIVATE ${PCH_FILES})
