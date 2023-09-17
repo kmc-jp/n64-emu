@@ -12,6 +12,7 @@
 #include "n64_system/interrupt.h"
 #include "n64_system/scheduler.h"
 #include "rcp/rsp.h"
+#include "utils/log.h"
 
 namespace N64 {
 namespace N64System {

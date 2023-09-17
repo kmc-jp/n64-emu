@@ -1,12 +1,10 @@
 ﻿#ifndef UTILS_H
 #define UTILS_H
 
-#include <cassert>
 #include <cstdint>
-#include <source_location>
 #include <span>
-#include <spdlog/spdlog.h>
 #include <string>
+#include <vector>
 
 #ifdef __SIZEOF_INT128__ // GNU C
 using int128_t = __int128;
@@ -77,8 +75,6 @@ static_assert(false, "mul_signed_hi not implemented for this compiler");
 #endif
 
 namespace Utils {
-
-constexpr int NUM_BACKTRACE_LOG = 32;
 
 template <class...> constexpr std::false_type always_false{};
 
@@ -156,62 +152,6 @@ void write_to_byte_array16(std::span<uint8_t> span, uint64_t offset,
 /* 指定された配列に1byte分を書き込む (big endian) */
 void write_to_byte_array8(std::span<uint8_t> span, uint64_t offset,
                           uint8_t value);
-
-void core_dump();
-
-[[noreturn]] void
-unimplemented(const std::string what,
-              const std::source_location loc = std::source_location::current());
-
-enum class LogLevel {
-    TRACE,
-    DEBUG,
-    INFO,
-    WARN,
-    // ERROR,
-    CRITICAL,
-    OFF
-};
-
-void init_logger();
-
-void set_log_file(std::string filepath);
-
-void set_log_level(LogLevel level);
-
-template <typename... Args>
-inline void debug(fmt::format_string<Args...> fmt, Args &&...args) {
-    spdlog::debug(fmt, std::forward<Args>(args)...);
-}
-
-template <typename... Args>
-inline void critical(fmt::format_string<Args...> fmt, Args &&...args) {
-    spdlog::critical(fmt, std::forward<Args>(args)...);
-}
-
-template <typename... Args>
-inline void trace(fmt::format_string<Args...> fmt, Args &&...args) {
-    spdlog::trace(fmt, std::forward<Args>(args)...);
-}
-
-template <typename... Args>
-inline void info(fmt::format_string<Args...> fmt, Args &&...args) {
-    spdlog::info(fmt, std::forward<Args>(args)...);
-}
-
-template <typename... Args>
-inline void warn(fmt::format_string<Args...> fmt, Args &&...args) {
-    spdlog::warn(fmt, std::forward<Args>(args)...);
-}
-
-template <typename... Args>
-[[noreturn]] inline void abort(fmt::format_string<Args...> fmt,
-                               Args &&...args) {
-    spdlog::critical(fmt, std::forward<Args>(args)...);
-    spdlog::dump_backtrace();
-    core_dump();
-    exit(-1);
-}
 
 std::vector<uint8_t> read_binary_file(std::string filepath);
 

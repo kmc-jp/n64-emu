@@ -5,7 +5,7 @@
 #include "mmu/mmu.h"
 #include "mmu/tlb.h"
 #include "n64_system/interrupt.h"
-#include "utils/utils.h"
+#include "utils/log.h"
 #include <optional>
 
 namespace N64 {

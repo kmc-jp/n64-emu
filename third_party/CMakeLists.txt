@@ -15,7 +15,3 @@ target_link_libraries(imgui PRIVATE
 target_include_directories(spdlog SYSTEM INTERFACE
     spdlog/include
 )
-target_precompile_headers(spdlog INTERFACE
-    <spdlog/spdlog.h>
-    <spdlog/sinks/basic_file_sink.h>
-)

@@ -1,6 +1,6 @@
 #include "fpu_instruction_impl.h"
 #include "cpu/cpu.h"
-#include "utils/utils.h"
+#include "utils/log.h"
 
 namespace N64::Cpu {
 

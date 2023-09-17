@@ -5,13 +5,13 @@ target_sources(n64_system PRIVATE
     n64_system.cpp
     scheduler.cpp
 )
-target_link_libraries(n64_system PRIVATE
+target_link_libraries(n64_system PUBLIC
+    app
+    common
+    cpu
+    log
     memory
     mmio
     mmu
     rcp
-)
-target_link_libraries(n64_system PRIVATE
-    common
-    utils
 )

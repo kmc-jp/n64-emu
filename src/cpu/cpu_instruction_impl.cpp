@@ -3,6 +3,7 @@
 #include "memory/bus.h"
 #include "mmu/mmu.h"
 #include "mmu/tlb.h"
+#include "utils/utils.h"
 #include <optional>
 
 namespace N64 {

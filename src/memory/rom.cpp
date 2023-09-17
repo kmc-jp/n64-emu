@@ -1,4 +1,5 @@
 ﻿#include "memory/rom.h"
+#include "utils/log.h"
 #include "utils/utils.h"
 #include <fstream>
 

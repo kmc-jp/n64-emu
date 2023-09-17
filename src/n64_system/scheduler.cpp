@@ -1,5 +1,5 @@
 ﻿#include "n64_system/scheduler.h"
-#include "utils/utils.h"
+#include "utils/log.h"
 
 namespace N64 {
 namespace N64System {

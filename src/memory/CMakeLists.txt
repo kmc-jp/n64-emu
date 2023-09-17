@@ -5,7 +5,9 @@ target_sources(memory PRIVATE
     ri.cpp
     rom.cpp
 )
-target_link_libraries(memory PRIVATE
+target_link_libraries(memory PUBLIC
     common
+    log
+    mmio
     utils
 )

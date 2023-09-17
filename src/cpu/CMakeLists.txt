@@ -7,8 +7,11 @@ target_sources(cpu PRIVATE
     fpu_instruction_impl.cpp
     instruction.cpp
 )
-target_link_libraries(cpu PRIVATE
+target_link_libraries(cpu PUBLIC
     common
+    log
+    memory
     mmu
+    n64_system
     utils
 )

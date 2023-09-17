@@ -1,5 +1,5 @@
 #include "cpu/instruction.h"
-#include "utils/utils.h"
+#include "utils/log.h"
 
 namespace N64 {
 namespace Cpu {

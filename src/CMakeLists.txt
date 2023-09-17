@@ -13,6 +13,7 @@ target_link_libraries(n64 PRIVATE
     cpu memory mmio mmu rcp utils n64_system app
     parallel-rdp imgui
     common
+    log
     SDL2::SDL2
 )
 
@@ -22,6 +23,7 @@ target_link_libraries(n64-test PRIVATE
     cpu memory mmio mmu rcp utils n64_system app
     parallel-rdp imgui
     common
+    log
     SDL2::SDL2
 )
 

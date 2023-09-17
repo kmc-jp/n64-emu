@@ -7,8 +7,12 @@ target_sources(mmio PRIVATE
     si.cpp
     vi.cpp
 )
-target_link_libraries(mmio PRIVATE
+target_link_libraries(mmio PUBLIC
     common
+    cpu
+    log
+    memory
+    n64_system
+    rcp
     SDL2::SDL2
-    utils
 )
