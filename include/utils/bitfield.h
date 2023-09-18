@@ -36,7 +36,7 @@ template <Constant T, Index I> struct ref_t {
 // Publicly inherit this class and define members with field_t type
 // ```
 // struct example_t : bitfield_t<std::uint8_t> {
-//   example(std::uint8_t &raw) : a{raw}, b{raw}, c{raw} {}
+//   example_t(std::uint8_t &raw) : a{raw}, b{raw}, c{raw} {}
 //   field_t<0, 2> a; // 2 bits at offset 0
 //   field_t<2, 3> b; // 3 bits at offset 2
 //   field_t<6, 1> c; // 1 bits at offset 6

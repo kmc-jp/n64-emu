@@ -59,7 +59,9 @@ struct constant_t : std::integral_constant<T, V> {
     consteval auto operator^(self<W>) const -> decltype(auto) {
         return self<(V ^ W)>{};
     }
-    consteval auto operator~() const -> decltype(auto) { return self<(~V)>{}; }
+    consteval auto operator~() const -> decltype(auto) {
+        return self<static_cast<value_type>(~V)>{};
+    }
     template <Index I> constexpr auto operator<<(I) const -> decltype(auto) {
         return self<((V & (full >> I::value)) << I::value)>{};
     }
