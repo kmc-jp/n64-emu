@@ -17,6 +17,7 @@ void test_eq(T expect, U actual,
     }
 }
 
+void mult_test();
 void bitfield_test();
 } // namespace selftest
 

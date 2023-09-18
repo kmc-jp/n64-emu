@@ -2,6 +2,7 @@
 add_executable(n64-test)
 target_sources(n64-test PRIVATE
     bitfield.cpp
+    stdint.cpp
     test.cpp
 )
 target_link_libraries(n64-test PUBLIC
