@@ -1,8 +1,9 @@
-#include "spirv.h"
-#include <mmio/vi.h>
-#include <rdp_device.hpp>
-#include <utils/utils.h>
-#include <wsi.hpp>
+#include "app/parallel_rdp_wrapper.h"
+#include "app/spirv.h"
+#include "mmio/vi.h"
+#include "rdp_device.hpp"
+#include "utils/utils.h"
+#include "wsi.hpp"
 
 namespace N64 {
 namespace PRDPWrapper {

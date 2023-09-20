@@ -1,5 +1,5 @@
-﻿#include "cop0.h"
-#include <cstdint>
+﻿#include "cpu/cop0.h"
+#include <spdlog/spdlog.h>
 
 namespace N64 {
 namespace Cpu {
@@ -158,6 +158,8 @@ void Cpu::Cop0::Reg::write(uint8_t reg_num, uint64_t value) {
 void Cpu::Cop0::reset() {
     Utils::debug("Resetting CPU COP0");
     // https://github.com/SimoneN64/Kaizen/blob/dffd36fc31731a0391a9b90f88ac2e5ed5d3f9ec/src/backend/core/registers/Cop0.cpp#L11
+    constexpr auto uint64_max = ~static_cast<uint64_t>(0);
+    constexpr auto uint32_max = ~static_cast<uint32_t>(0);
     reg.cause.raw = 0xB000007C;
     reg.status.raw = 0;
     reg.status.cu0 = 1;
@@ -165,11 +167,11 @@ void Cpu::Cop0::reset() {
     reg.status.fr = 1;
     reg.prid = 0x00000B22;
     reg.config = 0x7006E463;
-    reg.epc = 0xFFFFFFFFFFFFFFFF;
-    reg.error_epc = 0xFFFFFFFFFFFFFFFF;
+    reg.epc = uint64_max;
+    reg.error_epc = uint64_max;
     reg.wired = 0;
     reg.index = 63;
-    reg.bad_vaddr = 0xFFFFFFFFFFFFFFFF;
+    reg.bad_vaddr = uint32_max;
 
     // FIXME: necessary?
     // https://github.com/project64/project64/blob/353ef5ed897cb72a8904603feddbdc649dff9eca/Source/Project64-core/N64System/N64System.cpp#L855

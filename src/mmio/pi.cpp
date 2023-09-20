@@ -1,11 +1,9 @@
 ﻿#include "mmio/pi.h"
 #include "memory/memory.h"
-#include "memory/memory_map.h"
 #include "mmio/mi.h"
 #include "n64_system/interrupt.h"
 #include "n64_system/scheduler.h"
 #include "utils/utils.h"
-#include <cstdint>
 
 namespace N64 {
 namespace Mmio {
@@ -122,4 +120,7 @@ PI PI::instance{};
 
 } // namespace PI
 } // namespace Mmio
+
+Mmio::PI::PI &g_pi() { return Mmio::PI::PI::get_instance(); }
+
 } // namespace N64

@@ -1,8 +1,12 @@
 #ifndef N64_SYSTEM
 #define N64_SYSTEM
 
-#include "app/parallel_rdp_wrapper.h"
-#include "config.h"
+namespace Vulkan {
+class WSI;
+}
+namespace N64::N64System {
+struct Config;
+}
 
 namespace N64 {
 namespace N64System {

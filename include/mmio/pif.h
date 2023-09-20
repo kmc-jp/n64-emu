@@ -1,9 +1,9 @@
 ﻿#ifndef PIF_H
 #define PIF_H
 
-#include "cpu/cpu.h"
-#include "memory/bus.h"
-#include "rcp/rsp.h"
+#include "memory/memory_map.h"
+#include <array>
+#include <cstdint>
 
 namespace N64 {
 namespace Mmio {

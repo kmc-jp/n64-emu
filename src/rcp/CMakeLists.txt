@@ -1,3 +1,3 @@
 add_library(rcp
-    rsp.cpp rsp.h)
+    rsp.cpp)
 target_precompile_headers(rcp PRIVATE ${PCH_FILES})

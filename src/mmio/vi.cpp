@@ -1,9 +1,7 @@
 #include "mmio/vi.h"
-#include "memory/memory_map.h"
 #include "mmio/mi.h"
 #include "n64_system/interrupt.h"
 #include "utils/utils.h"
-#include <cstdint>
 
 namespace N64 {
 namespace Mmio {
@@ -158,8 +156,15 @@ void VI::write_paddr32(uint32_t paddr, uint32_t value) {
     }
 }
 
+int VI::get_num_fields() const {
+    return (reg_status & N64::Mmio::VI::ViStatusFlags::SERRATE) ? 2 : 1;
+}
+
 VI VI::instance{};
 
 } // namespace VI
 } // namespace Mmio
+
+Mmio::VI::VI &g_vi() { return Mmio::VI::VI::get_instance(); }
+
 } // namespace N64

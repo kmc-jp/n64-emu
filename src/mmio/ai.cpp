@@ -1,9 +1,7 @@
-#include "ai.h"
-#include "memory/memory_map.h"
-#include "mi.h"
+#include "mmio/ai.h"
+#include "mmio/mi.h"
 #include "n64_system/interrupt.h"
 #include "utils/utils.h"
-#include <cstdint>
 
 namespace N64 {
 namespace Mmio {
@@ -42,8 +40,13 @@ void AI::write_paddr32(uint32_t paddr, uint32_t value) {
     }
 }
 
+AI &AI::get_instance() { return instance; }
+
 AI AI::instance{};
 
 } // namespace AI
 } // namespace Mmio
+
+Mmio::AI::AI &g_ai() { return Mmio::AI::AI::get_instance(); }
+
 } // namespace N64

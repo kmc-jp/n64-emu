@@ -1,7 +1,13 @@
 add_library(n64_system
-    n64_system.cpp n64_system.h
-    config.cpp config.h
-    scheduler.cpp scheduler.h
-    interrupt.cpp interrupt.h
+    n64_system.cpp
+    config.cpp
+    scheduler.cpp
+    interrupt.cpp
 )
 target_precompile_headers(n64_system PRIVATE ${PCH_FILES})
+target_link_libraries(n64_system PRIVATE
+    memory
+    mmio
+    mmu
+    rcp
+)

@@ -1,4 +1,4 @@
-﻿#include "mi.h"
+﻿#include "mmio/mi.h"
 #include "n64_system/interrupt.h"
 #include "utils/utils.h"
 #include <cstdint>
@@ -110,4 +110,7 @@ MI MI::instance{};
 
 } // namespace MI
 } // namespace Mmio
+
+Mmio::MI::MI &g_mi() { return Mmio::MI::MI::get_instance(); }
+
 } // namespace N64

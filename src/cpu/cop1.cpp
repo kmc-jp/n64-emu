@@ -1,4 +1,4 @@
-#include "cop1.h"
+#include "cpu/cop1.h"
 
 namespace N64 {
 namespace Cpu {

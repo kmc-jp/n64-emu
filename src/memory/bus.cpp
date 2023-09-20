@@ -1,6 +1,6 @@
-﻿#include "bus.h"
-#include "memory.h"
-#include "memory_map.h"
+﻿#include "memory/bus.h"
+#include "memory/memory.h"
+#include "memory/memory_map.h"
 #include "mmio/ai.h"
 #include "mmio/mi.h"
 #include "mmio/pi.h"
@@ -16,7 +16,8 @@ namespace Memory {
 
 template <class...> constexpr std::false_type always_false{};
 
-template <typename Wire> void abort_unimplemented_read(uint32_t paddr) {
+template <typename Wire>
+[[noreturn]] void abort_unimplemented_read(uint32_t paddr) {
     constexpr bool wire64 = std::is_same<Wire, uint64_t>::value;
     constexpr bool wire32 = std::is_same<Wire, uint32_t>::value;
     constexpr bool wire16 = std::is_same<Wire, uint16_t>::value;

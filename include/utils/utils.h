@@ -8,6 +8,11 @@
 #include <spdlog/spdlog.h>
 #include <string>
 
+#ifdef __SIZEOF_INT128__ // GNU C
+using int128_t = __int128;
+using uint128_t = unsigned __int128;
+#endif
+
 // PACK
 #ifdef __GNUC__
 #define PACK(__Declaration__) __Declaration__ __attribute__((__packed__))
@@ -23,7 +28,7 @@
 // https://stackoverflow.com/questions/28868367/getting-the-high-part-of-64-bit-integer-multiplication
 #ifdef __SIZEOF_INT128__ // GNU C
 static inline uint64_t mul_unsigned_hi(uint64_t a, uint64_t b) {
-    unsigned __int128 prod = a * (unsigned __int128)b;
+    uint128_t prod = a * (uint128_t)b;
     return prod >> 64;
 }
 #elif defined(_M_X64) || defined(_M_ARM64) // MSVC
@@ -54,8 +59,8 @@ static_assert(false, "mul_unsigned_hi not implemented for this compiler");
 #ifdef __SIZEOF_INT128__ // GNU C
 // TODO: not tested
 static inline uint64_t mul_signed_hi(int64_t a, int64_t b) {
-    __int128 prod = a * (__int128)b;
-    return (__uint128)prod >> 64;
+    int128_t prod = a * (int128_t)b;
+    return (uint128_t)prod >> 64;
 }
 #elif defined(_M_X64) || defined(_M_ARM64) // MSVC
 // MSVC for x86-64 or AArch64
@@ -164,8 +169,9 @@ void write_to_byte_array8(std::span<uint8_t> span, uint64_t offset,
 
 void core_dump();
 
-void unimplemented(const std::string what, const std::source_location loc =
-                                               std::source_location::current());
+[[noreturn]] void
+unimplemented(const std::string what,
+              const std::source_location loc = std::source_location::current());
 
 enum class LogLevel {
     TRACE,

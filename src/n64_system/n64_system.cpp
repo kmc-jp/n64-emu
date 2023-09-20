@@ -1,18 +1,17 @@
-﻿#include "n64_system.h"
+﻿#include "n64_system/n64_system.h"
 #include "app/parallel_rdp_wrapper.h"
-#include "config.h"
-#include "cpu/cpu.h"
+#include "memory/bus.h"
 #include "memory/memory.h"
 #include "mmio/ai.h"
 #include "mmio/mi.h"
 #include "mmio/pi.h"
-#include "mmio/pif.h"
 #include "mmio/si.h"
 #include "mmio/vi.h"
 #include "mmu/tlb.h"
+#include "n64_system/config.h"
+#include "n64_system/interrupt.h"
 #include "n64_system/scheduler.h"
 #include "rcp/rsp.h"
-#include <SDL.h>
 
 namespace N64 {
 namespace N64System {

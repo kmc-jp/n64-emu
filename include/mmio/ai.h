@@ -1,8 +1,6 @@
 ﻿#ifndef AI_H
 #define AI_H
 
-#include "memory/memory_map.h"
-#include <array>
 #include <cstdint>
 
 namespace N64 {
@@ -38,13 +36,13 @@ class AI {
 
     void write_paddr32(uint32_t paddr, uint32_t value);
 
-    inline static AI &get_instance() { return instance; }
+    static AI &get_instance();
 };
 
 } // namespace AI
 } // namespace Mmio
 
-inline Mmio::AI::AI &g_ai() { return Mmio::AI::AI::get_instance(); }
+Mmio::AI::AI &g_ai();
 
 } // namespace N64
 

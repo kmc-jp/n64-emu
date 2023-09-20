@@ -3,11 +3,10 @@
 
 #include "utils/utils.h"
 #include <cstdint>
-#include <spdlog/spdlog.h>
 
 namespace N64 {
 
-typedef union {
+union entry_lo0_t {
     uint32_t raw;
     PACK(struct {
         unsigned global : 1;
@@ -17,11 +16,11 @@ typedef union {
         unsigned pfn : 20;
         unsigned : 6;
     });
-} entry_lo0_t;
+};
 
 static_assert(sizeof(entry_lo0_t) == 4);
 
-typedef union {
+union entry_lo1_t {
     uint32_t raw;
     PACK(struct {
         unsigned global : 1;
@@ -31,12 +30,12 @@ typedef union {
         unsigned pfn : 20;
         unsigned : 6;
     });
-} entry_lo1_t;
+};
 
 static_assert(sizeof(entry_lo1_t) == 4);
 
 // FIXME: 64bit?
-typedef PACK(union {
+PACK(union entry_hi_t {
     uint32_t raw;
     PACK(struct {
         unsigned asid : 8;
@@ -44,7 +43,7 @@ typedef PACK(union {
         unsigned g : 1;
         unsigned vpn2 : 19;
     });
-}) entry_hi_t;
+});
 
 static_assert(sizeof(entry_hi_t) == 4);
 
@@ -117,7 +116,7 @@ constexpr std::array<std::string_view, 32> COP0_REG_NAMES = {
 };
 
 // FIXME: bit fieldの順番があってるか確認
-typedef union cop0_cause {
+union cop0_cause_t {
     uint32_t raw;
     PACK(struct {
         unsigned : 8;
@@ -141,12 +140,12 @@ typedef union cop0_cause {
         unsigned : 1;
         unsigned branch_delay : 1;
     });
-} cop0_cause_t;
+};
 
 static_assert(sizeof(cop0_cause_t) == 4, "cop0_cause_t must be 32bit");
 
 // FIXME: bit fieldの順番があってるか確認
-typedef union cop0_x_context {
+union cop0_x_context_t {
     uint64_t raw;
     /* FIXME: MSVCだとrでワード境界を超えて、16bytesになってしまう
     https://learn.microsoft.com/en-us/cpp/cpp/cpp-bit-fields?view=msvc-170
@@ -157,13 +156,12 @@ typedef union cop0_x_context {
         unsigned ptebase : 31;
     });
     */
-
-} cop0_x_context_t;
+};
 
 static_assert(sizeof(cop0_x_context_t) == 8, "cop0_x_context_t must be 64bit");
 
 // FIXME: bit fieldの順番があってるか確認
-typedef union cp0_status {
+union cop0_status_t {
     uint32_t raw;
     PACK(struct {
         unsigned ie : 1;
@@ -196,7 +194,7 @@ typedef union cp0_status {
         unsigned its : 1;
         unsigned : 7;
     });
-} cop0_status_t;
+};
 
 static_assert(sizeof(cop0_status_t) == 4, "cop0_status_t must be 32bit");
 

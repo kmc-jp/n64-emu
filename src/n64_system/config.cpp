@@ -1,7 +1,7 @@
-﻿#include "config.h"
+﻿#include "n64_system/config.h"
 #include "utils/utils.h"
 #include <iostream>
-#include <string>
+#include <string_view>
 
 namespace N64 {
 namespace N64System {
