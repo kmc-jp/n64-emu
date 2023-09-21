@@ -3,28 +3,28 @@
 #include <cstdint>
 
 namespace Utils {
-static_assert(Constant<constant_t<unsigned short, 1>>);
-static_assert(Constant<constant_t<std::size_t, 2>>);
-static_assert(Constant<index_t<3>>);
-static_assert(Index<index_t<4>>);
-static_assert(Index<constant_t<std::size_t, 5>>);
+static_assert(Constant<IntegralConstant<unsigned short, 1>>);
+static_assert(Constant<IntegralConstant<std::size_t, 2>>);
+static_assert(Constant<IndexConstant<3>>);
+static_assert(Index<IndexConstant<4>>);
+static_assert(Index<IntegralConstant<std::size_t, 5>>);
 } // namespace Utils
 namespace {
 void test1() {
     using selftest::test_eq;
-    struct bf_t : Utils::bitfield_t<std::uint32_t> {
-        bf_t(std::uint32_t &raw)
+    struct Bf : Utils::Bitfield<std::uint32_t> {
+        Bf(std::uint32_t &raw)
             : a{raw}, b{raw}, c{raw}, d{raw}, e{raw}, lo{raw}, hi{raw} {}
-        field_t<0, 1> a;
-        field_t<1, 2> b;
-        field_t<3, 3> c;
-        field_t<6, 4> d;
-        field_t<10, 5> e;
-        field_t<0, 16> lo;
-        field_t<16, 16> hi;
+        Field<0, 1> a;
+        Field<1, 2> b;
+        Field<3, 3> c;
+        Field<6, 4> d;
+        Field<10, 5> e;
+        Field<0, 16> lo;
+        Field<16, 16> hi;
     };
     std::uint32_t raw = 0, expect = 0;
-    bf_t bf{raw};
+    Bf bf{raw};
     test_eq(expect, raw);
     bf.a = 0b1;
     expect |= 0b1;
@@ -57,14 +57,14 @@ void test1() {
 }
 void test2() {
     using selftest::test_eq;
-    struct example_t : Utils::bitfield_t<std::uint8_t> {
-        example_t(std::uint8_t &raw) : a{raw}, b{raw}, c{raw} {}
-        field_t<0, 2> a; // 2 bits at offset 0
-        field_t<2, 3> b; // 3 bits at offset 2
-        field_t<6, 1> c; // 1 bits at offset 6
+    struct Example : Utils::Bitfield<std::uint8_t> {
+        Example(std::uint8_t &raw) : a{raw}, b{raw}, c{raw} {}
+        Field<0, 2> a; // 2 bits at offset 0
+        Field<2, 3> b; // 3 bits at offset 2
+        Field<6, 1> c; // 1 bits at offset 6
     };
     std::uint8_t raw = 0;
-    example_t ex{raw};
+    Example ex{raw};
     ex.a = 0b11;
     test_eq(0b00000011, raw);
     ex.b = 0b110;

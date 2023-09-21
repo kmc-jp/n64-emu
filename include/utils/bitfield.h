@@ -10,7 +10,7 @@ namespace Utils {
 // by ptr
 // T: constant_t type that represents the range of bits
 // I: index_t type that represents the offset of the range
-template <Constant T, Index I> struct ref_t {
+template <Constant T, Index I> struct Ref {
     using value_type = typename T::value_type;
 
   private:
@@ -20,7 +20,7 @@ template <Constant T, Index I> struct ref_t {
   public:
     // ptr: pointer to the bit sequence
     value_type *ptr;
-    ref_t(value_type &raw) : ptr(&raw) {}
+    Ref(value_type &raw) : ptr(&raw) {}
     // Read the value from the range
     [[nodiscard]] value_type operator*() const {
         return (*ptr & mask) >> offset;
@@ -35,14 +35,14 @@ template <Constant T, Index I> struct ref_t {
 // Base class to help creating bitfield structures
 // Publicly inherit this class and define members with field_t type
 // ```
-// struct example_t : bitfield_t<std::uint8_t> {
-//   example_t(std::uint8_t &raw) : a{raw}, b{raw}, c{raw} {}
-//   field_t<0, 2> a; // 2 bits at offset 0
-//   field_t<2, 3> b; // 3 bits at offset 2
-//   field_t<6, 1> c; // 1 bits at offset 6
+// struct Example : Bitfield<std::uint8_t> {
+//   Example(std::uint8_t &raw) : a{raw}, b{raw}, c{raw} {}
+//   Field<0, 2> a; // 2 bits at offset 0
+//   Field<2, 3> b; // 3 bits at offset 2
+//   Field<6, 1> c; // 1 bits at offset 6
 // };
 // std::uint8_t raw = 0;
-// example_t ex{raw};
+// Example ex{raw};
 // ex.a = 0b11;  // raw == 00000011
 // ex.b = 0b110; // raw == 00011011
 // ex.c = 0b1;   // raw == 01011011
@@ -52,19 +52,19 @@ template <Constant T, Index I> struct ref_t {
 // assert(*ex.c == 0b1);
 // ```
 // T: unsigned integral type that represents the size of the bit sequence
-template <std::unsigned_integral T> struct bitfield_t {
+template <std::unsigned_integral T> struct Bitfield {
   private:
-    static constexpr auto zero = constant_t<T, 0>{};
-    static constexpr auto size = index_t<(sizeof(T) * 8)>{};
+    static constexpr auto zero = IntegralConstant<T, 0>{};
+    static constexpr auto size = IndexConstant<(sizeof(T) * 8)>{};
     template <std::size_t L>
-    using range_t = decltype((~zero) >> (size - index_t<L>{}));
+    using Range = decltype((~zero) >> (size - IndexConstant<L>{}));
 
   public:
     // Type that represents a reference to a specific range of bits
     // I: the offset of the range
     // L: the length of the range
     template <std::size_t I, std::size_t L>
-    using field_t = ref_t<range_t<L>, index_t<I>>;
+    using Field = Ref<Range<L>, IndexConstant<I>>;
 };
 
 } // namespace Utils
