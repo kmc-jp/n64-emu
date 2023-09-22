@@ -1,4 +1,4 @@
-#include "app/app.h"
+﻿#include "app/app.h"
 #include "app/parallel_rdp_wrapper.h"
 #include "memory/memory.h"
 #include "n64_system/n64_system.h"
