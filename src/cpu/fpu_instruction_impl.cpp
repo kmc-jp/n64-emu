@@ -1,6 +1,6 @@
 #include "fpu_instruction_impl.h"
 #include "cpu/cpu.h"
-#include "utils/utils.h"
+#include "utils/log.h"
 
 namespace N64::Cpu {
 
@@ -34,7 +34,7 @@ void FpuImpl::op_cfc1(Cpu &cpu, instruction_t inst) {
     } break;
     }
     cpu.gpr.write(inst.r_type.rt, (int64_t)value);
-    instruction_trace("CFC1 FCR[{}], {}", fs, GPR_NAMES[inst.r_type.rt]);
+    Utils::instruction_trace("CFC1 FCR[{}], {}", fs, GPR_NAMES[inst.r_type.rt]);
 }
 
 void FpuImpl::op_ctc1(Cpu &cpu, instruction_t inst) {

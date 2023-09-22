@@ -1,7 +1,6 @@
 ﻿#ifndef PI_H
 #define PI_H
 
-#include "utils/utils.h"
 #include <cstdint>
 
 namespace N64 {

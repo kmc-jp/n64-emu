@@ -1,5 +1,6 @@
 ﻿#include "memory/memory.h"
 #include "memory/memory_map.h"
+#include "utils/log.h"
 #include <iostream>
 
 namespace N64 {

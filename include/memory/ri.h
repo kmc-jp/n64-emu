@@ -1,7 +1,6 @@
 #ifndef ri_H
 #define ri_H
 
-#include "utils/utils.h"
 #include <cstdint>
 
 namespace N64 {

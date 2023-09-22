@@ -1,7 +1,13 @@
-add_library(memory
-    memory.cpp
+add_library(memory STATIC)
+target_sources(memory PRIVATE
     bus.cpp
-    rom.cpp
+    memory.cpp
     ri.cpp
+    rom.cpp
 )
-target_precompile_headers(memory PRIVATE ${PCH_FILES})
+target_link_libraries(memory PUBLIC
+    common
+    log
+    mmio
+    utils
+)

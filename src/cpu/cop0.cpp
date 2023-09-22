@@ -1,5 +1,5 @@
 ﻿#include "cpu/cop0.h"
-#include <spdlog/spdlog.h>
+#include "utils/log.h"
 
 namespace N64 {
 namespace Cpu {

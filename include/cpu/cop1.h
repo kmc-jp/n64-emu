@@ -1,7 +1,7 @@
 #ifndef COP1_H
 #define COP1_H
 
-#include "utils/utils.h"
+#include "utils/pack.h"
 #include <cstdint>
 
 namespace N64 {

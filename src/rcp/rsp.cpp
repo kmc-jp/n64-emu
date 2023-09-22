@@ -1,7 +1,7 @@
 ﻿#include "rcp/rsp.h"
 #include "mmio/mi.h"
 #include "n64_system/interrupt.h"
-#include "utils/utils.h"
+#include "utils/log.h"
 
 namespace N64 {
 namespace Rsp {

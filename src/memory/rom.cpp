@@ -1,5 +1,6 @@
 ﻿#include "memory/rom.h"
-#include "utils/utils.h"
+#include "utils/byte_array.h"
+#include "utils/log.h"
 #include <fstream>
 
 namespace N64 {

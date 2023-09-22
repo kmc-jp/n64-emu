@@ -1,7 +1,7 @@
 ﻿#ifndef CONFIG_H
 #define CONFIG_H
 
-#include "utils/utils.h"
+#include "utils/log.h"
 #include <string>
 
 namespace N64 {

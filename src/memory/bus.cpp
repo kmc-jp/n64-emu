@@ -7,7 +7,8 @@
 #include "mmio/si.h"
 #include "mmio/vi.h"
 #include "rcp/rsp.h"
-#include "utils/utils.h"
+#include "utils/byte_array.h"
+#include "utils/log.h"
 #include <cstdint>
 #include <utility>
 
