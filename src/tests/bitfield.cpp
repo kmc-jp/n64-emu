@@ -15,13 +15,13 @@ void test1() {
     struct Bf : Utils::Bitfield<std::uint32_t> {
         Bf(std::uint32_t &raw)
             : a{raw}, b{raw}, c{raw}, d{raw}, e{raw}, lo{raw}, hi{raw} {}
-        Field<0, 1> a;
+        Field<0, 0> a;
         Field<1, 2> b;
-        Field<3, 3> c;
-        Field<6, 4> d;
-        Field<10, 5> e;
-        Field<0, 16> lo;
-        Field<16, 16> hi;
+        Field<3, 5> c;
+        Field<6, 9> d;
+        Field<10, 14> e;
+        Field<0, 15> lo;
+        Field<16, 31> hi;
     };
     std::uint32_t raw = 0, expect = 0;
     Bf bf{raw};
@@ -59,9 +59,9 @@ void test2() {
     using selftest::test_eq;
     struct Example : Utils::Bitfield<std::uint8_t> {
         Example(std::uint8_t &raw) : a{raw}, b{raw}, c{raw} {}
-        Field<0, 2> a; // 2 bits at offset 0
-        Field<2, 3> b; // 3 bits at offset 2
-        Field<6, 1> c; // 1 bits at offset 6
+        Field<0, 1> a; // 2 bits at offset 0
+        Field<2, 4> b; // 3 bits at offset 2
+        Field<6, 6> c; // 1 bits at offset 6
     };
     std::uint8_t raw = 0;
     Example ex{raw};

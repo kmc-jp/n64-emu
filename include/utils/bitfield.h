@@ -37,9 +37,9 @@ template <Constant T, Index I> struct Ref {
 // ```
 // struct Example : Bitfield<std::uint8_t> {
 //   Example(std::uint8_t &raw) : a{raw}, b{raw}, c{raw} {}
-//   Field<0, 2> a; // 2 bits at offset 0
-//   Field<2, 3> b; // 3 bits at offset 2
-//   Field<6, 1> c; // 1 bits at offset 6
+//   Field<0, 1> a; // 2 bits at offset 0
+//   Field<2, 4> b; // 3 bits at offset 2
+//   Field<6, 6> c; // 1 bits at offset 6
 // };
 // std::uint8_t raw = 0;
 // Example ex{raw};
@@ -61,10 +61,11 @@ template <std::unsigned_integral T> struct Bitfield {
 
   public:
     // Type that represents a reference to a specific range of bits
-    // I: the offset of the range
-    // L: the length of the range
-    template <std::size_t I, std::size_t L>
-    using Field = Ref<Range<L>, IndexConstant<I>>;
+    // B: the beginning of the range
+    // E: the end of the range, inclusive
+    template <std::size_t B, std::size_t E,
+              std::enable_if_t<(B <= E), std::nullptr_t> = nullptr>
+    using Field = Ref<Range<(E - B + 1)>, IndexConstant<B>>;
 };
 
 } // namespace Utils
