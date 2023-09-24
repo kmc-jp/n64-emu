@@ -10,6 +10,36 @@ static_assert(Index<IndexConstant<4>>);
 static_assert(Index<IntegralConstant<std::size_t, 5>>);
 } // namespace Utils
 namespace {
+void bits_test() {
+    using selftest::test_eq;
+    std::uint8_t expect = 0;
+    Utils::Bits<std::uint32_t, 5> a;
+    test_eq(0, a);
+    expect = 0b10101;
+    Utils::Bits<std::uint8_t, 5> b{expect};
+    test_eq(expect, b);
+    Utils::Bits<std::uint32_t, 5> c{b};
+    test_eq(expect, c);
+    expect = 0b1010;
+    Utils::Bits<std::uint8_t, 5, 2> d{expect};
+    test_eq(expect, d);
+    Utils::Bits<std::uint32_t, 5, 2> e{d};
+    test_eq(expect, e);
+    Utils::Bits<std::uint32_t, 5> f{d};
+    test_eq(expect, f);
+    expect = 0b11011;
+    b = expect;
+    test_eq(expect, b);
+    d = b;
+    test_eq(expect, d);
+    test_eq(b, d);
+    expect = 0b10010;
+    c = expect;
+    test_eq(expect, static_cast<std::uint32_t>(c));
+    test_eq(expect, c.as<std::uint8_t>());
+    test_eq(expect, c.get());
+}
+
 void test1() {
     using selftest::test_eq;
     struct Bf : Utils::Bitfield<std::uint32_t> {
@@ -80,6 +110,7 @@ void test2() {
 
 namespace selftest {
 void bitfield_test() {
+    bits_test();
     test1();
     test2();
 }
