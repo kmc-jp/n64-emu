@@ -2,6 +2,7 @@
 #define INCLUDE_GUARD_21FEA685_23A5_43ED_A210_5762B13C987F
 
 #include <concepts>
+#include <cstddef>
 #include <type_traits>
 
 namespace Utils {
