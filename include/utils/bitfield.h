@@ -7,6 +7,8 @@
 #include <type_traits>
 
 namespace Utils {
+template <std::unsigned_integral, std::size_t, std::size_t> struct BitsRef;
+
 /// @brief Represents bits with a specific width and offset
 /// @tparam T underlying unsigned integral type of the bits
 /// @tparam W width of the bits
@@ -16,6 +18,8 @@ class Bits {
   private:
     template <std::unsigned_integral, std::size_t, std::size_t>
     friend class Bits;
+    template <std::unsigned_integral, std::size_t, std::size_t>
+    friend class BitsRef;
     T value;
     static constexpr auto zero = IntegralConstant<T, 0>{};
     static constexpr auto size = IndexConstant<(sizeof(T) * 8)>{};
@@ -61,68 +65,57 @@ class Bits {
     constexpr T get() const { return shift<0>().get(std::in_place); }
 };
 
-// Controls read/write to a specific range of bits in a bit sequence pointed to
-// by ptr
-// T: constant_t type that represents the range of bits
-// I: index_t type that represents the offset of the range
-template <Constant T, Index I> struct Ref {
-    using value_type = typename T::value_type;
-
+/// @brief Controls read/write to a specific range of bits in a bit sequence
+/// @tparam T underlying unsigned integral type of the bit sequence
+/// @tparam W width of the bit sequence
+/// @tparam I offset of the bit sequence
+template <std::unsigned_integral T, std::size_t W, std::size_t I>
+class BitsRef {
   private:
-    static constexpr std::size_t offset = I::value;
-    static constexpr value_type mask = T::value << offset;
+    using B = Bits<T, W, I>;
+    T &ref;
 
   public:
-    // ptr: pointer to the bit sequence
-    value_type *ptr;
-    Ref(value_type &raw) : ptr(&raw) {}
-    // Read the value from the range
-    [[nodiscard]] value_type operator*() const {
-        return (*ptr & mask) >> offset;
-    }
-    // Write the value to the range
-    void operator=(value_type v) {
-        v <<= offset;
-        *ptr = (*ptr & ~mask) | (v & mask);
+    /// @param raw reference to the bit sequence
+    BitsRef(T &raw) : ref(raw) {}
+    /// @brief Read the value from bits in the range
+    [[nodiscard]] auto operator()() const { return B{std::in_place, ref}; }
+    /// @brief Write the value to bits in the range
+    template <typename V> void operator=(V v) {
+        B b{std::in_place, ref};
+        b = v;
+        ref = b.value;
     }
 };
 
-// Base class to help creating bitfield structures
-// Publicly inherit this class and define members with field_t type
-// ```
-// struct Example : Bitfield<std::uint8_t> {
-//   Example(std::uint8_t &raw) : a{raw}, b{raw}, c{raw} {}
-//   Field<0, 1> a; // 2 bits at offset 0
-//   Field<2, 4> b; // 3 bits at offset 2
-//   Field<6, 6> c; // 1 bits at offset 6
-// };
-// std::uint8_t raw = 0;
-// Example ex{raw};
-// ex.a = 0b11;  // raw == 00000011
-// ex.b = 0b110; // raw == 00011011
-// ex.c = 0b1;   // raw == 01011011
-// raw = 0b01010101;
-// assert(*ex.a == 0b01);
-// assert(*ex.b == 0b101);
-// assert(*ex.c == 0b1);
-// ```
-// T: unsigned integral type that represents the size of the bit sequence
+/// @brief Base class to help creating bitfield structures
+/// @details Publicly inherit this class and define members with Field type
+/// @code {.cpp}
+/// struct Example : Bitfield<std::uint8_t> {
+///   Example(std::uint8_t &raw) : a{raw}, b{raw}, c{raw} {}
+///   Field<0, 1> a; // Bits: 0, 1
+///   Field<2, 4> b; // Bits: 2, 3, 4
+///   Field<6> c;  // Bits: 6
+/// };
+/// std::uint8_t raw = 0;
+/// Example ex{raw};
+/// ex.a = 0b11;  // raw == 0b00000011
+/// ex.b = 0b110; // raw == 0b00011011
+/// ex.c = 0b1;   // raw == 0b01011011
+/// raw = 0b01010101;
+/// assert(0b01 == ex.a);
+/// assert(0b101 == ex.b);
+/// assert(0b1 == ex.c);
+/// @endcode
+///
+/// @tparam T underlying unsigned integral type of the bit sequence
 template <std::unsigned_integral T> struct Bitfield {
-  private:
-    static constexpr auto zero = IntegralConstant<T, 0>{};
-    static constexpr auto size = IndexConstant<(sizeof(T) * 8)>{};
-    template <std::size_t L>
-    using Range = decltype((~zero) >> (size - IndexConstant<L>{}));
-
-  public:
-    // Type that represents a reference to a specific range of bits
-    // B: the beginning of the range
-    // E: the end of the range, inclusive
-    template <std::size_t B, std::size_t E,
-              std::enable_if_t<(B <= E), std::nullptr_t> = nullptr>
-    using Field = Ref<Range<(E - B + 1)>, IndexConstant<B>>;
+    /// @brief Field type to control read/write to a specific range of bits
+    /// @tparam B beginning index of the range
+    /// @tparam E ending index of the range
+    template <std::size_t B, std::size_t E = B>
+    using Field = BitsRef<T, (E - B + 1), B>;
 };
-
 } // namespace Utils
 
 template <std::unsigned_integral T, std::size_t W, std::size_t I>
@@ -130,6 +123,14 @@ struct fmt::formatter<Utils::Bits<T, W, I>> {
     constexpr auto parse(format_parse_context &ctx) { return ctx.end(); }
     auto format(const Utils::Bits<T, W, I> &b, format_context &ctx) const {
         return fmt::format_to(ctx.out(), "{:#b}", b.get());
+    }
+};
+template <std::unsigned_integral T, std::size_t W, std::size_t I>
+struct fmt::formatter<typename Utils::BitsRef<T, W, I>> {
+    constexpr auto parse(format_parse_context &ctx) { return ctx.end(); }
+    auto format(const typename Utils::BitsRef<T, W, I> &r,
+                format_context &ctx) const {
+        return fmt::format_to(ctx.out(), "{:#b}", r().get());
     }
 };
 
