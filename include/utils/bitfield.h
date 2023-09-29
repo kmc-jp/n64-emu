@@ -12,8 +12,7 @@ namespace Utils {
 /// @tparam T underlying unsigned integral type of the bit sequence
 /// @tparam W width of the bit sequence
 /// @tparam I offset of the bit sequence
-template <std::unsigned_integral T, std::size_t W, std::size_t I>
-class BitsRef {
+template <UnsignedIntegral T, std::size_t W, std::size_t I> class BitsRef {
   private:
     using B = Bits<T, W, I>;
     T &ref;
@@ -52,7 +51,7 @@ class BitsRef {
 /// @endcode
 ///
 /// @tparam T underlying unsigned integral type of the bit sequence
-template <std::unsigned_integral T> struct Bitfield {
+template <UnsignedIntegral T> struct Bitfield {
     /// @brief Field type to control read/write to a specific range of bits
     /// @tparam B beginning index of the range
     /// @tparam E ending index of the range
@@ -61,7 +60,7 @@ template <std::unsigned_integral T> struct Bitfield {
 };
 } // namespace Utils
 
-template <std::unsigned_integral T, std::size_t W, std::size_t I>
+template <Utils::UnsignedIntegral T, std::size_t W, std::size_t I>
 struct fmt::formatter<typename Utils::BitsRef<T, W, I>> {
     constexpr auto parse(format_parse_context &ctx) { return ctx.end(); }
     auto format(const typename Utils::BitsRef<T, W, I> &r,

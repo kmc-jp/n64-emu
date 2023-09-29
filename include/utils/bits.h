@@ -8,19 +8,16 @@
 #include <utility>
 
 namespace Utils {
-template <std::unsigned_integral, std::size_t, std::size_t> struct BitsRef;
+template <UnsignedIntegral, std::size_t, std::size_t> struct BitsRef;
 
 /// @brief Represents bits with a specific width and offset
 /// @tparam T underlying unsigned integral type of the bits
 /// @tparam W width of the bits
 /// @tparam I offset of the bits
-template <std::unsigned_integral T, std::size_t W, std::size_t I = 0>
-class Bits {
+template <UnsignedIntegral T, std::size_t W, std::size_t I = 0> class Bits {
   private:
-    template <std::unsigned_integral, std::size_t, std::size_t>
-    friend class Bits;
-    template <std::unsigned_integral, std::size_t, std::size_t>
-    friend class BitsRef;
+    template <UnsignedIntegral, std::size_t, std::size_t> friend class Bits;
+    template <UnsignedIntegral, std::size_t, std::size_t> friend class BitsRef;
     T value;
     template <std::convertible_to<T> U> static constexpr T cast(U v) {
         return static_cast<T>(v);
@@ -45,9 +42,9 @@ class Bits {
     constexpr Bits() : Bits{std::in_place, 0} {}
     template <std::convertible_to<T> V>
     constexpr explicit Bits(V v) : Bits{Bits<T, W>{std::in_place, v}} {}
-    template <std::unsigned_integral U, std::size_t I2>
+    template <UnsignedIntegral U, std::size_t I2>
     constexpr explicit Bits(Bits<U, W, I2> b) : Bits{b.template shift<I>()} {}
-    template <std::unsigned_integral U>
+    template <UnsignedIntegral U>
     constexpr explicit Bits(Bits<U, W, I> b) : Bits{std::in_place, b.value} {}
     [[nodiscard]] constexpr operator T() const { return get(); }
     template <typename V> void operator=(V v) { set(Bits{v}); }
@@ -61,7 +58,7 @@ class Bits {
 };
 } // namespace Utils
 
-template <std::unsigned_integral T, std::size_t W, std::size_t I>
+template <Utils::UnsignedIntegral T, std::size_t W, std::size_t I>
 struct fmt::formatter<Utils::Bits<T, W, I>> {
     constexpr auto parse(format_parse_context &ctx) { return ctx.end(); }
     auto format(const Utils::Bits<T, W, I> &b, format_context &ctx) const {
