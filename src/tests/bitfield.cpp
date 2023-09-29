@@ -3,11 +3,13 @@
 #include <cstdint>
 
 namespace Utils {
-static_assert(Constant<IntegralConstant<unsigned short, 1>>);
-static_assert(Constant<IntegralConstant<std::size_t, 2>>);
-static_assert(Constant<IndexConstant<3>>);
-static_assert(Index<IndexConstant<4>>);
-static_assert(Index<IntegralConstant<std::size_t, 5>>);
+static_assert(Constant<IntegralConstant<unsigned char, 1>>);
+static_assert(Constant<IntegralConstant<unsigned short, 2>>);
+static_assert(Constant<IntegralConstant<unsigned int, 3>>);
+static_assert(Constant<IntegralConstant<unsigned long, 4>>);
+static_assert(Constant<IntegralConstant<unsigned long long, 5>>);
+static_assert(Constant<IntegralConstant<std::size_t, 6>>);
+static_assert(Index<IntegralConstant<std::size_t, 7>>);
 } // namespace Utils
 namespace {
 void bits_test() {

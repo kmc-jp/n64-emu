@@ -22,26 +22,20 @@ class Bits {
     template <std::unsigned_integral, std::size_t, std::size_t>
     friend class BitsRef;
     T value;
-    static constexpr auto zero = IntegralConstant<T, 0>{};
-    static constexpr auto size = IndexConstant<(sizeof(T) * 8)>{};
-    static constexpr auto width = IndexConstant<W>{};
-    static constexpr auto offset = IndexConstant<I>{};
-    static_assert(0 < width && (width + offset) <= size);
-    static constexpr auto mask = (~zero >> (size - width)) << offset;
     template <std::convertible_to<T> U> static constexpr T cast(U v) {
         return static_cast<T>(v);
     }
     template <std::size_t I2> constexpr auto shift() const {
         using B = Bits<T, W, I2>;
-        constexpr auto offset2 = IndexConstant<I2>{};
-        if constexpr (offset < offset2) {
-            return B{std::in_place, value << (offset2 - offset)};
+        if constexpr (I < I2) {
+            return B{std::in_place, value << (I2 - I)};
         } else {
-            return B{std::in_place, value >> (offset - offset2)};
+            return B{std::in_place, value >> (I - I2)};
         }
     }
     template <std::convertible_to<T> V>
     constexpr Bits(std::in_place_t, V v) : value{cast(v)} {}
+    static constexpr auto mask = Utils::mask_const<T, W, I>;
     constexpr T get(std::in_place_t) const { return cast(value & mask); }
     constexpr void set(Bits b) {
         value = cast(cast(value & ~mask) | b.get(std::in_place));

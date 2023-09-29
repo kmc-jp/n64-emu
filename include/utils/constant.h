@@ -69,8 +69,16 @@ struct IntegralConstant : std::integral_constant<T, V> {
         return Self<((lhs < rhs) ? rhs : lhs)>{};
     }
 };
-template <std::size_t I> using IndexConstant = IntegralConstant<std::size_t, I>;
 
+template <std::size_t I>
+constexpr auto index_const = IntegralConstant<std::size_t, I>{};
+template <std::unsigned_integral T>
+constexpr auto zero_const = IntegralConstant<T, 0>{};
+template <std::unsigned_integral T, std::size_t W = sizeof(T) * 8,
+          std::size_t I = 0,
+          std::enable_if_t<(W + I <= sizeof(T) * 8), std::nullptr_t> = nullptr>
+constexpr auto mask_const =
+    ((~zero_const<T>) >> (index_const<sizeof(T) * 8 - W>)) << (index_const<I>);
 } // namespace Utils
 
 #endif // INCLUDE_GUARD_21FEA685_23A5_43ED_A210_5762B13C987F
