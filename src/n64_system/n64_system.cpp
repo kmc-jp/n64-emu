@@ -78,6 +78,25 @@ static void cpu_step_callback(Config &config) {
         }
     }
 
+    // Boot progress sampling (every ~1M cycles)
+    {
+        static bool left_ipl3 = false;
+        static bool entered_game = false;
+        const uint64_t t = N64::g_scheduler().get_current_time();
+        if (t % 0x10'0000 == 0) {
+            const uint32_t pc = static_cast<uint32_t>(N64::g_cpu().get_pc64());
+            Utils::debug("pc sample = {:#010x}", pc);
+            if (!left_ipl3 && (pc < 0xA4000000 || pc > 0xA4001FFF)) {
+                left_ipl3 = true;
+                Utils::info("Left IPL3 (DMEM). pc = {:#010x}", pc);
+            }
+            if (!entered_game && (pc & 0xFFF00000) == 0x80100000) {
+                entered_game = true;
+                Utils::info("Entered game code region. pc = {:#010x}", pc);
+            }
+        }
+    }
+
     // For debugging
     if constexpr (Utils::LOG_INSTRUCTION) {
         if (N64::g_scheduler().get_current_time() % 0x10'0000 == 0) {

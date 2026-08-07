@@ -136,16 +136,15 @@ RomType Rom::rom_type() {
 CicType Rom::get_cic() const { return cic; }
 
 uint32_t Rom::get_cic_seed() const {
-    // TODO: switch文にする
-    // https://github.com/SimoneN64/Kaizen/blob/dffd36fc31731a0391a9b90f88ac2e5ed5d3f9ec/src/backend/core/mmio/PIF.hpp#L84
+    // https://github.com/Dillonb/n64/blob/6502f7d2f163c3f14da5bff8cd6d5ccc47143156/src/mem/pif.c#L27
     uint32_t CIC_SEEDS[] = {
         0x0,
         0x00043F3F, // CIC_NUS_6101
         0x00043F3F, // CIC_NUS_7102
-        0x00043F3F, // CIC_NUS_6102_7101
-        0x00047878, // CIC_NUS_6103_7103
-        0x00049191, // CIC_NUS_6105_7105
-        0x00048585, // CIC_NUS_6106_7106
+        0x00003F3F, // CIC_NUS_6102_7101
+        0x0000783F, // CIC_NUS_6103_7103
+        0x0000913F, // CIC_NUS_6105_7105
+        0x0000853F, // CIC_NUS_6106_7106
     };
     return CIC_SEEDS[static_cast<uint32_t>(cic)];
 }

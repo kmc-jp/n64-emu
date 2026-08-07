@@ -12,6 +12,14 @@ const uint32_t PADDR_CART_ADDR = 0x04600004;
 const uint32_t PADDR_RD_LEN = 0x04600008;
 const uint32_t PADDR_WR_LEN = 0x0460000C;
 const uint32_t PADDR_STATUS = 0x04600010;
+const uint32_t PADDR_BSD_DOM1_LAT = 0x04600014;
+const uint32_t PADDR_BSD_DOM1_PWD = 0x04600018;
+const uint32_t PADDR_BSD_DOM1_PGS = 0x0460001C;
+const uint32_t PADDR_BSD_DOM1_RLS = 0x04600020;
+const uint32_t PADDR_BSD_DOM2_LAT = 0x04600024;
+const uint32_t PADDR_BSD_DOM2_PWD = 0x04600028;
+const uint32_t PADDR_BSD_DOM2_PGS = 0x0460002C;
+const uint32_t PADDR_BSD_DOM2_RLS = 0x04600030;
 
 // https://n64brew.dev/wiki/Peripheral_Interface#Domains
 constexpr uint32_t POS_ROM_START = 0x1000'0000;
@@ -36,20 +44,30 @@ enum PiStatusWriteFlags : uint32_t {
 
 namespace PIScheduler {
 void on_dma_write_completed();
+void on_dma_read_completed();
 }
 
 // Peripheral Interface
 // https://n64brew.dev/wiki/Peripheral_Interface
 class PI {
-    // DMA write完了時の処理
+    // DMA完了時の処理
     friend void PIScheduler::on_dma_write_completed();
+    friend void PIScheduler::on_dma_read_completed();
 
   private:
-    uint32_t reg_dram_addr;
-    uint32_t reg_cart_addr;
-    uint32_t reg_rd_len;
-    uint32_t reg_wr_len;
-    uint32_t reg_status;
+    uint32_t reg_dram_addr{};
+    uint32_t reg_cart_addr{};
+    uint32_t reg_rd_len{};
+    uint32_t reg_wr_len{};
+    uint32_t reg_status{};
+    uint32_t reg_bsd_dom1_lat{};
+    uint32_t reg_bsd_dom1_pwd{};
+    uint32_t reg_bsd_dom1_pgs{};
+    uint32_t reg_bsd_dom1_rls{};
+    uint32_t reg_bsd_dom2_lat{};
+    uint32_t reg_bsd_dom2_pwd{};
+    uint32_t reg_bsd_dom2_pgs{};
+    uint32_t reg_bsd_dom2_rls{};
 
     static PI instance;
 
