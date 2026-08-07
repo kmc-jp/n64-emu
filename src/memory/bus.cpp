@@ -1,4 +1,5 @@
 ﻿#include "memory/bus.h"
+#include "debugger/debugger.h"
 #include "memory/memory.h"
 #include "memory/memory_map.h"
 #include "mmio/ai.h"
@@ -243,7 +244,12 @@ template <typename Wire> Wire read_paddr(uint32_t paddr) {
 }
 
 uint64_t read_paddr64(uint32_t paddr) { return read_paddr<uint64_t>(paddr); }
-uint32_t read_paddr32(uint32_t paddr) { return read_paddr<uint32_t>(paddr); }
+uint32_t read_paddr32(uint32_t paddr) {
+    if (g_debugger().has_watches()) {
+        g_debugger().on_bus_access(paddr, false);
+    }
+    return read_paddr<uint32_t>(paddr);
+}
 uint16_t read_paddr16(uint32_t paddr) { return read_paddr<uint16_t>(paddr); }
 uint8_t read_paddr8(uint32_t paddr) { return read_paddr<uint8_t>(paddr); }
 
@@ -444,6 +450,9 @@ void write_paddr64(uint32_t paddr, uint64_t value) {
     write_paddr<uint64_t>(paddr, value);
 }
 void write_paddr32(uint32_t paddr, uint32_t value) {
+    if (g_debugger().has_watches()) {
+        g_debugger().on_bus_access(paddr, true);
+    }
     write_paddr<uint32_t>(paddr, value);
 }
 void write_paddr16(uint32_t paddr, uint16_t value) {

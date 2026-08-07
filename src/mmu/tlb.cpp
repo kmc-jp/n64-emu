@@ -54,6 +54,24 @@ void TLB::advance_random() {
     cop0.random = r;
 }
 
+void TLB::dump_entries() const {
+    int shown = 0;
+    for (int i = 0; i < 32; i++) {
+        const TLBEntry &e = entries[i];
+        if (!e.valid()) {
+            continue;
+        }
+        const uint64_t hi = e.hi().raw;
+        Utils::info("TLB[{:>2}] hi={:#018x} lo0={:#010x} lo1={:#010x} "
+                    "mask={:#010x} global={}",
+                    i, hi, e.lo0().raw, e.lo1().raw, e.mask(), e.is_global());
+        shown++;
+    }
+    if (shown == 0) {
+        Utils::info("TLB: no valid entries");
+    }
+}
+
 void TLB::write_entry(bool random) {
     auto &cop0 = g_cpu().cop0.reg;
     int32_t index;

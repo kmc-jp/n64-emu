@@ -1,5 +1,6 @@
 ﻿#include "cpu/cpu.h"
 #include "cpu_instruction_impl.h"
+#include "debugger/debugger.h"
 #include "fpu_instruction_impl.h"
 #include "memory/bus.h"
 #include "mmu/mmu.h"
@@ -494,31 +495,8 @@ void Cpu::handle_exception(ExceptionCode exception_code,
     } break;
     }
 
-    // Rate-limited diagnostic for TLB refill / early boot debugging
-    {
-        static int exc_log_count = 0;
-        const bool interesting =
-            exception_code == ExceptionCode::TLB_MISS_LOAD ||
-            exception_code == ExceptionCode::TLB_MISS_STORE ||
-            exception_code == ExceptionCode::TLB_MODIFICATION ||
-            exception_code == ExceptionCode::INTERRUPT;
-        if (exc_log_count < 48 && interesting) {
-            const uint64_t entry_hi = cop0.reg.entry_hi.raw;
-            const uint64_t ctx = cop0.reg.context.raw;
-            const uint64_t xctx = cop0.reg.xcontext.raw;
-            const uint64_t badv = cop0.reg.bad_vaddr;
-            const uint64_t epc_v = cop0.reg.epc;
-            Utils::debug(
-                "EXC code={} err={} BadV={:#018x} EntryHi={:#018x} "
-                "Ctx={:#018x} XCtx={:#018x} vec={:#010x} Random={} EPC={:#018x}",
-                static_cast<uint8_t>(exception_code),
-                static_cast<int>(g_tlb().get_last_error()), badv, entry_hi, ctx,
-                xctx, vector, cop0.reg.random, epc_v);
-            exc_log_count++;
-        }
-    }
-
     set_pc32(vector);
+    g_debugger().on_exception(exception_code, vector);
 }
 
 } // namespace Cpu

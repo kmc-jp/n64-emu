@@ -1,5 +1,6 @@
 ﻿#include "n64_system/n64_system.h"
 #include "app/parallel_rdp_wrapper.h"
+#include "debugger/debugger.h"
 #include "memory/bus.h"
 #include "memory/memory.h"
 #include "mmio/ai.h"
@@ -39,6 +40,7 @@ static void reset_all(Config &config) {
 void set_up(Config &config) {
     Utils::info("Starting N64 system");
     N64System::reset_all(config);
+    g_debugger().configure(config);
 
     if (config.test_mode) {
         Utils::info("Copying ROM");
@@ -53,13 +55,6 @@ void set_up(Config &config) {
         // PIF ROM execution
         Utils::debug("Executing PIF ROM");
         N64::g_si().pif.execute_rom_hle();
-    }
-}
-
-static void check_breakpoint(Config &config) {
-    // TODO: configure brakpoint
-    if ((g_cpu().get_pc64()) == 0x1) {
-        Utils::abort("Reached break point 1");
     }
 }
 
@@ -80,8 +75,8 @@ static void cpu_step_callback(Config &config) {
         }
     }
 
-    // Boot progress sampling (every ~1M cycles)
-    {
+    // Boot progress sampling (every ~1M cycles); skip when debugger owns tracing
+    if (!config.debug) {
         static bool left_ipl3 = false;
         static bool entered_game = false;
         const uint64_t t = N64::g_scheduler().get_current_time();
@@ -128,7 +123,7 @@ void step(Config &config, Vulkan::WSI &wsi) {
 
             // FIXME: what if a CPU step take more than one cycle?
             for (int i = 0; i < g_vi().get_cycles_per_half_line(); i++) {
-                check_breakpoint(config);
+                g_debugger().on_step();
 
                 // CPU step
                 g_cpu().step();

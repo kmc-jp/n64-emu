@@ -32,6 +32,12 @@ class TLBEntry {
 
     void invalidate() { is_valid = false; }
 
+    bool is_global() const { return global; }
+    entry_lo0_t lo0() const { return entry_lo0; }
+    entry_lo1_t lo1() const { return entry_lo1; }
+    entry_hi_t hi() const { return entry_hi; }
+    uint32_t mask() const { return page_mask; }
+
   private:
     bool is_valid;
     bool global;
@@ -67,6 +73,10 @@ class TLB {
 
     // Advance COP0 Random within Wired..31 (or 0..63 if Wired > 31).
     static void advance_random();
+
+    void dump_entries() const;
+
+    const TLBEntry &entry_at(int index) const { return entries[index & 0x1f]; }
 
     inline static TLB &get_instance() { return instance; }
 

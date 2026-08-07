@@ -1,5 +1,6 @@
 ﻿#include "n64_system/config.h"
 #include "utils/log.h"
+#include <cstdlib>
 #include <iostream>
 #include <string_view>
 
@@ -14,6 +15,8 @@ bool read_config_from_command_line(Config &config, int argc, char *argv[]) {
     config.log_level = Utils::LogLevel::DEBUG;
     // default to false
     config.test_mode = false;
+    config.debug = false;
+    config.break_pcs.clear();
 
     for (int i = 1; i < argc; ++i) {
         const std::string_view current = argv[i];
@@ -48,6 +51,21 @@ bool read_config_from_command_line(Config &config, int argc, char *argv[]) {
             }
         } else if (current == "--test") {
             config.test_mode = true;
+        } else if (current == "--debug") {
+            config.debug = true;
+        } else if (current.starts_with("--break=")) {
+            std::string_view pc_str =
+                current.substr(std::string("--break=").size());
+            char *end = nullptr;
+            const std::string pc_s(pc_str);
+            const unsigned long pc = std::strtoul(pc_s.c_str(), &end, 0);
+            if (end == pc_s.c_str() || *end != '\0') {
+                std::cerr << "Error: invalid --break value `" << pc_str << "`"
+                          << std::endl;
+                return false;
+            }
+            config.debug = true;
+            config.break_pcs.push_back(static_cast<uint32_t>(pc));
         } else if (current.empty() == false && !current.starts_with('-')) {
             // ROMパス指定
             if (config.rom_filepath.empty() == false) {
