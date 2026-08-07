@@ -71,6 +71,8 @@ class Cpu {
 
     uint64_t get_pc64() const;
 
+    uint64_t get_prev_pc64() const { return prev_pc; }
+
     bool should_service_interrupt() const;
 
     // CPUの1ステップを実行する

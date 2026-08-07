@@ -1,5 +1,7 @@
 #include "debugger/debugger.h"
 #include "cpu/cop0.h"
+#include "memory/bus.h"
+#include "mmu/mmu.h"
 #include "mmu/tlb.h"
 #include "n64_system/scheduler.h"
 #include "utils/log.h"
@@ -23,6 +25,8 @@ void Debugger::configure(const N64System::Config &config) {
     watch_paddrs.clear();
     break_on_tlb_ = false;
     break_on_any_exception_ = false;
+    break_on_cop0_any_ = false;
+    break_on_cop0_reg_ = -1;
     pause_requested_ = false;
     step_one_ = false;
     stop_before_next_ = false;
@@ -125,6 +129,32 @@ void Debugger::on_bus_access(uint32_t paddr, bool is_write) {
                       is_write ? "write" : "read", paddr);
         request_pause(buf);
     }
+}
+
+void Debugger::on_cop0_write(uint8_t reg_num, uint64_t value) {
+    if (!enabled_) {
+        return;
+    }
+    if (!break_on_cop0_any_ &&
+        !(break_on_cop0_reg_ >= 0 &&
+          break_on_cop0_reg_ == static_cast<int>(reg_num))) {
+        return;
+    }
+
+    auto &cpu = g_cpu();
+    auto &r = cpu.cop0.reg;
+    const char *name =
+        (reg_num < Cpu::COP0_REG_NAMES.size())
+            ? Cpu::COP0_REG_NAMES[reg_num].data()
+            : "?";
+    char buf[192];
+    std::snprintf(buf, sizeof(buf),
+                  "COP0 write %s(%u)=%#018llx @ prev_pc=%#018llx "
+                  "Status=%#010x Cause=%#010x",
+                  name, reg_num, static_cast<unsigned long long>(value),
+                  static_cast<unsigned long long>(cpu.get_prev_pc64()),
+                  r.status.raw, r.cause.raw);
+    request_pause(buf);
 }
 
 void Debugger::on_step() {
@@ -233,6 +263,26 @@ bool Debugger::handle_repl_line(const std::string &line) {
         cmd_ex();
         return false;
     }
+    if (cmd == "mem") {
+        std::string addr_s;
+        int words = 16;
+        iss >> addr_s;
+        if (addr_s.empty()) {
+            Utils::info("usage: mem 0xVADDR [words]");
+            return false;
+        }
+        iss >> words;
+        if (words <= 0) {
+            words = 16;
+        }
+        if (words > 64) {
+            words = 64;
+        }
+        const uint32_t vaddr =
+            static_cast<uint32_t>(std::strtoul(addr_s.c_str(), nullptr, 0));
+        cmd_mem(vaddr, words);
+        return false;
+    }
     if (cmd == "break") {
         std::string arg;
         iss >> arg;
@@ -242,13 +292,36 @@ bool Debugger::handle_repl_line(const std::string &line) {
         } else if (arg == "exception" || arg == "exc") {
             break_on_any_exception_ = true;
             Utils::info("break on any exception enabled");
+        } else if (arg == "cop0") {
+            std::string which;
+            iss >> which;
+            if (which.empty() || which == "any") {
+                break_on_cop0_any_ = true;
+                break_on_cop0_reg_ = -1;
+                Utils::info("break on any COP0 write enabled");
+            } else if (which == "epc") {
+                break_on_cop0_any_ = false;
+                break_on_cop0_reg_ = Cpu::Cop0Reg::EPC;
+                Utils::info("break on COP0 EPC write enabled");
+            } else {
+                const int reg =
+                    static_cast<int>(std::strtol(which.c_str(), nullptr, 0));
+                if (reg >= 0 && reg < 32) {
+                    break_on_cop0_any_ = false;
+                    break_on_cop0_reg_ = reg;
+                    Utils::info("break on COP0 reg {} write enabled", reg);
+                } else {
+                    Utils::info("usage: break cop0 [epc|any|<regnum>]");
+                }
+            }
         } else if (!arg.empty()) {
             const uint32_t pc =
                 static_cast<uint32_t>(std::strtoul(arg.c_str(), nullptr, 0));
             break_pcs.push_back(pc);
             Utils::info("added break PC {:#010x}", pc);
         } else {
-            Utils::info("usage: break 0xPC | break tlb | break exception");
+            Utils::info("usage: break 0xPC | break tlb | break exception | "
+                        "break cop0 [epc|any|<regnum>]");
         }
         return false;
     }
@@ -267,8 +340,8 @@ bool Debugger::handle_repl_line(const std::string &line) {
     }
     if (cmd == "help" || cmd == "h" || cmd == "?") {
         Utils::info(
-            "commands: c/continue s/step regs cop0 tlb bt ex "
-            "break watch q/quit");
+            "commands: c/continue s/step regs cop0 tlb bt ex mem "
+            "break[ tlb|exception|cop0] watch q/quit");
         return false;
     }
 
@@ -337,9 +410,23 @@ void Debugger::cmd_ex() const {
         const size_t idx = (start + i) % EX_RING_SIZE;
         const auto &e = ex_ring[idx];
         Utils::info("  [{:>2}] code={} err={} BadV={:#018x} EPC={:#018x} "
-                    "EntryHi={:#018x} vec={:#010x} Random={}",
+                    "EntryHi={:#018x} Context={:#018x} XContext={:#018x} "
+                    "vec={:#010x} Random={}",
                     i, e.code, e.tlb_err, e.bad_vaddr, e.epc, e.entry_hi,
-                    e.vector, e.random);
+                    e.context, e.xcontext, e.vector, e.random);
+    }
+}
+
+void Debugger::cmd_mem(uint32_t vaddr, int words) const {
+    for (int i = 0; i < words; i++) {
+        const uint32_t va = vaddr + static_cast<uint32_t>(i * 4);
+        auto paddr = Mmu::resolve_vaddr(va);
+        if (!paddr.has_value()) {
+            Utils::info("{:#010x}: <unmapped>", va);
+            continue;
+        }
+        const uint32_t w = Memory::read_paddr32(paddr.value());
+        Utils::info("{:#010x}: {:#010x}", va, w);
     }
 }
 

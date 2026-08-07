@@ -39,6 +39,9 @@ class Debugger {
     // Physical bus watch (32-bit). is_write distinguishes R/W.
     void on_bus_access(uint32_t paddr, bool is_write);
 
+    // COP0 MTC0/DMTC0 (and any Reg::write) watch.
+    void on_cop0_write(uint8_t reg_num, uint64_t value);
+
     static Debugger &get_instance();
 
   private:
@@ -49,6 +52,9 @@ class Debugger {
     bool skip_pc_break_once_{false};
     bool break_on_tlb_{false};
     bool break_on_any_exception_{false};
+    bool break_on_cop0_any_{false};
+    // -1 = none; otherwise match this COP0 register number only.
+    int break_on_cop0_reg_{-1};
 
     std::vector<uint32_t> break_pcs;
     std::vector<uint32_t> watch_paddrs;
@@ -72,6 +78,7 @@ class Debugger {
     void cmd_tlb() const;
     void cmd_bt() const;
     void cmd_ex() const;
+    void cmd_mem(uint32_t vaddr, int words) const;
 
     void push_pc(uint32_t pc);
     void push_exception(const ExceptionRecord &rec);

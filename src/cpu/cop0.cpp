@@ -1,4 +1,5 @@
 ﻿#include "cpu/cop0.h"
+#include "debugger/debugger.h"
 #include "utils/log.h"
 
 namespace N64 {
@@ -10,7 +11,7 @@ uint64_t se32_to_64(uint32_t value) {
 }
 } // namespace
 
-uint64_t Cpu::Cop0::Reg::read(uint8_t reg_num) const {
+uint64_t Cop0::Reg::read(uint8_t reg_num) const {
     switch (reg_num) {
     case Cop0Reg::INDEX:
         return index;
@@ -70,7 +71,9 @@ uint64_t Cpu::Cop0::Reg::read(uint8_t reg_num) const {
     }
 }
 
-void Cpu::Cop0::Reg::write(uint8_t reg_num, uint64_t value) {
+void Cop0::Reg::write(uint8_t reg_num, uint64_t value) {
+    g_debugger().on_cop0_write(reg_num, value);
+
     switch (reg_num) {
     case Cop0Reg::INDEX: {
         index = value;
@@ -181,7 +184,7 @@ void Cpu::Cop0::Reg::write(uint8_t reg_num, uint64_t value) {
     }
 }
 
-void Cpu::Cop0::reset() {
+void Cop0::reset() {
     Utils::debug("Resetting CPU COP0");
     constexpr auto uint64_max = ~static_cast<uint64_t>(0);
     reg.cause.raw = 0xB000007C;
@@ -207,7 +210,7 @@ void Cpu::Cop0::reset() {
     llbit = false;
 }
 
-void Cpu::Cop0::dump() {
+void Cop0::dump() {
     for (int i = 0; i < 16; i++) {
         bool i_th_reg_is_unknwon = COP0_REG_NAMES[i] == UNUSED_COP0_REG_NAME;
         bool i_plus_16_th_reg_is_unknwon =
