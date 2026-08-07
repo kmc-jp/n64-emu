@@ -4,12 +4,8 @@
 namespace N64 {
 namespace N64System {
 
-bool scheduled_event_compare(scheduled_event_t e, scheduled_event_t o) {
-    return e.first < o.first;
-}
-
 void Scheduler::set_timer(uint64_t cycles, Event event) {
-    event_queue.push({current_time + cycles, event});
+    event_queue.push({current_time + cycles, std::move(event)});
 }
 
 void Scheduler::tick(uint64_t cycles) {

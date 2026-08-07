@@ -1,6 +1,7 @@
 ﻿#include "rcp/rsp.h"
 #include "memory/memory.h"
 #include "memory/memory_map.h"
+#include "debugger/debugger.h"
 #include "mmio/mi.h"
 #include "n64_system/interrupt.h"
 #include "rcp/dpc.h"
@@ -669,8 +670,19 @@ void Rsp::status_reg_write(uint32_t value) {
     sp_status_write_t write;
     write.raw = value;
 
-    if (write.clear_halt && !write.set_halt)
+    if (write.clear_halt && !write.set_halt) {
+        const bool was_halted = status_reg.halt != 0;
         status_reg.halt = 0;
+        if (was_halted) {
+            const uint32_t type = dmem_load32(0xFC0);
+            if (type != 2) {
+                Utils::info("RSP unhalt OSTask type={}", type);
+            } else {
+                Utils::debug("RSP unhalt OSTask type=2");
+            }
+            g_debugger().on_rsp_unhalt();
+        }
+    }
     if (!write.clear_halt && write.set_halt)
         status_reg.halt = 1;
     if (write.clear_broke)

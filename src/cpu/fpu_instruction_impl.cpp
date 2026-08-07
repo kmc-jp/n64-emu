@@ -475,6 +475,32 @@ void FpuImpl::op_cop1_arith(Cpu &cpu, instruction_t inst) {
             Utils::instruction_trace("NEG.D FGR[{}], FGR[{}]", fd, fs);
             return;
         }
+        case COP1_FUNCT_ROUND_W: {
+            int32_t w =
+                static_cast<int32_t>(std::nearbyint(get_float_d(cpu, fs)));
+            cpu.cop1.set_fgr_word_arith(fd, static_cast<uint32_t>(w), fr);
+            Utils::instruction_trace("ROUND.W.D FGR[{}], FGR[{}]", fd, fs);
+            return;
+        }
+        case COP1_FUNCT_TRUNC_W: {
+            int32_t w =
+                static_cast<int32_t>(std::trunc(get_float_d(cpu, fs)));
+            cpu.cop1.set_fgr_word_arith(fd, static_cast<uint32_t>(w), fr);
+            Utils::instruction_trace("TRUNC.W.D FGR[{}], FGR[{}]", fd, fs);
+            return;
+        }
+        case COP1_FUNCT_CEIL_W: {
+            int32_t w = static_cast<int32_t>(std::ceil(get_float_d(cpu, fs)));
+            cpu.cop1.set_fgr_word_arith(fd, static_cast<uint32_t>(w), fr);
+            Utils::instruction_trace("CEIL.W.D FGR[{}], FGR[{}]", fd, fs);
+            return;
+        }
+        case COP1_FUNCT_FLOOR_W: {
+            int32_t w = static_cast<int32_t>(std::floor(get_float_d(cpu, fs)));
+            cpu.cop1.set_fgr_word_arith(fd, static_cast<uint32_t>(w), fr);
+            Utils::instruction_trace("FLOOR.W.D FGR[{}], FGR[{}]", fd, fs);
+            return;
+        }
         case COP1_FUNCT_CVT_S: {
             set_float_s(cpu, fd, static_cast<float>(get_float_d(cpu, fs)));
             Utils::instruction_trace("CVT.S.D FGR[{}], FGR[{}]", fd, fs);

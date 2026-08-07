@@ -90,8 +90,7 @@ void VI::write_paddr32(uint32_t paddr, uint32_t value) {
     case PADDR_VI_ORIGIN: {
         uint32_t masked = value & 0xFFFFFF;
         if (reg_origin != masked) {
-            // swap?
-            // https://github.com/SimoneN64/Kaizen/blob/dffd36fc31731a0391a9b90f88ac2e5ed5d3f9ec/src/backend/core/mmio/VI.cpp#L55
+            Utils::info("VI_ORIGIN {:#x} -> {:#x}", reg_origin, masked);
         }
         reg_origin = masked;
         Utils::debug("VI: Origin set to {:#x}", reg_origin);

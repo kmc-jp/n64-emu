@@ -19,7 +19,7 @@ static const int COMMAND_LENGTHS[64] = {
     2, 2, 2, 2, 2, 2, 2, 2, 2, 2,  2,  2,  2,  2,  2,  2};
 
 constexpr uint8_t RDP_COMMAND_FULL_SYNC = 0x29;
-constexpr uint32_t RDP_COMMAND_BUFFER_SIZE = 0x10000;
+constexpr uint32_t RDP_COMMAND_BUFFER_SIZE = 0x100000;
 
 void Dpc::reset() {
     Utils::debug("Resetting DPC");
@@ -66,7 +66,14 @@ void Dpc::write_paddr32(uint32_t paddr, uint32_t value) {
         break;
     case PADDR_DPC_END:
         end = value & 0x00FFFFF8;
-        status.start_valid = 0;
+        // https://n64brew.dev/wiki/Reality_Display_Processor/Interface#0x0410_0004_-_DPC_END
+        // When START_PENDING (start_valid), latch CURRENT from START then clear.
+        if (status.start_valid) {
+            current = start;
+            status.start_valid = 0;
+        }
+        Utils::debug("DPC END={:#010x} (start={:#010x} current={:#010x})", end,
+                     start, current);
         run_command();
         break;
     case PADDR_DPC_CURRENT:
@@ -138,8 +145,6 @@ void Dpc::run_command() {
 
 void Dpc::process_list() {
     // https://github.com/Dillonb/n64/blob/6502f7d2f163c3f14da5bff8cd6d5ccc47143156/src/rdp/rdp.c#L148
-    // Stub: walk the list, raise DP interrupt on FULL_SYNC.
-    // Parallel-RDP enqueue is wired in a later commit.
     status.freeze = 1;
 
     const uint32_t cur = current & 0x00FFFFF8;
@@ -152,6 +157,15 @@ void Dpc::process_list() {
 
     static uint32_t cmd_buf[RDP_COMMAND_BUFFER_SIZE];
     static int leftover = 0;
+
+    if (static_cast<uint32_t>((display_list_length >> 2) + leftover) >
+        RDP_COMMAND_BUFFER_SIZE) {
+        Utils::warn("DPC command buffer overflow len={:#x} leftover={}",
+                    display_list_length, leftover);
+        leftover = 0;
+        status.freeze = 0;
+        return;
+    }
 
     if (status.xbus_dmem_dma) {
         auto &dmem = g_rsp().get_sp_dmem();

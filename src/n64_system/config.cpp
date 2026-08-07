@@ -17,6 +17,8 @@ bool read_config_from_command_line(Config &config, int argc, char *argv[]) {
     config.test_mode = false;
     config.debug = false;
     config.break_pcs.clear();
+    config.watch_paddrs.clear();
+    config.break_after_cycles = 0;
 
     for (int i = 1; i < argc; ++i) {
         const std::string_view current = argv[i];
@@ -66,6 +68,32 @@ bool read_config_from_command_line(Config &config, int argc, char *argv[]) {
             }
             config.debug = true;
             config.break_pcs.push_back(static_cast<uint32_t>(pc));
+        } else if (current.starts_with("--break-after=")) {
+            std::string_view n_str =
+                current.substr(std::string("--break-after=").size());
+            char *end = nullptr;
+            const std::string n_s(n_str);
+            const unsigned long long n = std::strtoull(n_s.c_str(), &end, 0);
+            if (end == n_s.c_str() || *end != '\0' || n == 0) {
+                std::cerr << "Error: invalid --break-after value `" << n_str
+                          << "`" << std::endl;
+                return false;
+            }
+            config.debug = true;
+            config.break_after_cycles = n;
+        } else if (current.starts_with("--watch=")) {
+            std::string_view p_str =
+                current.substr(std::string("--watch=").size());
+            char *end = nullptr;
+            const std::string p_s(p_str);
+            const unsigned long p = std::strtoul(p_s.c_str(), &end, 0);
+            if (end == p_s.c_str() || *end != '\0') {
+                std::cerr << "Error: invalid --watch value `" << p_str << "`"
+                          << std::endl;
+                return false;
+            }
+            config.debug = true;
+            config.watch_paddrs.push_back(static_cast<uint32_t>(p));
         } else if (current.empty() == false && !current.starts_with('-')) {
             // ROMパス指定
             if (config.rom_filepath.empty() == false) {

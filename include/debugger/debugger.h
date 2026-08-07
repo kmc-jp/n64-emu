@@ -4,6 +4,7 @@
 #include "cpu/cpu.h"
 #include "n64_system/config.h"
 #include <cstdint>
+#include <optional>
 #include <string>
 #include <vector>
 
@@ -22,13 +23,18 @@ struct ExceptionRecord {
     uint32_t random{};
 };
 
+struct WatchEntry {
+    uint32_t paddr{};
+    bool write_only{false};
+};
+
 class Debugger {
   public:
     void configure(const N64System::Config &config);
 
     bool enabled() const { return enabled_; }
 
-    bool has_watches() const { return enabled_ && !watch_paddrs.empty(); }
+    bool has_watches() const { return enabled_ && !watches_.empty(); }
 
     // Called once per CPU instruction from the system step callback.
     void on_step();
@@ -41,6 +47,9 @@ class Debugger {
 
     // COP0 MTC0/DMTC0 (and any Reg::write) watch.
     void on_cop0_write(uint8_t reg_num, uint64_t value);
+
+    // Called when RSP halt is cleared (SP_STATUS clear_halt).
+    void on_rsp_unhalt();
 
     static Debugger &get_instance();
 
@@ -55,9 +64,13 @@ class Debugger {
     bool break_on_cop0_any_{false};
     // -1 = none; otherwise match this COP0 register number only.
     int break_on_cop0_reg_{-1};
+    // <0 = disabled; otherwise pause when scheduler time reaches this.
+    int64_t break_at_time_{-1};
+    // <0 = any type; otherwise match OSTask type in DMEM 0xFC0 on unhalt.
+    int break_sp_task_type_{-2}; // -2 = disabled
 
     std::vector<uint32_t> break_pcs;
-    std::vector<uint32_t> watch_paddrs;
+    std::vector<WatchEntry> watches_;
 
     static constexpr size_t PC_RING_SIZE = 256;
     static constexpr size_t EX_RING_SIZE = 64;
@@ -79,12 +92,25 @@ class Debugger {
     void cmd_bt() const;
     void cmd_ex() const;
     void cmd_mem(uint32_t vaddr, int words) const;
+    void cmd_pmem(uint32_t paddr, int words) const;
+    void cmd_vi() const;
+    void cmd_mi() const;
+    void cmd_rsp() const;
+    void cmd_dpc() const;
+    void cmd_ost(const std::vector<uint32_t> &tbaddrs) const;
+    void cmd_mq(uint32_t vaddr) const;
+    void cmd_scan_task(uint32_t type, uint32_t limit) const;
+    void cmd_find(uint32_t word, uint32_t limit) const;
 
     void push_pc(uint32_t pc);
     void push_exception(const ExceptionRecord &rec);
 
     bool pc_breakpoint_hit(uint32_t pc) const;
-    bool watch_hit(uint32_t paddr) const;
+    std::optional<WatchEntry> watch_hit(uint32_t paddr, bool is_write) const;
+
+    static uint32_t read_vaddr32(uint32_t vaddr);
+    static uint32_t read_rdram32(uint32_t paddr);
+    static const char *osthread_state_name(uint16_t state);
 
     static Debugger instance;
 };

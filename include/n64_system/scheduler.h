@@ -15,23 +15,27 @@ class Event {
     std::function<void()> f;
 
   public:
-    Event(std::function<void()> callback) : f(callback) {}
+    Event(std::function<void()> callback) : f(std::move(callback)) {}
 
     void perform() { f(); }
 };
 
 using scheduled_event_t = std::pair<uint64_t, Event>;
 
-bool scheduled_event_compare(scheduled_event_t, scheduled_event_t);
+// Min-heap by time: earlier events have higher priority.
+struct ScheduledEventEarlier {
+    bool operator()(const scheduled_event_t &a,
+                    const scheduled_event_t &b) const {
+        return a.first > b.first;
+    }
+};
 
 class Scheduler {
   private:
     static Scheduler instance;
 
-    // イベントのキュー. 要素は, イベントとそれが実行される時刻のペア
-    std::priority_queue<
-        scheduled_event_t, std::vector<scheduled_event_t>,
-        std::function<bool(scheduled_event_t, scheduled_event_t)>>
+    std::priority_queue<scheduled_event_t, std::vector<scheduled_event_t>,
+                        ScheduledEventEarlier>
         event_queue;
 
     // 現在の時刻
@@ -40,7 +44,10 @@ class Scheduler {
   public:
     Scheduler() : current_time(0) {}
 
-    void init() { current_time = 0; }
+    void init() {
+        current_time = 0;
+        event_queue = {};
+    }
 
     // 現在からCPU cycles後にイベントを実行する
     void set_timer(uint64_t cycles, Event event);
