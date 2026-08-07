@@ -11,6 +11,7 @@
 #include "n64_system/config.h"
 #include "n64_system/interrupt.h"
 #include "n64_system/scheduler.h"
+#include "rcp/dpc.h"
 #include "rcp/rsp.h"
 #include "utils/log.h"
 
@@ -27,6 +28,7 @@ static void reset_all(Config &config) {
     N64::g_tlb().reset();
     N64::g_cpu().reset();
     N64::g_rsp().reset();
+    N64::g_dpc().reset();
     N64::g_pi().reset();
     N64::g_si().reset();
     N64::g_mi().reset();
