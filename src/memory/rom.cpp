@@ -2,7 +2,6 @@
 #include "utils/byte_array.h"
 #include "utils/log.h"
 #include <fstream>
-#include <span>
 
 namespace N64 {
 namespace Memory {
@@ -89,7 +88,7 @@ void Rom::load_file(const std::string &filepath) {
         return;
     }
 
-    // set header (while ROM is still big-endian / z64 byte order)
+    // set header
     header = *reinterpret_cast<rom_header_t *>(rom.data());
 
     switch (rom_type()) {
@@ -110,7 +109,7 @@ void Rom::load_file(const std::string &filepath) {
         break;
     }
 
-    // set cic (CRC must run on big-endian bytes)
+    // set cic
     const uint32_t checksum = crc32(0, &rom[0x40], 0x9C0);
     cic = checksum_to_cic(checksum);
 
@@ -118,10 +117,6 @@ void Rom::load_file(const std::string &filepath) {
 
     Utils::debug("imageName\t= \"{}\"", std::string(header.image_name));
     Utils::debug("CIC\t= {}", static_cast<int>(cic));
-
-    // paraLLEl-RDP / host CPU expect host-endian word storage with byte^3.
-    Utils::byteswap_to_host(
-        std::span<uint8_t>(rom.data(), static_cast<size_t>(file_size)));
 }
 
 void Rom::detect_save_type() {
@@ -139,9 +134,9 @@ void Rom::detect_save_type() {
 }
 
 RomType Rom::rom_type() {
-    // Detect from raw file bytes (big-endian) before byteswap_to_host.
+    // initial value as big endian
     uint32_t initial_value_be =
-        Utils::read_from_byte_array32_be(header.initial_values, 0);
+        Utils::read_from_byte_array32(header.initial_values, 0);
     switch (initial_value_be) {
     case 0x80371240:
         return RomType::Z64;
@@ -174,9 +169,7 @@ uint32_t Rom::get_cic_seed() const {
 
 std::vector<uint8_t> &Rom::get_raw_data() { return rom; }
 
-uint8_t Rom::read_offset8(uint32_t offset) const {
-    return Utils::read_from_byte_array8(rom, offset);
-}
+uint8_t Rom::read_offset8(uint32_t offset) const { return rom.at(offset); }
 
 uint16_t Rom::read_offset16(uint32_t offset) const {
     return Utils::read_from_byte_array16(rom, offset);

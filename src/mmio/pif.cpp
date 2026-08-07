@@ -3,7 +3,6 @@
 #include "memory/bus.h"
 #include "memory/memory.h"
 #include "rcp/rsp.h"
-#include "utils/byte_array.h"
 #include "utils/log.h"
 #include <SDL.h>
 
@@ -296,13 +295,9 @@ static void rom_hle() {
 
     // ROMの最初0x1000バイトをSP DMEMにコピー
     //   i.e. 0xB0000000 から 0xA4000000 に0x1000バイトをコピー
-    // ROM is host-endian; DMEM is big-endian (Dillonb pif boot).
     // https://github.com/Dillonb/n64/blob/6502f7d2f163c3f14da5bff8cd6d5ccc47143156/src/mem/pif.c#L358
-    auto &dmem = g_rsp().get_sp_dmem();
-    auto &rom = g_memory().rom.get_raw_data();
-    for (uint32_t i = 0; i < 0x1000; i++) {
-        dmem[i] = Utils::read_from_byte_array8(rom, i);
-    }
+    memcpy(g_rsp().get_sp_dmem().data(), g_memory().rom.get_raw_data().data(),
+           sizeof(uint8_t) * 0x1000);
 }
 
 // ROMのブートコード(PIF ROM)の副作用をエミュレートする

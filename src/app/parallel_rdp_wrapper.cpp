@@ -16,8 +16,7 @@ RDP::CommandProcessor *command_processor;
 void init_prdp(Vulkan::WSI &wsi, uint8_t *rdram) {
     RDP::CommandProcessorFlags flags = 0;
 
-    // RDRAM must be host-endian word storage (byte addr^3 / half^2), which is
-    // what paraLLEl-RDP shaders assume. See Utils::{byte,half}_address.
+    // FIXME: I have no idea why these are needed
     auto aligned_rdram = reinterpret_cast<uintptr_t>(rdram);
     uintptr_t offset = 0;
 

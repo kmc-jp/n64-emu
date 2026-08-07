@@ -2,7 +2,6 @@
 #include "memory/memory.h"
 #include "mmio/mi.h"
 #include "n64_system/interrupt.h"
-#include "utils/byte_array.h"
 #include "utils/log.h"
 
 namespace N64 {
@@ -30,8 +29,7 @@ void SI::dma_from_pif_to_dram() {
     // Project64: just use i
     // Kaizen: use SI_PIF_ADDR + i
     for (int i = 0; i < 64; i++)
-        Utils::write_to_byte_array8(g_memory().get_rdram(), reg_dram_addr + i,
-                                   pif.ram[i]);
+        g_memory().get_rdram()[reg_dram_addr + i] = pif.ram[i];
     // TODO: should use scheduler?
     dma_busy = false;
     Utils::debug("SI: DMA complete");
@@ -50,8 +48,7 @@ void SI::dma_from_dram_to_pif() {
     // Kaizen: use SI_PIF_ADDR + i
     for (int i = 0; i < 64; i++) {
         // Utils::debug("i = {}", i);
-        pif.ram[i] = Utils::read_from_byte_array8(g_memory().get_rdram(),
-                                                 reg_dram_addr + i);
+        pif.ram[i] = g_memory().get_rdram()[reg_dram_addr + i];
     }
     pif.control_write();
     // TODO: should use scheduler?
