@@ -996,11 +996,53 @@ void CpuImpl::op_sdr(Cpu &cpu, instruction_t inst) {
 }
 
 void CpuImpl::op_sc(Cpu &cpu, instruction_t inst) {
-    Utils::unimplemented("SC");
+    // https://n64brew.dev/wiki/MIPS_III_instructions
+    int16_t offset = inst.i_type.imm;
+    uint64_t vaddr = cpu.gpr.read(inst.i_type.rs) + offset;
+    Utils::instruction_trace("SC: *({} + {:#x}) <= {} ?",
+                             GPR_NAMES[inst.i_type.rs], offset,
+                             GPR_NAMES[inst.i_type.rt]);
+
+    if (cpu.cop0.llbit) {
+        cpu.cop0.llbit = false;
+        std::optional<uint32_t> paddr =
+            Mmu::resolve_vaddr(vaddr, Mmu::BusAccess::STORE);
+        if (paddr.has_value()) {
+            uint32_t word = static_cast<uint32_t>(cpu.gpr.read(inst.i_type.rt));
+            Memory::write_paddr32(paddr.value(), word);
+            cpu.gpr.write(inst.i_type.rt, 1);
+        } else {
+            cpu.handle_exception(
+                g_tlb().get_tlb_exception_code(Mmu::BusAccess::STORE), 0, true);
+        }
+    } else {
+        cpu.gpr.write(inst.i_type.rt, 0);
+    }
 }
 
 void CpuImpl::op_scd(Cpu &cpu, instruction_t inst) {
-    Utils::unimplemented("SCD");
+    // https://n64brew.dev/wiki/MIPS_III_instructions
+    int16_t offset = inst.i_type.imm;
+    uint64_t vaddr = cpu.gpr.read(inst.i_type.rs) + offset;
+    Utils::instruction_trace("SCD: *({} + {:#x}) <= {} ?",
+                             GPR_NAMES[inst.i_type.rs], offset,
+                             GPR_NAMES[inst.i_type.rt]);
+
+    if (cpu.cop0.llbit) {
+        cpu.cop0.llbit = false;
+        std::optional<uint32_t> paddr =
+            Mmu::resolve_vaddr(vaddr, Mmu::BusAccess::STORE);
+        if (paddr.has_value()) {
+            uint64_t dword = cpu.gpr.read(inst.i_type.rt);
+            Memory::write_paddr64(paddr.value(), dword);
+            cpu.gpr.write(inst.i_type.rt, 1);
+        } else {
+            cpu.handle_exception(
+                g_tlb().get_tlb_exception_code(Mmu::BusAccess::STORE), 0, true);
+        }
+    } else {
+        cpu.gpr.write(inst.i_type.rt, 0);
+    }
 }
 
 void CpuImpl::op_addi(Cpu &cpu, instruction_t inst) {

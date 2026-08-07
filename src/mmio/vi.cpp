@@ -62,9 +62,9 @@ uint32_t VI::read_paddr32(uint32_t paddr) const {
         Utils::abort("VI: Read from VI_H_SYNC_LEAP is not supported");
         return reg_hsync_leap;
     case PADDR_VI_H_VIDEO:
-        return reg_v_video;
-    case PADDR_VI_V_VIDEO:
         return reg_h_video;
+    case PADDR_VI_V_VIDEO:
+        return reg_v_video;
     case PADDR_VI_V_BURST:
         Utils::abort("VI: Read from VI_V_BURST is not supported");
         return reg_v_burst;
