@@ -1,4 +1,5 @@
 #include "rcp/dpc.h"
+#include "app/parallel_rdp_wrapper.h"
 #include "memory/memory.h"
 #include "memory/memory_map.h"
 #include "mmio/mi.h"
@@ -10,7 +11,7 @@
 namespace N64 {
 namespace Rdp {
 
-// https://github.com/Dillonb/n64/blob/6502f7d2f163c3f14da5bff8cd6d5ccc47143156/src/rdp/rdp.c#L31
+// Command word counts from the RDP command set (n64brew RDP docs).
 static const int COMMAND_LENGTHS[64] = {
     2, 2, 2, 2, 2, 2, 2, 2, 8, 12, 24, 28, 24, 28, 40, 44,
     2, 2, 2, 2, 2, 2, 2, 2, 2, 2,  2,  2,  2,  2,  2,  2,
@@ -188,8 +189,14 @@ void Dpc::process_list() {
             break;
         }
 
-        // Command enqueue to Parallel-RDP happens in phase 2.
+        // Don't need to process commands under 8
+        if (command >= 8) {
+            PRDPWrapper::enqueue_command(command_length,
+                                         &cmd_buf[buf_index]);
+        }
+
         if (command == RDP_COMMAND_FULL_SYNC) {
+            PRDPWrapper::on_full_sync();
             status.pipe_busy = 0;
             status.start_gclk = 0;
             status.cbuf_ready = 0;

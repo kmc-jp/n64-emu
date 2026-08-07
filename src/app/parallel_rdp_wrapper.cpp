@@ -154,5 +154,17 @@ void update_screen(Vulkan::WSI &wsi, N64::Mmio::VI::VI &vi) {
     wsi.end_frame();
 }
 
+void enqueue_command(int command_length, const uint32_t *buffer) {
+    if (!command_processor)
+        return;
+    command_processor->enqueue_command(command_length, buffer);
+}
+
+void on_full_sync() {
+    if (!command_processor)
+        return;
+    command_processor->wait_for_timeline(command_processor->signal_timeline());
+}
+
 } // namespace PRDPWrapper
 } // namespace N64
