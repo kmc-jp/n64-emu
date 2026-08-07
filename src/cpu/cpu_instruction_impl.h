@@ -88,6 +88,12 @@ class CpuImpl {
 
     static void op_tlbwi(Cpu &cpu, instruction_t inst);
 
+    static void op_tlbwr(Cpu &cpu, instruction_t inst);
+
+    static void op_tlbp(Cpu &cpu, instruction_t inst);
+
+    static void op_tlbr(Cpu &cpu, instruction_t inst);
+
     static void op_tge(Cpu &cpu, instruction_t inst);
 
     static void op_tgeu(Cpu &cpu, instruction_t inst);

@@ -1,6 +1,7 @@
 ﻿#ifndef MMU_H
 #define MMU_H
 
+#include "mmu/tlb.h"
 #include <cstdint>
 #include <optional>
 
@@ -22,7 +23,8 @@ const uint32_t KSEG3_BASE = 0xE0000000;
 const uint32_t KSEG3_END  = 0xFFFFFFFF;
 // clang-format on
 
-std::optional<uint32_t> resolve_vaddr(uint32_t vaddr);
+std::optional<uint32_t> resolve_vaddr(uint32_t vaddr,
+                                      BusAccess bus_access = BusAccess::LOAD);
 
 } // namespace Mmu
 } // namespace N64

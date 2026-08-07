@@ -464,6 +464,19 @@ void CpuImpl::op_tlbwi(Cpu &cpu, instruction_t inst) {
     g_tlb().write_entry(false);
 }
 
+void CpuImpl::op_tlbwr(Cpu &cpu, instruction_t inst) {
+    // https://github.com/Dillonb/n64/blob/6502f7d2f163c3f14da5bff8cd6d5ccc47143156/src/cpu/tlb_instructions.c#L51
+    g_tlb().write_entry(true);
+}
+
+void CpuImpl::op_tlbp(Cpu &cpu, instruction_t inst) {
+    g_tlb().probe_index();
+}
+
+void CpuImpl::op_tlbr(Cpu &cpu, instruction_t inst) {
+    g_tlb().read_entry();
+}
+
 void CpuImpl::op_tge(Cpu &cpu, instruction_t inst) {
     // https://github.com/Dillonb/n64/blob/6502f7d2f163c3f14da5bff8cd6d5ccc47143156/src/cpu/mips_instructions.c#L1040
     int64_t rs = cpu.gpr.read(inst.r_type.rs);
@@ -879,7 +892,7 @@ void CpuImpl::op_sb(Cpu &cpu, instruction_t inst) {
     Utils::instruction_trace("SB: *({} + {:#x}) <= {}",
                              GPR_NAMES[inst.i_type.rs], offset,
                              GPR_NAMES[inst.r_type.rt]);
-    std::optional<uint32_t> paddr = Mmu::resolve_vaddr(vaddr);
+    std::optional<uint32_t> paddr = Mmu::resolve_vaddr(vaddr, Mmu::BusAccess::STORE);
 
     if (paddr.has_value()) {
         uint8_t value = cpu.gpr.read(inst.r_type.rt);
@@ -897,7 +910,7 @@ void CpuImpl::op_sh(Cpu &cpu, instruction_t inst) {
     Utils::instruction_trace("SH: *({} + {:#x}) <= {}",
                              GPR_NAMES[inst.i_type.rs], offset,
                              GPR_NAMES[inst.r_type.rt]);
-    std::optional<uint32_t> paddr = Mmu::resolve_vaddr(vaddr);
+    std::optional<uint32_t> paddr = Mmu::resolve_vaddr(vaddr, Mmu::BusAccess::STORE);
 
     if (paddr.has_value()) {
         uint16_t value = cpu.gpr.read(inst.r_type.rt);
@@ -915,7 +928,7 @@ void CpuImpl::op_sw(Cpu &cpu, instruction_t inst) {
     Utils::instruction_trace("SW: *({} + {:#x}) <= {}",
                              GPR_NAMES[inst.i_type.rs], offset,
                              GPR_NAMES[inst.r_type.rt]);
-    std::optional<uint32_t> paddr = Mmu::resolve_vaddr(vaddr);
+    std::optional<uint32_t> paddr = Mmu::resolve_vaddr(vaddr, Mmu::BusAccess::STORE);
 
     if (paddr.has_value()) {
         uint32_t word = cpu.gpr.read(inst.r_type.rt);
@@ -933,7 +946,7 @@ void CpuImpl::op_sd(Cpu &cpu, instruction_t inst) {
                              GPR_NAMES[inst.i_type.rs], offset,
                              GPR_NAMES[inst.r_type.rt]);
     uint64_t vaddr = cpu.gpr.read(inst.i_type.rs) + offset;
-    std::optional<uint32_t> paddr = Mmu::resolve_vaddr(vaddr);
+    std::optional<uint32_t> paddr = Mmu::resolve_vaddr(vaddr, Mmu::BusAccess::STORE);
 
     if (paddr.has_value()) {
         uint64_t dword = cpu.gpr.read(inst.r_type.rt);
@@ -949,7 +962,7 @@ void CpuImpl::op_sdl(Cpu &cpu, instruction_t inst) {
     int16_t offset = inst.fi_type.offset;
     uint64_t vaddr = cpu.gpr.read(inst.fi_type.base) + offset;
     // TODO: trace log
-    std::optional<uint32_t> paddr = Mmu::resolve_vaddr(vaddr);
+    std::optional<uint32_t> paddr = Mmu::resolve_vaddr(vaddr, Mmu::BusAccess::STORE);
     if (paddr.has_value()) {
         int32_t shift = 8 * ((vaddr ^ 0) & 7);
         uint64_t mask = 0xFFFFFFFFFFFFFFFF >> shift;
@@ -968,7 +981,7 @@ void CpuImpl::op_sdr(Cpu &cpu, instruction_t inst) {
     int16_t offset = inst.fi_type.offset;
     uint64_t vaddr = cpu.gpr.read(inst.fi_type.base) + offset;
     // TODO: trace log
-    std::optional<uint32_t> paddr = Mmu::resolve_vaddr(vaddr);
+    std::optional<uint32_t> paddr = Mmu::resolve_vaddr(vaddr, Mmu::BusAccess::STORE);
     if (paddr.has_value()) {
         int32_t shift = 8 * ((vaddr ^ 7) & 7);
         uint64_t mask = (uint64_t)0xFFFFFFFFFFFFFFFF << shift;

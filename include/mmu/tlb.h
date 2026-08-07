@@ -29,22 +29,20 @@ class TLBEntry {
 
   public:
     // Create and reset entry
-    TLBEntry() : is_valid(false) {}
+    TLBEntry() : is_valid(false), global(false) {}
 
     bool valid() const { return is_valid; }
 
     void invalidate() { is_valid = false; }
 
-    void validate(entry_lo0_t lo0, entry_lo1_t lo1, entry_hi_t hi,
-                  uint32_t page_mask_);
-
   private:
     // Valid bit, representing whether the entry is defined
     bool is_valid;
-    entry_lo0_t entry_lo0;
-    entry_lo1_t entry_lo1;
-    entry_hi_t entry_hi;
-    uint32_t page_mask;
+    bool global;
+    entry_lo0_t entry_lo0{};
+    entry_lo1_t entry_lo1{};
+    entry_hi_t entry_hi{};
+    uint32_t page_mask{};
 };
 
 class TLB {
@@ -57,11 +55,19 @@ class TLB {
 
     void write_entry(bool random);
 
+    void read_entry();
+
+    void probe_index();
+
     std::optional<int> lookup_tlb_entry_index(uint32_t vaddr);
 
-    std::optional<uint32_t> probe(uint32_t vaddr);
+    std::optional<uint32_t> probe(uint32_t vaddr, BusAccess bus_access);
 
     TLBError get_last_error() const { return error; }
+
+    // Update BadVAddr / Context / EntryHi after a TLB exception
+    // https://github.com/Dillonb/n64/blob/6502f7d2f163c3f14da5bff8cd6d5ccc47143156/src/cpu/r4300i.c#L754
+    static void on_tlb_exception(uint32_t vaddr);
 
     inline static TLB &get_instance() { return instance; }
 
@@ -72,7 +78,7 @@ class TLB {
 
     static TLB instance;
 
-    static uint32_t calculate_vpn(uint32_t vaddr, uint64_t page_mask);
+    static uint64_t calculate_vpn(uint32_t vaddr, uint32_t page_mask);
 };
 
 } // namespace Mmu

@@ -196,8 +196,10 @@ constexpr uint8_t COP_CTC = 0b00110;  // CTC
 
 // COP0 FUNCT
 constexpr uint8_t COP0_FUNCT_ERET = 0b011000;  // ERET
+constexpr uint8_t COP0_FUNCT_TLBR = 0b000001;  // TLBR
 constexpr uint8_t COP0_FUNCT_TLBWI = 0b000010; // TLBWI
-// TODO: LTBWR, TLBR, TLBP
+constexpr uint8_t COP0_FUNCT_TLBWR = 0b000110; // TLBWR
+constexpr uint8_t COP0_FUNCT_TLBP = 0b001000;  // TLBP
 
 } // namespace Cpu
 } // namespace N64

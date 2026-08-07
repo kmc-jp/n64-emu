@@ -363,10 +363,15 @@ void Cpu::execute_instruction(instruction_t inst) {
             }
         } else {
             // https://github.com/Dillonb/n64/blob/6502f7d2f163c3f14da5bff8cd6d5ccc47143156/src/cpu/r4300i.c#L152
-            // TODO: TLBWI, TLBP, TLBR, WAIT, TLBWR
             switch (inst.fr_type.funct) {
             case COP0_FUNCT_TLBWI:
                 return CpuImpl::op_tlbwi(*this, inst);
+            case COP0_FUNCT_TLBWR:
+                return CpuImpl::op_tlbwr(*this, inst);
+            case COP0_FUNCT_TLBP:
+                return CpuImpl::op_tlbp(*this, inst);
+            case COP0_FUNCT_TLBR:
+                return CpuImpl::op_tlbr(*this, inst);
             case COP0_FUNCT_ERET:
                 return CpuImpl::op_eret(*this, inst);
             default: {
