@@ -27,6 +27,8 @@ class FpuImpl {
     static void op_ldc1(Cpu &cpu, instruction_t inst);
     static void op_swc1(Cpu &cpu, instruction_t inst);
     static void op_sdc1(Cpu &cpu, instruction_t inst);
+
+    static void op_cop1_arith(Cpu &cpu, instruction_t inst);
 };
 
 } // namespace Cpu

@@ -197,6 +197,27 @@ constexpr uint8_t COP_MTC = 0b00100;  // MTC
 constexpr uint8_t COP_DMTC = 0b00101; // DMT
 constexpr uint8_t COP_CFC = 0b00010;  // CFC
 constexpr uint8_t COP_CTC = 0b00110;  // CTC
+constexpr uint8_t COP_BC = 0b01000;   // BC1
+
+// COP1 formats (rs field for arithmetic)
+constexpr uint8_t COP1_FMT_S = 0b10000; // single
+constexpr uint8_t COP1_FMT_D = 0b10001; // double
+constexpr uint8_t COP1_FMT_W = 0b10100; // word
+constexpr uint8_t COP1_FMT_L = 0b10101; // long
+
+// COP1 FUNCT
+constexpr uint8_t COP1_FUNCT_ADD = 0b000000;
+constexpr uint8_t COP1_FUNCT_SUB = 0b000001;
+constexpr uint8_t COP1_FUNCT_MUL = 0b000010;
+constexpr uint8_t COP1_FUNCT_DIV = 0b000011;
+constexpr uint8_t COP1_FUNCT_SQRT = 0b000100;
+constexpr uint8_t COP1_FUNCT_ABS = 0b000101;
+constexpr uint8_t COP1_FUNCT_MOV = 0b000110;
+constexpr uint8_t COP1_FUNCT_NEG = 0b000111;
+constexpr uint8_t COP1_FUNCT_CVT_S = 0b100000;
+constexpr uint8_t COP1_FUNCT_CVT_D = 0b100001;
+constexpr uint8_t COP1_FUNCT_CVT_W = 0b100100;
+constexpr uint8_t COP1_FUNCT_CVT_L = 0b100101;
 
 // COP0 FUNCT
 constexpr uint8_t COP0_FUNCT_ERET = 0b011000;  // ERET

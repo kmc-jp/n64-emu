@@ -77,6 +77,11 @@ class Cop1 {
     uint64_t get_fgr_dword(uint8_t reg, bool fr) const;
     void set_fgr_dword(uint8_t reg, uint64_t value, bool fr);
 
+    // Arithmetic S/W access: FR=0 forces even index and always uses .lo
+    // (unlike MFC1/LWC1 which map odd regs to the even register's .hi).
+    uint32_t get_fgr_word_arith(uint8_t reg, bool fr) const;
+    void set_fgr_word_arith(uint8_t reg, uint32_t value, bool fr);
+
   private:
 };
 

@@ -53,5 +53,19 @@ void Cop1::set_fgr_dword(uint8_t reg, uint64_t value, bool fr) {
     fgr[reg].raw = value;
 }
 
+uint32_t Cop1::get_fgr_word_arith(uint8_t reg, bool fr) const {
+    if (!fr) {
+        reg &= ~1;
+    }
+    return fgr[reg].lo;
+}
+
+void Cop1::set_fgr_word_arith(uint8_t reg, uint32_t value, bool fr) {
+    if (!fr) {
+        reg &= ~1;
+    }
+    fgr[reg].lo = value;
+}
+
 } // namespace Cpu
 } // namespace N64
