@@ -10,6 +10,7 @@
 #include "n64_system/scheduler.h"
 #include "rcp/dpc.h"
 #include "rcp/rsp.h"
+#include "utils/byte_array.h"
 #include "utils/log.h"
 #include <SDL.h>
 #include <cstdio>
@@ -776,22 +777,13 @@ void Debugger::cmd_scan_task(uint32_t type, uint32_t limit) const {
     dbg_out("Scanning RDRAM for OSTask type={} ...", type);
     // OSTask is 0x40 bytes; type at +0. Scan 8-byte aligned candidates.
     for (uint32_t p = 0; p + 0x40 <= RDRAM_SIZE; p += 8) {
-        const uint32_t t = (static_cast<uint32_t>(rdram[p]) << 24) |
-                           (static_cast<uint32_t>(rdram[p + 1]) << 16) |
-                           (static_cast<uint32_t>(rdram[p + 2]) << 8) |
-                           static_cast<uint32_t>(rdram[p + 3]);
+        const uint32_t t = Utils::read_from_byte_array32(rdram, p);
         if (t != type) {
             continue;
         }
-        const uint32_t flags = (static_cast<uint32_t>(rdram[p + 4]) << 24) |
-                               (static_cast<uint32_t>(rdram[p + 5]) << 16) |
-                               (static_cast<uint32_t>(rdram[p + 6]) << 8) |
-                               static_cast<uint32_t>(rdram[p + 7]);
+        const uint32_t flags = Utils::read_from_byte_array32(rdram, p + 4);
         // Heuristic: flags usually small; ucode_boot pointer in RDRAM/KSEG.
-        const uint32_t boot_hi = (static_cast<uint32_t>(rdram[p + 8]) << 24) |
-                                 (static_cast<uint32_t>(rdram[p + 9]) << 16) |
-                                 (static_cast<uint32_t>(rdram[p + 10]) << 8) |
-                                 static_cast<uint32_t>(rdram[p + 11]);
+        const uint32_t boot_hi = Utils::read_from_byte_array32(rdram, p + 8);
         if (boot_hi != 0 && boot_hi != 0xFFFFFFFF) {
             continue;
         }
@@ -810,10 +802,7 @@ void Debugger::cmd_find(uint32_t word, uint32_t limit) const {
     uint32_t found = 0;
     dbg_out("Finding {:#010x} in RDRAM ...", word);
     for (uint32_t p = 0; p + 4 <= RDRAM_SIZE; p += 4) {
-        const uint32_t w = (static_cast<uint32_t>(rdram[p]) << 24) |
-                           (static_cast<uint32_t>(rdram[p + 1]) << 16) |
-                           (static_cast<uint32_t>(rdram[p + 2]) << 8) |
-                           static_cast<uint32_t>(rdram[p + 3]);
+        const uint32_t w = Utils::read_from_byte_array32(rdram, p);
         if (w != word) {
             continue;
         }

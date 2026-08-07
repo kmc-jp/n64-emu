@@ -4,6 +4,7 @@
 #include "mmio/mi.h"
 #include "n64_system/interrupt.h"
 #include "n64_system/scheduler.h"
+#include "utils/byte_array.h"
 #include "utils/log.h"
 
 namespace N64 {
@@ -143,15 +144,18 @@ void PI::dma_write() {
         for (uint32_t i = 0; i < length; i++) {
             const uint32_t sram_offs =
                 ((cart_addr - PHYS_SRAM_BASE) + i) & sram_mask;
-            rdram[(dram_addr + i) & RDRAM_SIZE_MASK] = sram[sram_offs];
+            // SRAM is logical N64 byte order; RDRAM is host-endian (addr^3).
+            Utils::write_to_byte_array8(rdram, (dram_addr + i) & RDRAM_SIZE_MASK,
+                                       sram[sram_offs]);
         }
         Utils::debug("DMA Write: SRAM {:#010x} -> dram {:#010x} (len = {:#010x})",
                      cart_addr, dram_addr, length);
     } else if (0x1000'0000 <= cart_addr && cart_addr <= 0xFFFF'FFFF) {
         const uint32_t cart_offset = cart_addr - 0x1000'0000;
         for (uint32_t i = 0; i < length; i++) {
-            rdram[(dram_addr + i) & RDRAM_SIZE_MASK] =
-                g_memory().rom.read_offset8(cart_offset + i);
+            Utils::write_to_byte_array8(
+                rdram, (dram_addr + i) & RDRAM_SIZE_MASK,
+                g_memory().rom.read_offset8(cart_offset + i));
         }
 
         Utils::debug("DMA Write: cart offset {:#010x} -> dram offset {:#010x} "
@@ -203,7 +207,8 @@ void PI::dma_read() {
             for (uint32_t i = 0; i < length; i++) {
                 const uint32_t sram_offs =
                     ((cart_addr - PHYS_SRAM_BASE) + i) & sram_mask;
-                sram[sram_offs] = rdram[(dram_addr + i) & RDRAM_SIZE_MASK];
+                sram[sram_offs] = Utils::read_from_byte_array8(
+                    rdram, (dram_addr + i) & RDRAM_SIZE_MASK);
             }
             Utils::debug(
                 "DMA Read: dram {:#010x} -> SRAM {:#010x} (len = {:#010x})",
