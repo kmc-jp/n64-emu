@@ -64,8 +64,9 @@ void Cpu::set_pc64(uint64_t value) {
 
 void Cpu::set_pc32(uint32_t value) {
     prev_pc = pc;
-    pc = (int64_t)((int32_t)value);
-    next_pc = value + 4;
+    // Keep pc and next_pc consistently sign-extended from 32-bit addresses.
+    pc = static_cast<uint64_t>(static_cast<int32_t>(value));
+    next_pc = pc + 4;
 }
 
 uint64_t Cpu::get_pc64() const { return pc; }
@@ -101,10 +102,12 @@ void Cpu::step() {
     }
 
     // instruction fetch
-    std::optional<uint32_t> paddr_of_pc = Mmu::resolve_vaddr(pc);
+    const uint32_t pc32 = static_cast<uint32_t>(pc);
+    std::optional<uint32_t> paddr_of_pc = Mmu::resolve_vaddr(pc32);
     if (!paddr_of_pc.has_value()) {
+        // Faulting PC is the current pc (not prev_pc).
         handle_exception(g_tlb().get_tlb_exception_code(Mmu::BusAccess::LOAD),
-                         0, true);
+                         0, false);
         return;
     }
 
@@ -466,21 +469,22 @@ void Cpu::handle_exception(ExceptionCode exception_code,
         Utils::unimplemented("BEV is set");
     }
 
+    uint32_t vector = 0x80000180;
     switch (exception_code) {
     case ExceptionCode::INTERRUPT:          // fallthrough
     case ExceptionCode::TLB_MODIFICATION:   // fallthrough
     case ExceptionCode::ADDRESS_ERROR_LOAD: // fallthrough
     case ExceptionCode::ADDRESS_ERROR_STORE: {
-        set_pc32(0x80000180);
+        vector = 0x80000180;
     } break;
     case ExceptionCode::TLB_MISS_LOAD: // fallthrough
     case ExceptionCode::TLB_MISS_STORE: {
         if (old_exl || g_tlb().get_last_error() == Mmu::TLBError::INVALID) {
-            set_pc32(0x80000180);
+            vector = 0x80000180;
         } else if (is_xtlb_miss(cop0.reg.bad_vaddr, cop0.reg.status)) {
-            set_pc32(0x80000080);
+            vector = 0x80000080;
         } else {
-            set_pc32(0x80000000);
+            vector = 0x80000000;
         }
     } break;
     default: {
@@ -489,6 +493,32 @@ void Cpu::handle_exception(ExceptionCode exception_code,
         Utils::abort("Aborted");
     } break;
     }
+
+    // Rate-limited diagnostic for TLB refill / early boot debugging
+    {
+        static int exc_log_count = 0;
+        const bool interesting =
+            exception_code == ExceptionCode::TLB_MISS_LOAD ||
+            exception_code == ExceptionCode::TLB_MISS_STORE ||
+            exception_code == ExceptionCode::TLB_MODIFICATION ||
+            exception_code == ExceptionCode::INTERRUPT;
+        if (exc_log_count < 48 && interesting) {
+            const uint64_t entry_hi = cop0.reg.entry_hi.raw;
+            const uint64_t ctx = cop0.reg.context.raw;
+            const uint64_t xctx = cop0.reg.xcontext.raw;
+            const uint64_t badv = cop0.reg.bad_vaddr;
+            const uint64_t epc_v = cop0.reg.epc;
+            Utils::debug(
+                "EXC code={} err={} BadV={:#018x} EntryHi={:#018x} "
+                "Ctx={:#018x} XCtx={:#018x} vec={:#010x} Random={} EPC={:#018x}",
+                static_cast<uint8_t>(exception_code),
+                static_cast<int>(g_tlb().get_last_error()), badv, entry_hi, ctx,
+                xctx, vector, cop0.reg.random, epc_v);
+            exc_log_count++;
+        }
+    }
+
+    set_pc32(vector);
 }
 
 } // namespace Cpu

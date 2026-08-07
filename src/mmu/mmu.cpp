@@ -22,7 +22,10 @@ std::optional<uint32_t> resolve_vaddr(uint32_t vaddr, BusAccess bus_access) {
                (KSEG3_BASE <= vaddr && vaddr <= KSEG3_END)) {
         auto result = g_tlb().probe(vaddr, bus_access);
         if (!result.has_value()) {
-            TLB::on_tlb_exception(vaddr);
+            // Sign-extend 32-bit VA so EntryHi.R / XContext / is_xtlb_miss work.
+            const uint64_t va64 =
+                static_cast<uint64_t>(static_cast<int32_t>(vaddr));
+            TLB::on_tlb_exception(va64);
         }
         return result;
     } else {

@@ -17,6 +17,10 @@ void TLB::reset() {
     }
 }
 
+uint64_t TLB::sign_extend_vaddr32(uint32_t vaddr) {
+    return static_cast<uint64_t>(static_cast<int32_t>(vaddr));
+}
+
 Cpu::ExceptionCode TLB::get_tlb_exception_code(BusAccess bus_access) {
     switch (error) {
     case TLBError::MISS: // fallthrough
@@ -34,11 +38,38 @@ Cpu::ExceptionCode TLB::get_tlb_exception_code(BusAccess bus_access) {
     Utils::abort("unreachable");
 }
 
-void TLB::write_entry(bool random) {
-    // https://github.com/Dillonb/n64/blob/6502f7d2f163c3f14da5bff8cd6d5ccc47143156/src/cpu/tlb_instructions.h#L27
-    // https://github.com/project64/project64/blob/353ef5ed897cb72a8904603feddbdc649dff9eca/Source/Project64-core/N64System/Mips/TLB.cpp#L126
+void TLB::advance_random() {
     auto &cop0 = g_cpu().cop0.reg;
-    int32_t index = random ? (cop0.random & 0x1f) : (cop0.index & 0x1f);
+    const uint32_t wired = cop0.wired & 0x3F;
+    const uint32_t lo = (wired > 31) ? 0 : wired;
+    const uint32_t hi = (wired > 31) ? 63 : 31;
+    uint32_t r = cop0.random;
+    if (r < lo || r > hi) {
+        r = lo;
+    } else if (r >= hi) {
+        r = lo;
+    } else {
+        r = r + 1;
+    }
+    cop0.random = r;
+}
+
+void TLB::write_entry(bool random) {
+    auto &cop0 = g_cpu().cop0.reg;
+    int32_t index;
+    if (random) {
+        // Ensure Random is in range, then use it.
+        const uint32_t wired = cop0.wired & 0x3F;
+        const uint32_t lo = (wired > 31) ? 0 : wired;
+        const uint32_t hi = (wired > 31) ? 63 : 31;
+        if (cop0.random < lo || cop0.random > hi) {
+            cop0.random = lo;
+        }
+        index = static_cast<int32_t>(cop0.random & 0x1f);
+        advance_random();
+    } else {
+        index = static_cast<int32_t>(cop0.index & 0x1f);
+    }
 
     // For each pair of bits in PageMask:
     // 00/01 -> 00, 10/11 -> 11 (top bit sets both)
@@ -48,9 +79,10 @@ void TLB::write_entry(bool random) {
     mask_field = top | (top >> 1);
     page_mask = mask_field << 13;
 
-    Utils::debug("TLBWI/WR entry[{}] hi={:#010x} lo0={:#010x} lo1={:#010x} "
+    const uint64_t entry_hi_raw = cop0.entry_hi.raw;
+    Utils::debug("TLBWI/WR entry[{}] hi={:#018x} lo0={:#010x} lo1={:#010x} "
                  "mask={:#010x} global={}",
-                 index, static_cast<uint32_t>(cop0.entry_hi.raw),
+                 index, entry_hi_raw,
                  static_cast<uint32_t>(cop0.entry_lo0.raw),
                  static_cast<uint32_t>(cop0.entry_lo1.raw), page_mask,
                  cop0.entry_lo0.global && cop0.entry_lo1.global);
@@ -59,7 +91,7 @@ void TLB::write_entry(bool random) {
     entry.is_valid = true;
     entry.page_mask = page_mask;
     entry.entry_hi.raw = cop0.entry_hi.raw;
-    entry.entry_hi.vpn2 &= ~(mask_field);
+    entry.entry_hi.vpn2 &= ~static_cast<uint64_t>(mask_field);
     // Clear G from EntryLo copies; use combined global
     entry.entry_lo0.raw = cop0.entry_lo0.raw & 0x03FFFFFE;
     entry.entry_lo1.raw = cop0.entry_lo1.raw & 0x03FFFFFE;
@@ -67,7 +99,6 @@ void TLB::write_entry(bool random) {
 }
 
 void TLB::read_entry() {
-    // https://github.com/Dillonb/n64/blob/6502f7d2f163c3f14da5bff8cd6d5ccc47143156/src/cpu/tlb_instructions.c#L29
     auto &cop0 = g_cpu().cop0.reg;
     int index = cop0.index & 0x1f;
     const TLBEntry &entry = entries[index];
@@ -81,10 +112,8 @@ void TLB::read_entry() {
 }
 
 void TLB::probe_index() {
-    // https://github.com/Dillonb/n64/blob/6502f7d2f163c3f14da5bff8cd6d5ccc47143156/src/cpu/tlb_instructions.c#L15
     auto &cop0 = g_cpu().cop0.reg;
-    std::optional<int> match =
-        lookup_tlb_entry_index(static_cast<uint32_t>(cop0.entry_hi.raw));
+    std::optional<int> match = lookup_tlb_entry_index(cop0.entry_hi.raw);
     if (match.has_value()) {
         cop0.index = match.value();
     } else {
@@ -92,8 +121,7 @@ void TLB::probe_index() {
     }
 }
 
-std::optional<int> TLB::lookup_tlb_entry_index(uint32_t vaddr) {
-    // https://github.com/Dillonb/n64/blob/6502f7d2f163c3f14da5bff8cd6d5ccc47143156/src/mem/n64bus.c#L47
+std::optional<int> TLB::lookup_tlb_entry_index(uint64_t vaddr) {
     // R4300's TLB is fully associative.
     for (int i = 0; i < 32; i++) {
         const TLBEntry &entry = entries[i];
@@ -117,8 +145,8 @@ std::optional<int> TLB::lookup_tlb_entry_index(uint32_t vaddr) {
 }
 
 std::optional<uint32_t> TLB::probe(uint32_t vaddr, BusAccess bus_access) {
-    // https://github.com/Dillonb/n64/blob/6502f7d2f163c3f14da5bff8cd6d5ccc47143156/src/mem/n64bus.c#L68
-    std::optional<int> tlb_entry_index = lookup_tlb_entry_index(vaddr);
+    const uint64_t va64 = sign_extend_vaddr32(vaddr);
+    std::optional<int> tlb_entry_index = lookup_tlb_entry_index(va64);
 
     if (!tlb_entry_index.has_value()) {
         error = TLBError::MISS;
@@ -158,24 +186,30 @@ std::optional<uint32_t> TLB::probe(uint32_t vaddr, BusAccess bus_access) {
     return {paddr};
 }
 
-uint64_t TLB::calculate_vpn(uint32_t vaddr, uint32_t page_mask) {
-    // https://github.com/Dillonb/n64/blob/6502f7d2f163c3f14da5bff8cd6d5ccc47143156/src/mem/n64bus.c#L19
+uint64_t TLB::calculate_vpn(uint64_t vaddr, uint32_t page_mask) {
     uint64_t mask = page_mask | 0x1fff;
-    uint64_t vpn = (static_cast<uint64_t>(vaddr) & 0xFFFFFFFFFFULL) |
-                   ((static_cast<uint64_t>(vaddr) >> 22) & 0x30000000000ULL);
+    uint64_t vpn = (vaddr & 0xFFFFFFFFFFULL) |
+                   ((vaddr >> 22) & 0x30000000000ULL);
     vpn &= ~mask;
     return vpn;
 }
 
-void TLB::on_tlb_exception(uint32_t vaddr) {
-    // https://github.com/Dillonb/n64/blob/6502f7d2f163c3f14da5bff8cd6d5ccc47143156/src/cpu/r4300i.c#L754
+void TLB::on_tlb_exception(uint64_t vaddr) {
     auto &cop0 = g_cpu().cop0.reg;
-    uint32_t vpn2 = (vaddr >> 13) & 0x7FFFF;
+    const uint64_t vpn2 = (vaddr >> 13) & 0x7FFFF;
+    const uint64_t xvpn2 = (vaddr >> 13) & 0x7FFFFFF;
+    const uint64_t r = (vaddr >> 62) & 0x3;
+
     cop0.bad_vaddr = vaddr;
-    // Context: bits [22:4] = BadVPN2, preserve PTEBase in [31:23]
-    cop0.context = (cop0.context & 0xFF800000) | (vpn2 << 4);
-    // EntryHi: update VPN2, keep ASID
-    cop0.entry_hi.vpn2 = vpn2;
+    // Context: preserve PTEBase, write BadVPN2 into bits [22:4]
+    cop0.context.raw =
+        (cop0.context.raw & ~0x7FFFFFULL) | ((vpn2 & 0x7FFFF) << 4);
+    // XContext: preserve PTEBase, write BadVPN2 and R
+    cop0.xcontext.raw = (cop0.xcontext.raw & 0xFFFFFFFE00000000ULL) |
+                        ((xvpn2 & 0x7FFFFFF) << 4) | (r << 31);
+    // EntryHi: update VPN2 + R, keep ASID
+    cop0.entry_hi.raw = (cop0.entry_hi.raw & 0xFF) | ((xvpn2 & 0x7FFFFFF) << 13) |
+                        (r << 62);
 }
 
 TLB TLB::instance{};
