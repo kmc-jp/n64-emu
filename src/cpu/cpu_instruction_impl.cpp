@@ -914,7 +914,7 @@ void CpuImpl::op_sh(Cpu &cpu, instruction_t inst) {
 
     if (paddr.has_value()) {
         uint16_t value = cpu.gpr.read(inst.r_type.rt);
-        Memory::write_paddr8(paddr.value(), value);
+        Memory::write_paddr16(paddr.value(), value);
     } else {
         cpu.handle_exception(
             g_tlb().get_tlb_exception_code(Mmu::BusAccess::STORE), 0, true);
