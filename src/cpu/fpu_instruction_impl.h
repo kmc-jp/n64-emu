@@ -16,8 +16,17 @@ class FpuImpl {
 
   public:
     static void op_cfc1(Cpu &cpu, instruction_t inst);
-
     static void op_ctc1(Cpu &cpu, instruction_t inst);
+
+    static void op_mfc1(Cpu &cpu, instruction_t inst);
+    static void op_mtc1(Cpu &cpu, instruction_t inst);
+    static void op_dmfc1(Cpu &cpu, instruction_t inst);
+    static void op_dmtc1(Cpu &cpu, instruction_t inst);
+
+    static void op_lwc1(Cpu &cpu, instruction_t inst);
+    static void op_ldc1(Cpu &cpu, instruction_t inst);
+    static void op_swc1(Cpu &cpu, instruction_t inst);
+    static void op_sdc1(Cpu &cpu, instruction_t inst);
 };
 
 } // namespace Cpu

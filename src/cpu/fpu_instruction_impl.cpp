@@ -1,22 +1,23 @@
 #include "fpu_instruction_impl.h"
 #include "cpu/cpu.h"
+#include "memory/bus.h"
+#include "mmu/mmu.h"
+#include "mmu/tlb.h"
 #include "utils/log.h"
+#include <optional>
 
 namespace N64::Cpu {
 
 bool FpuImpl::test_cop1_usable_exception(Cpu &cpu) {
-    // https://github.com/project64/project64/blob/353ef5ed897cb72a8904603feddbdc649dff9eca/Source/Project64-core/N64System/Interpreter/InterpreterOps.cpp#L3071
+    // https://n64brew.dev/wiki/COP1
     if (cpu.cop0.reg.status.cu1 == 0) {
-        // TODO: implement
-        Utils::unimplemented("Trigger cop1 exception");
+        cpu.handle_exception(ExceptionCode::COPROCESSOR_UNUSABLE, 1, true);
         return true;
     }
     return false;
 }
 
 void FpuImpl::op_cfc1(Cpu &cpu, instruction_t inst) {
-    // https://github.com/Dillonb/n64/blob/6502f7d2f163c3f14da5bff8cd6d5ccc47143156/src/cpu/fpu_instructions.c#L315
-    // https://github.com/project64/project64/blob/353ef5ed897cb72a8904603feddbdc649dff9eca/Source/Project64-core/N64System/Interpreter/InterpreterOps.cpp#L1917
     if (test_cop1_usable_exception(cpu)) {
         return;
     }
@@ -38,8 +39,6 @@ void FpuImpl::op_cfc1(Cpu &cpu, instruction_t inst) {
 }
 
 void FpuImpl::op_ctc1(Cpu &cpu, instruction_t inst) {
-    // https://github.com/Dillonb/n64/blob/6502f7d2f163c3f14da5bff8cd6d5ccc47143156/src/cpu/fpu_instructions.c#L334
-    // https://github.com/project64/project64/blob/353ef5ed897cb72a8904603feddbdc649dff9eca/Source/Project64-core/N64System/Interpreter/InterpreterOps.cpp#L1944
     if (test_cop1_usable_exception(cpu)) {
         return;
     }
@@ -58,6 +57,136 @@ void FpuImpl::op_ctc1(Cpu &cpu, instruction_t inst) {
     } break;
     }
     Utils::trace("CTC1 FCR[{}], {}", fs, GPR_NAMES[inst.r_type.rt]);
+}
+
+void FpuImpl::op_mfc1(Cpu &cpu, instruction_t inst) {
+    if (test_cop1_usable_exception(cpu)) {
+        return;
+    }
+    uint8_t fs = inst.r_type.rd;
+    uint8_t rt = inst.r_type.rt;
+    bool fr = cpu.cop0.reg.status.fr;
+    int32_t value = static_cast<int32_t>(cpu.cop1.get_fgr_word(fs, fr));
+    cpu.gpr.write(rt, static_cast<int64_t>(value));
+    Utils::instruction_trace("MFC1 {}, FGR[{}]", GPR_NAMES[rt], fs);
+}
+
+void FpuImpl::op_mtc1(Cpu &cpu, instruction_t inst) {
+    if (test_cop1_usable_exception(cpu)) {
+        return;
+    }
+    uint8_t fs = inst.r_type.rd;
+    uint8_t rt = inst.r_type.rt;
+    bool fr = cpu.cop0.reg.status.fr;
+    uint32_t value = static_cast<uint32_t>(cpu.gpr.read(rt));
+    cpu.cop1.set_fgr_word(fs, value, fr);
+    Utils::instruction_trace("MTC1 {}, FGR[{}]", GPR_NAMES[rt], fs);
+}
+
+void FpuImpl::op_dmfc1(Cpu &cpu, instruction_t inst) {
+    if (test_cop1_usable_exception(cpu)) {
+        return;
+    }
+    uint8_t fs = inst.r_type.rd;
+    uint8_t rt = inst.r_type.rt;
+    bool fr = cpu.cop0.reg.status.fr;
+    uint64_t value = cpu.cop1.get_fgr_dword(fs, fr);
+    cpu.gpr.write(rt, value);
+    Utils::instruction_trace("DMFC1 {}, FGR[{}]", GPR_NAMES[rt], fs);
+}
+
+void FpuImpl::op_dmtc1(Cpu &cpu, instruction_t inst) {
+    if (test_cop1_usable_exception(cpu)) {
+        return;
+    }
+    uint8_t fs = inst.r_type.rd;
+    uint8_t rt = inst.r_type.rt;
+    bool fr = cpu.cop0.reg.status.fr;
+    uint64_t value = cpu.gpr.read(rt);
+    cpu.cop1.set_fgr_dword(fs, value, fr);
+    Utils::instruction_trace("DMTC1 {}, FGR[{}]", GPR_NAMES[rt], fs);
+}
+
+void FpuImpl::op_lwc1(Cpu &cpu, instruction_t inst) {
+    if (test_cop1_usable_exception(cpu)) {
+        return;
+    }
+    int16_t offset = static_cast<int16_t>(inst.fi_type.offset);
+    uint8_t ft = inst.fi_type.ft;
+    uint8_t base = inst.fi_type.base;
+    Utils::instruction_trace("LWC1 FGR[{}] <= *({} + {:#x})", ft,
+                             GPR_NAMES[base], offset);
+    uint64_t vaddr = cpu.gpr.read(base) + offset;
+    std::optional<uint32_t> paddr = Mmu::resolve_vaddr(vaddr);
+    if (paddr.has_value()) {
+        uint32_t word = Memory::read_paddr32(paddr.value());
+        cpu.cop1.set_fgr_word(ft, word, cpu.cop0.reg.status.fr);
+    } else {
+        cpu.handle_exception(
+            g_tlb().get_tlb_exception_code(Mmu::BusAccess::LOAD), 0, true);
+    }
+}
+
+void FpuImpl::op_ldc1(Cpu &cpu, instruction_t inst) {
+    if (test_cop1_usable_exception(cpu)) {
+        return;
+    }
+    int16_t offset = static_cast<int16_t>(inst.fi_type.offset);
+    uint8_t ft = inst.fi_type.ft;
+    uint8_t base = inst.fi_type.base;
+    Utils::instruction_trace("LDC1 FGR[{}] <= *({} + {:#x})", ft,
+                             GPR_NAMES[base], offset);
+    uint64_t vaddr = cpu.gpr.read(base) + offset;
+    std::optional<uint32_t> paddr = Mmu::resolve_vaddr(vaddr);
+    if (paddr.has_value()) {
+        uint64_t dword = Memory::read_paddr64(paddr.value());
+        cpu.cop1.set_fgr_dword(ft, dword, cpu.cop0.reg.status.fr);
+    } else {
+        cpu.handle_exception(
+            g_tlb().get_tlb_exception_code(Mmu::BusAccess::LOAD), 0, true);
+    }
+}
+
+void FpuImpl::op_swc1(Cpu &cpu, instruction_t inst) {
+    if (test_cop1_usable_exception(cpu)) {
+        return;
+    }
+    int16_t offset = static_cast<int16_t>(inst.fi_type.offset);
+    uint8_t ft = inst.fi_type.ft;
+    uint8_t base = inst.fi_type.base;
+    Utils::instruction_trace("SWC1 *({} + {:#x}) <= FGR[{}]", GPR_NAMES[base],
+                             offset, ft);
+    uint64_t vaddr = cpu.gpr.read(base) + offset;
+    std::optional<uint32_t> paddr =
+        Mmu::resolve_vaddr(vaddr, Mmu::BusAccess::STORE);
+    if (paddr.has_value()) {
+        uint32_t word = cpu.cop1.get_fgr_word(ft, cpu.cop0.reg.status.fr);
+        Memory::write_paddr32(paddr.value(), word);
+    } else {
+        cpu.handle_exception(
+            g_tlb().get_tlb_exception_code(Mmu::BusAccess::STORE), 0, true);
+    }
+}
+
+void FpuImpl::op_sdc1(Cpu &cpu, instruction_t inst) {
+    if (test_cop1_usable_exception(cpu)) {
+        return;
+    }
+    int16_t offset = static_cast<int16_t>(inst.fi_type.offset);
+    uint8_t ft = inst.fi_type.ft;
+    uint8_t base = inst.fi_type.base;
+    Utils::instruction_trace("SDC1 *({} + {:#x}) <= FGR[{}]", GPR_NAMES[base],
+                             offset, ft);
+    uint64_t vaddr = cpu.gpr.read(base) + offset;
+    std::optional<uint32_t> paddr =
+        Mmu::resolve_vaddr(vaddr, Mmu::BusAccess::STORE);
+    if (paddr.has_value()) {
+        uint64_t dword = cpu.cop1.get_fgr_dword(ft, cpu.cop0.reg.status.fr);
+        Memory::write_paddr64(paddr.value(), dword);
+    } else {
+        cpu.handle_exception(
+            g_tlb().get_tlb_exception_code(Mmu::BusAccess::STORE), 0, true);
+    }
 }
 
 } // namespace N64::Cpu

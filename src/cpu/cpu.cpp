@@ -347,6 +347,14 @@ void Cpu::execute_instruction(instruction_t inst) {
         return CpuImpl::op_slti(*this, inst);
     case OPCODE_SLTIU: // SLTIU
         return CpuImpl::op_sltiu(*this, inst);
+    case OPCODE_LWC1: // LWC1
+        return FpuImpl::op_lwc1(*this, inst);
+    case OPCODE_LDC1: // LDC1
+        return FpuImpl::op_ldc1(*this, inst);
+    case OPCODE_SWC1: // SWC1
+        return FpuImpl::op_swc1(*this, inst);
+    case OPCODE_SDC1: // SDC1
+        return FpuImpl::op_sdc1(*this, inst);
     case OPCODE_CP0: // CP0 instructions
     {
         // https://github.com/Dillonb/n64/blob/6502f7d2f163c3f14da5bff8cd6d5ccc47143156/src/cpu/r4300i.c#L133
@@ -389,8 +397,16 @@ void Cpu::execute_instruction(instruction_t inst) {
     case OPCODE_CP1: // CP1 instructions
     {
         switch (inst.r_type.rs) {
+        case COP_MFC: // MFC1
+            return FpuImpl::op_mfc1(*this, inst);
+        case COP_DMFC: // DMFC1
+            return FpuImpl::op_dmfc1(*this, inst);
         case COP_CFC: // CFC1
             return FpuImpl::op_cfc1(*this, inst);
+        case COP_MTC: // MTC1
+            return FpuImpl::op_mtc1(*this, inst);
+        case COP_DMTC: // DMTC1
+            return FpuImpl::op_dmtc1(*this, inst);
         case COP_CTC: // CTC1
             return FpuImpl::op_ctc1(*this, inst);
         default: {
@@ -472,10 +488,11 @@ void Cpu::handle_exception(ExceptionCode exception_code,
 
     uint32_t vector = 0x80000180;
     switch (exception_code) {
-    case ExceptionCode::INTERRUPT:          // fallthrough
-    case ExceptionCode::TLB_MODIFICATION:   // fallthrough
-    case ExceptionCode::ADDRESS_ERROR_LOAD: // fallthrough
-    case ExceptionCode::ADDRESS_ERROR_STORE: {
+    case ExceptionCode::INTERRUPT:            // fallthrough
+    case ExceptionCode::TLB_MODIFICATION:     // fallthrough
+    case ExceptionCode::ADDRESS_ERROR_LOAD:   // fallthrough
+    case ExceptionCode::ADDRESS_ERROR_STORE:  // fallthrough
+    case ExceptionCode::COPROCESSOR_UNUSABLE: {
         vector = 0x80000180;
     } break;
     case ExceptionCode::TLB_MISS_LOAD: // fallthrough
