@@ -687,17 +687,33 @@ void Debugger::cmd_rsp() const {
     auto &rsp = g_rsp();
     const uint32_t status = rsp.read_paddr32(Rsp::PADDR_SP_STATUS);
     const uint32_t pc = rsp.read_paddr32(Rsp::PADDR_SP_PC);
+    dbg_out("SP STATUS={:#010x} PC={:#05x} halt={} broke={} iob={}", status,
+            pc, (status & 1u) != 0, (status & 2u) != 0, (status & 0x40u) != 0);
+    // Kirby / many titles pack OSTask as u32 fields (0x40 bytes @ DMEM 0xFC0).
     const uint32_t type = rsp.dmem_load32(0xFC0);
     const uint32_t flags = rsp.dmem_load32(0xFC4);
-    const uint32_t boot_hi = rsp.dmem_load32(0xFC8);
-    const uint32_t boot_lo = rsp.dmem_load32(0xFCC);
-    const uint32_t ucode_hi = rsp.dmem_load32(0xFD0);
-    const uint32_t ucode_lo = rsp.dmem_load32(0xFD4);
-    dbg_out("SP STATUS={:#010x} PC={:#05x} halt={}", status, pc,
-                (status & 1u) != 0);
-    dbg_out("OSTask @DMEM FC0: type={} flags={:#010x} "
-                "ucode_boot={:#010x}{:08x} ucode={:#010x}{:08x}",
-                type, flags, boot_hi, boot_lo, ucode_hi, ucode_lo);
+    const uint32_t boot = rsp.dmem_load32(0xFC8);
+    const uint32_t boot_sz = rsp.dmem_load32(0xFCC);
+    const uint32_t ucode = rsp.dmem_load32(0xFD0);
+    const uint32_t ucode_sz = rsp.dmem_load32(0xFD4);
+    const uint32_t udata = rsp.dmem_load32(0xFD8);
+    const uint32_t udata_sz = rsp.dmem_load32(0xFDC);
+    const uint32_t stack = rsp.dmem_load32(0xFE0);
+    const uint32_t stack_sz = rsp.dmem_load32(0xFE4);
+    const uint32_t output = rsp.dmem_load32(0xFE8);
+    const uint32_t output_sz = rsp.dmem_load32(0xFEC);
+    const uint32_t data = rsp.dmem_load32(0xFF0);
+    const uint32_t data_sz = rsp.dmem_load32(0xFF4);
+    const uint32_t yield_p = rsp.dmem_load32(0xFF8);
+    const uint32_t yield_sz = rsp.dmem_load32(0xFFC);
+    dbg_out("OSTask type={} flags={:#x}", type, flags);
+    dbg_out("  boot={:#010x} sz={:#x} ucode={:#010x} sz={:#x}", boot, boot_sz,
+            ucode, ucode_sz);
+    dbg_out("  udata={:#010x} sz={:#x} stack={:#010x} sz={:#x}", udata,
+            udata_sz, stack, stack_sz);
+    dbg_out("  output={:#010x} sz={:#x} data={:#010x} sz={:#x}", output,
+            output_sz, data, data_sz);
+    dbg_out("  yield={:#010x} sz={:#x}", yield_p, yield_sz);
 }
 
 void Debugger::cmd_dpc() const {
