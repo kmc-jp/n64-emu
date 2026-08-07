@@ -1,6 +1,7 @@
 add_library(rcp STATIC)
 target_sources(rcp PRIVATE
     rsp.cpp
+    rsp_vector.cpp
     dpc.cpp
 )
 target_link_libraries(rcp PUBLIC
