@@ -1,7 +1,9 @@
 #include "rcp/rsp.h"
+#include "rcp/rsp_rom.h"
 #include "utils/log.h"
 #include <algorithm>
 #include <array>
+#include <climits>
 #include <cmath>
 #include <cstring>
 
@@ -19,6 +21,97 @@ int broadcast_lane(int element, int dest_lane) {
     if (element < 8)
         return (dest_lane & ~3) | (element & 3);
     return element & 7;
+}
+
+void set_vcc_bit(Rsp &rsp, int i, bool lo, bool val) {
+    const int bit = lo ? i : (i + 8);
+    if (val)
+        rsp.vcc_ref() |= static_cast<uint16_t>(1u << bit);
+    else
+        rsp.vcc_ref() &= static_cast<uint16_t>(~(1u << bit));
+}
+
+void set_vco_bit(Rsp &rsp, int i, bool lo, bool val) {
+    const int bit = lo ? i : (i + 8);
+    if (val)
+        rsp.vco_ref() |= static_cast<uint16_t>(1u << bit);
+    else
+        rsp.vco_ref() &= static_cast<uint16_t>(~(1u << bit));
+}
+
+void set_vce_bit(Rsp &rsp, int i, bool val) {
+    if (val)
+        rsp.vce_ref() |= static_cast<uint8_t>(1u << i);
+    else
+        rsp.vce_ref() &= static_cast<uint8_t>(~(1u << i));
+}
+
+bool vcc_bit(Rsp &rsp, int i, bool lo) {
+    const int bit = lo ? i : (i + 8);
+    return (rsp.vcc_ref() >> bit) & 1;
+}
+
+bool vco_bit(Rsp &rsp, int i, bool lo) {
+    const int bit = lo ? i : (i + 8);
+    return (rsp.vco_ref() >> bit) & 1;
+}
+
+bool vce_bit(Rsp &rsp, int i) {
+    return (rsp.vce_ref() >> i) & 1;
+}
+
+void set_acc_l(Rsp &rsp, int lane, uint16_t v) {
+    // Keep high 32 bits of the 48-bit accumulator; replace low 16.
+    const int64_t cur = rsp.acc_get(lane);
+    const int64_t hi = cur & ~0xFFFFLL;
+    rsp.acc_set(lane, hi | v);
+}
+
+uint32_t rsp_rcp(int32_t sinput) {
+    const int32_t mask = sinput >> 31;
+    int32_t input = sinput ^ mask;
+    if (sinput > INT16_MIN)
+        input -= mask;
+    if (input == 0)
+        return 0x7FFFFFFF;
+    if (sinput == INT16_MIN)
+        return 0xFFFF0000;
+    const uint32_t shift = static_cast<uint32_t>(__builtin_clz(static_cast<uint32_t>(input)));
+    const uint32_t index =
+        static_cast<uint32_t>((((static_cast<uint64_t>(input) << shift) & 0x7FC00000ULL) >> 22));
+    int32_t result = kRcpRom[index];
+    result = (0x10000 | result) << 14;
+    result = (result >> (31 - static_cast<int>(shift))) ^ mask;
+    return static_cast<uint32_t>(result);
+}
+
+uint32_t rsp_rsq(uint32_t input) {
+    if (input == 0)
+        return 0x7FFFFFFF;
+    if (input == 0xFFFF8000)
+        return 0xFFFF0000;
+    if (input > 0xFFFF8000)
+        input--;
+    int32_t sinput = static_cast<int32_t>(input);
+    const int32_t mask = sinput >> 31;
+    input ^= static_cast<uint32_t>(mask);
+    const int shift = __builtin_clz(input) + 1;
+    const int index =
+        static_cast<int>(((input << shift) >> 24) | ((shift & 1) << 8));
+    const uint32_t rom = (static_cast<uint32_t>(kRsqRom[index]) << 14);
+    const int r_shift = (32 - shift) >> 1;
+    uint32_t result = (0x40000000u | rom) >> r_shift;
+    return result ^ static_cast<uint32_t>(mask);
+}
+
+int vmov_src_elem(int element, int vs_field) {
+    if (element <= 1)
+        return (element & 0b000) | (vs_field & 0b111);
+    if (element <= 3)
+        return (element & 0b001) | (vs_field & 0b110);
+    if (element <= 7)
+        return (element & 0b011) | (vs_field & 0b100);
+    return (element & 0b111);
 }
 
 int16_t clamp_signed(int64_t accum) {
@@ -100,27 +193,34 @@ void vu_load(Rsp &rsp, uint32_t inst) {
                        rsp.dmem_load8((a & ~0xFu) + i));
     } break;
     case 0x06: { // LPV
-        const uint32_t a = addr + (offset7 << 3);
+        uint32_t a = addr + (offset7 << 3);
+        const int addr_ofs = static_cast<int>(a & 7);
+        a &= ~7u;
         for (int i = 0; i < 8; i++) {
-            const uint8_t b = rsp.dmem_load8(a + ((element + i) & 15));
+            const int eo = (16 - element + (i + addr_ofs)) & 0xF;
+            const uint8_t b = rsp.dmem_load8(a + eo);
             v.set_lane(i, static_cast<uint16_t>(b << 8));
         }
     } break;
     case 0x07: { // LUV
-        const uint32_t a = addr + (offset7 << 3);
+        uint32_t a = addr + (offset7 << 3);
+        const int addr_ofs = static_cast<int>(a & 7);
+        a &= ~7u;
         for (int i = 0; i < 8; i++) {
-            const uint8_t b = rsp.dmem_load8(a + ((element + i) & 15));
+            const int eo = (16 - element + (i + addr_ofs)) & 0xF;
+            const uint8_t b = rsp.dmem_load8(a + eo);
             v.set_lane(i, static_cast<uint16_t>(b << 7));
         }
     } break;
-    case 0x0B: { // LTV — simplified group load
-        const uint32_t a = addr + (offset7 << 4);
-        const int vs = vt & ~7;
+    case 0x0B: { // LTV
+        uint32_t base = (addr + (offset7 << 4)) & ~7u;
         for (int i = 0; i < 8; i++) {
-            for (int j = 0; j < 2; j++) {
-                rsp.vreg(vs + i).set_byte(
-                    ((element / 2) + j) & 15, rsp.dmem_load8(a + i * 2 + j));
-            }
+            const uint32_t offset =
+                static_cast<uint32_t>((i * 2) + element + (base & 8));
+            const uint16_t hi = rsp.dmem_load8(base + ((offset + 0) & 0xF));
+            const uint16_t lo = rsp.dmem_load8(base + ((offset + 1) & 0xF));
+            const int reg = (vt & 0x18) | ((i + (element >> 1)) & 0x7);
+            rsp.vreg(reg).set_lane(i & 7, static_cast<uint16_t>((hi << 8) | lo));
         }
     } break;
     default:
@@ -178,9 +278,11 @@ void vu_store(Rsp &rsp, uint32_t inst) {
     } break;
     case 0x07: { // SUV
         const uint32_t a = addr + (offset7 << 3);
-        for (int i = 0; i < 8; i++)
+        for (int i = 0; i < 8; i++) {
+            const int e = (element + i) & 7;
             rsp.dmem_store8(a + i,
-                            static_cast<uint8_t>((v.lane(i) >> 7) & 0xFF));
+                            static_cast<uint8_t>((v.lane(e) >> 7) & 0xFF));
+        }
     } break;
     case 0x0A: { // SWV
         const uint32_t a = addr + (offset7 << 4);
@@ -188,15 +290,18 @@ void vu_store(Rsp &rsp, uint32_t inst) {
             rsp.dmem_store8(a + i, v.byte((element + i) & 15));
     } break;
     case 0x0B: { // STV
-        const uint32_t a = addr + (offset7 << 4);
-        const int vs = vt & ~7;
+        uint32_t base = addr + (offset7 << 4);
+        const uint32_t in_ofs = base & 7;
+        base &= ~7u;
+        const int e = element >> 1;
         for (int i = 0; i < 8; i++) {
-            rsp.dmem_store8(a + i * 2,
-                            rsp.vreg(vs + i).byte(
-                                (element / 2) & 15));
-            rsp.dmem_store8(a + i * 2 + 1,
-                            rsp.vreg(vs + i).byte(
-                                ((element / 2) + 1) & 15));
+            const uint32_t offset = static_cast<uint32_t>(i * 2) + in_ofs;
+            const int reg = (vt & 0x18) | ((i + e) & 0x7);
+            const uint16_t val = rsp.vreg(reg).lane(i & 7);
+            rsp.dmem_store8(base + ((offset + 0) & 0xF),
+                            static_cast<uint8_t>(val >> 8));
+            rsp.dmem_store8(base + ((offset + 1) & 0xF),
+                            static_cast<uint8_t>(val & 0xFF));
         }
     } break;
     default:
@@ -424,24 +529,117 @@ void vu_execute_compute(Rsp &rsp, uint32_t inst) {
         rsp.vco_ref() = 0;
         break;
 
-    case 0x24: // VCL
-    case 0x25: // VCH
-    case 0x26: // VCR — approximate using compare/select
+    case 0x25: { // VCH
         for (int i = 0; i < 8; i++) {
             const int16_t s = static_cast<int16_t>(src_s.lane(i));
             const int16_t t = static_cast<int16_t>(vt_lane(i));
-            // Simplified: geq select for bootstrapping; refine later if needed.
-            const bool ge = s >= t;
-            dest.set_lane(i, ge ? static_cast<uint16_t>(s)
-                                : static_cast<uint16_t>(t));
-            set_acc(rsp, i, static_cast<int16_t>(dest.lane(i)));
-            if (ge)
-                rsp.vcc_ref() |= static_cast<uint16_t>(1u << i);
-            else
-                rsp.vcc_ref() &= static_cast<uint16_t>(~(1u << i));
+            if ((s ^ t) < 0) {
+                const int16_t result =
+                    static_cast<int16_t>(s + t);
+                const uint16_t acc =
+                    (result <= 0) ? static_cast<uint16_t>(-t)
+                                  : static_cast<uint16_t>(s);
+                set_acc_l(rsp, i, acc);
+                set_vcc_bit(rsp, i, true, result <= 0);
+                set_vcc_bit(rsp, i, false, t < 0);
+                set_vco_bit(rsp, i, true, true);
+                set_vco_bit(rsp, i, false,
+                            result != 0 &&
+                                static_cast<uint16_t>(s) !=
+                                    (static_cast<uint16_t>(t) ^ 0xFFFF));
+                set_vce_bit(rsp, i, result == -1);
+            } else {
+                const int16_t result =
+                    static_cast<int16_t>(s - t);
+                const uint16_t acc =
+                    (result >= 0) ? static_cast<uint16_t>(t)
+                                  : static_cast<uint16_t>(s);
+                set_acc_l(rsp, i, acc);
+                set_vcc_bit(rsp, i, true, t < 0);
+                set_vcc_bit(rsp, i, false, result >= 0);
+                set_vco_bit(rsp, i, true, false);
+                set_vco_bit(rsp, i, false,
+                            result != 0 &&
+                                static_cast<uint16_t>(s) !=
+                                    (static_cast<uint16_t>(t) ^ 0xFFFF));
+                set_vce_bit(rsp, i, false);
+            }
+            dest.set_lane(i, static_cast<uint16_t>(rsp.acc_get(i) & 0xFFFF));
+        }
+        break;
+    }
+
+    case 0x24: { // VCL
+        for (int i = 0; i < 8; i++) {
+            const uint16_t s = src_s.lane(i);
+            const uint16_t t = vt_lane(i);
+            if (vco_bit(rsp, i, true)) {
+                if (vco_bit(rsp, i, false)) {
+                    set_acc_l(rsp, i,
+                              vcc_bit(rsp, i, true) ? static_cast<uint16_t>(-t)
+                                                    : s);
+                } else {
+                    const uint32_t sum = static_cast<uint32_t>(s) + t;
+                    const uint16_t clamped = static_cast<uint16_t>(sum);
+                    const bool overflow = sum != clamped;
+                    if (vce_bit(rsp, i)) {
+                        set_vcc_bit(rsp, i, true, !clamped || !overflow);
+                        set_acc_l(rsp, i,
+                                  vcc_bit(rsp, i, true)
+                                      ? static_cast<uint16_t>(-t)
+                                      : s);
+                    } else {
+                        set_vcc_bit(rsp, i, true, !clamped && !overflow);
+                        set_acc_l(rsp, i,
+                                  vcc_bit(rsp, i, true)
+                                      ? static_cast<uint16_t>(-t)
+                                      : s);
+                    }
+                }
+            } else {
+                if (vco_bit(rsp, i, false)) {
+                    set_acc_l(rsp, i,
+                              vcc_bit(rsp, i, false) ? t : s);
+                } else {
+                    set_vcc_bit(rsp, i, false,
+                                static_cast<int32_t>(s) -
+                                        static_cast<int32_t>(t) >=
+                                    0);
+                    set_acc_l(rsp, i,
+                              vcc_bit(rsp, i, false) ? t : s);
+                }
+            }
+            dest.set_lane(i, static_cast<uint16_t>(rsp.acc_get(i) & 0xFFFF));
         }
         rsp.vco_ref() = 0;
+        rsp.vce_ref() = 0;
         break;
+    }
+
+    case 0x26: { // VCR
+        for (int i = 0; i < 8; i++) {
+            const uint16_t s = src_s.lane(i);
+            const uint16_t t = vt_lane(i);
+            const bool sign_different =
+                ((0x8000 & (s ^ t)) == 0x8000);
+            const uint16_t vt_abs =
+                sign_different ? static_cast<uint16_t>(~t) : t;
+            const bool gte =
+                static_cast<int16_t>(t) <=
+                static_cast<int16_t>(sign_different ? 0xFFFF : s);
+            const bool lte =
+                ((((sign_different ? s : 0) + t) & 0x8000) == 0x8000);
+            const bool check = sign_different ? lte : gte;
+            const uint16_t result = check ? vt_abs : s;
+            set_acc_l(rsp, i, result);
+            dest.set_lane(i, result);
+            set_vcc_bit(rsp, i, true, sign_different ? lte : false);
+            set_vcc_bit(rsp, i, false, sign_different ? false : gte);
+        }
+        rsp.vco_ref() = 0;
+        rsp.vce_ref() = 0;
+        break;
+    }
 
     case 0x27: // VMRG
         for (int i = 0; i < 8; i++) {
@@ -494,53 +692,44 @@ void vu_execute_compute(Rsp &rsp, uint32_t inst) {
     case 0x35: // VRSQL
     case 0x36: // VRSQH
     {
-        // Reciprocal / rsqrt estimate — enough for many microcodes.
-        const int se = element & 7;
-        int16_t input;
-        if (funct == 0x32 || funct == 0x36) { // high
-            input = static_cast<int16_t>(vt_lane(se));
-            rsp.divin_ref() = input;
+        const int e = element & 7;
+        const int de = vs & 7; // dest element encoded in VS field
+        if (funct == 0x32 || funct == 0x36) { // high: latch divin
+            rsp.divin_ref() = static_cast<int16_t>(src_t.lane(e));
             rsp.divin_loaded_ref() = true;
-            dest.set_lane(vd & 7, static_cast<uint16_t>(rsp.divout_ref()));
-        } else {
-            input = static_cast<int16_t>(vt_lane(se));
-            if (rsp.divin_loaded_ref() && (funct == 0x31 || funct == 0x35)) {
-                const int32_t full =
-                    (static_cast<int32_t>(rsp.divin_ref()) << 16) |
-                    static_cast<uint16_t>(input);
-                double d = full;
-                double r = (funct == 0x34 || funct == 0x35)
-                               ? (d != 0 ? 1.0 / std::sqrt(std::fabs(d)) : 0)
-                               : (d != 0 ? 1.0 / d : 0);
-                rsp.divout_ref() = static_cast<int16_t>(r * 65536.0);
-                rsp.divin_loaded_ref() = false;
-            } else {
-                double d = input;
-                double r = (funct == 0x34 || funct == 0x35)
-                               ? (d != 0 ? 1.0 / std::sqrt(std::fabs(d)) : 0)
-                               : (d != 0 ? 1.0 / d : 0);
-                rsp.divout_ref() = static_cast<int16_t>(r * 32768.0);
-            }
+            dest.set_lane(de, static_cast<uint16_t>(rsp.divout_ref()));
             for (int i = 0; i < 8; i++)
-                set_acc(rsp, i, static_cast<int16_t>(src_s.lane(i)));
-            dest.set_lane(se, static_cast<uint16_t>(rsp.divout_ref()));
+                set_acc_l(rsp, i, vt_lane(i));
+        } else {
+            int32_t input;
+            if (rsp.divin_loaded_ref() && (funct == 0x31 || funct == 0x35)) {
+                input = (static_cast<int32_t>(rsp.divin_ref()) << 16) |
+                        src_t.lane(e);
+            } else {
+                input = static_cast<int16_t>(src_t.lane(e));
+            }
+            const uint32_t result =
+                (funct == 0x34 || funct == 0x35)
+                    ? rsp_rsq(static_cast<uint32_t>(input))
+                    : rsp_rcp(input);
+            rsp.divout_ref() =
+                static_cast<int16_t>((result >> 16) & 0xFFFF);
+            rsp.divin_ref() = 0;
+            rsp.divin_loaded_ref() = false;
+            dest.set_lane(de, static_cast<uint16_t>(result & 0xFFFF));
+            for (int i = 0; i < 8; i++)
+                set_acc_l(rsp, i, vt_lane(i));
         }
-        (void)vs;
     } break;
 
-    case 0x33: // VMOV
-        for (int i = 0; i < 8; i++) {
-            const uint16_t t = vt_lane(element < 8 ? i : (element & 7));
-            // VMOV moves single element; element selects source lane into all?
-            dest.set_lane(i, src_t.lane(broadcast_lane(element, i)));
-            set_acc(rsp, i, static_cast<int16_t>(dest.lane(i)));
-            (void)t;
-        }
-        if (element >= 8) {
-            const int e = element & 7;
-            dest.set_lane(e, src_t.lane(e));
-        }
-        break;
+    case 0x33: { // VMOV — VS field is dest element, not a vector register
+        const int de = vs & 7;
+        const int se = vmov_src_elem(element, vs);
+        const uint16_t vte_elem = src_t.lane(se);
+        dest.set_lane(de, vte_elem);
+        for (int i = 0; i < 8; i++)
+            set_acc_l(rsp, i, vt_lane(i));
+    } break;
 
     case 0x37: // VNOP
         break;

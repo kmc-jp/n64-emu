@@ -95,6 +95,10 @@ void Rsp::take_break() {
     // https://n64brew.dev/wiki/Reality_Signal_Processor/CPU_Core
     status_reg.halt = 1;
     status_reg.broke = 1;
+    const uint32_t type = dmem_load32(0xFC0);
+    if (type != 2) {
+        Utils::info("RSP BREAK pc={:#x} OSTask type={}", pc, type);
+    }
     if (status_reg.intr_on_break) {
         g_mi().get_reg_intr().sp = 1;
         N64System::check_interrupt();
@@ -421,15 +425,11 @@ void Rsp::write_cp0(int reg, uint32_t value) {
         break;
     case 2:
         dma.raw = value;
-        // Ucode encodes DMA length as (nbytes - 1). A zero-length DL
-        // therefore writes 0xffffffff, which would otherwise become a
-        // 256×4096-byte wipe of DMEM/IMEM. Skip that transfer.
+        // nbytes-1 == 0xffffffff means a 0-byte transfer. The 12/8/12
+        // bitfields would otherwise decode to a 256×4096 wipe; treat as
+        // completed empty DMA and mirror hardware's post-transfer length.
         if (value == 0xffffffffu) {
-            static bool warned = false;
-            if (!warned) {
-                warned = true;
-                Utils::warn("RSP DMA_RDLEN=0xffffffff (0-byte length); skipping");
-            }
+            dma.raw = 0xFF8;
             break;
         }
         dma_read();
@@ -437,11 +437,7 @@ void Rsp::write_cp0(int reg, uint32_t value) {
     case 3:
         dma.raw = value;
         if (value == 0xffffffffu) {
-            static bool warned_w = false;
-            if (!warned_w) {
-                warned_w = true;
-                Utils::warn("RSP DMA_WRLEN=0xffffffff (0-byte length); skipping");
-            }
+            dma.raw = 0xFF8;
             break;
         }
         dma_write();
@@ -588,13 +584,19 @@ void Rsp::write_paddr32(uint32_t paddr, uint32_t value) {
         break;
     case PADDR_SP_RD_LEN:
         dma.raw = value;
-        if (value != 0xffffffffu)
+        if (value == 0xffffffffu) {
+            dma.raw = 0xFF8;
+        } else {
             dma_read();
+        }
         break;
     case PADDR_SP_WR_LEN:
         dma.raw = value;
-        if (value != 0xffffffffu)
+        if (value == 0xffffffffu) {
+            dma.raw = 0xFF8;
+        } else {
             dma_write();
+        }
         break;
     case PADDR_SP_STATUS:
         status_reg_write(value);
@@ -683,8 +685,6 @@ void Rsp::status_reg_write(uint32_t value) {
             const uint32_t type = dmem_load32(0xFC0);
             if (type != 2) {
                 Utils::info("RSP unhalt OSTask type={}", type);
-            } else {
-                Utils::debug("RSP unhalt OSTask type=2");
             }
             g_debugger().on_rsp_unhalt();
         }

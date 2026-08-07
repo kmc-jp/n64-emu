@@ -143,6 +143,13 @@ void update_screen(Vulkan::WSI &wsi, N64::Mmio::VI::VI &vi) {
     command_processor->set_vi_register(RDP::VIRegister::XScale, vi.reg_x_scale);
     command_processor->set_vi_register(RDP::VIRegister::YScale, vi.reg_y_scale);
 
+    // Skip llvmpipe present while VI still points at the boot placeholder
+    // framebuffer — full scanout/present every field dominates wall time
+    // and begin_frame_context can block with zero CPU progress.
+    if (vi.reg_origin == 0 || vi.reg_origin == 0x280) {
+        return;
+    }
+
     //  FIXME: quarks?
     // https://github.com/simple64/simple64/blob/1e4ab555054a659c6e6a91db16ce46714be7ac00/parallel-rdp-standalone/parallel_imp.cpp#L257C7-L257C7
 
