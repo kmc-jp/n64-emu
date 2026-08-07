@@ -171,7 +171,7 @@ void Dpc::process_list() {
         auto &dmem = g_rsp().get_sp_dmem();
         for (int i = 0; i < display_list_length; i += 4) {
             cmd_buf[leftover + (i >> 2)] =
-                Utils::read_from_byte_array32(dmem, (cur + i) & 0xFFF);
+                Utils::read_from_byte_array32_be(dmem, (cur + i) & 0xFFF);
         }
     } else {
         if (en > 0x7FFFFFF || cur > 0x7FFFFFF) {

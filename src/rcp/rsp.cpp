@@ -5,6 +5,7 @@
 #include "mmio/mi.h"
 #include "n64_system/interrupt.h"
 #include "rcp/dpc.h"
+#include "utils/byte_array.h"
 #include "utils/log.h"
 
 namespace N64 {
@@ -138,10 +139,7 @@ void Rsp::dmem_store32(uint32_t addr, uint32_t v) {
 
 uint32_t Rsp::fetch_instruction() const {
     const uint32_t a = pc & 0xFFC;
-    return (static_cast<uint32_t>(sp_imem[a]) << 24) |
-           (static_cast<uint32_t>(sp_imem[a + 1]) << 16) |
-           (static_cast<uint32_t>(sp_imem[a + 2]) << 8) |
-           static_cast<uint32_t>(sp_imem[a + 3]);
+    return Utils::read_from_byte_array32(sp_imem, a);
 }
 
 void Rsp::step() {
@@ -302,7 +300,7 @@ void Rsp::execute_special(uint32_t inst) {
         delay_slot_ = true;
         const uint32_t link = (pc + 4) & 0xffc;
         branch(static_cast<uint16_t>(gpr(rs(inst))));
-        set_gpr(rd(inst) ? rd(inst) : 31, link);
+        set_gpr(rd(inst), link); // rd==0 discards (r0)
     } break;
     case 0x0D: // BREAK
         take_break();
@@ -628,8 +626,13 @@ void Rsp::dma_read() {
     for (uint32_t i = 0; i < dma.count + 1; i++) {
         for (uint32_t j = 0; j < length; j++) {
             uint16_t addr = (mem_address + j) & 0xFFF;
+            // IMEM matches RDRAM host-endian layout; DMEM is big-endian so
+            // convert with byte^3 (Dillonb rsp_dma_read).
+            uint16_t index =
+                to_imem ? addr
+                        : static_cast<uint16_t>(Utils::byte_address(addr));
             uint32_t dram_i = dram_address + j;
-            mem[addr] = (dram_i < RDRAM_SIZE) ? rdram[dram_i] : 0;
+            mem[index] = (dram_i < RDRAM_SIZE) ? rdram[dram_i] : 0;
         }
         uint32_t skip = (i == dma.count) ? 0 : dma.skip;
         dram_address = (dram_address + length + skip) & RSP_DRAM_ADDR_MASK;
@@ -652,9 +655,12 @@ void Rsp::dma_write() {
     for (uint32_t i = 0; i < dma.count + 1; i++) {
         for (uint32_t j = 0; j < length; j++) {
             uint16_t addr = (mem_address + j) & 0xFFF;
+            uint16_t index =
+                from_imem ? addr
+                          : static_cast<uint16_t>(Utils::byte_address(addr));
             uint32_t dram_i = dram_address + j;
             if (dram_i < RDRAM_SIZE)
-                rdram[dram_i] = mem[addr];
+                rdram[dram_i] = mem[index];
         }
         uint32_t skip = (i == dma.count) ? 0 : dma.skip;
         dram_address = (dram_address + length + skip) & RSP_DRAM_ADDR_MASK;
