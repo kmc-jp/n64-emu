@@ -196,6 +196,22 @@ template <typename Wire> Wire read_paddr(uint32_t paddr) {
         } else {
             static_assert(always_false<Wire>);
         }
+    } else if (PHYS_SRAM_BASE <= paddr && paddr <= PHYS_SRAM_END) {
+        auto &sram = g_memory().get_sram();
+        if (sram.empty()) {
+            if constexpr (wire32) {
+                return 0xFFFFFFFFu;
+            } else {
+                abort_unimplemented_read<Wire>(paddr);
+            }
+        } else if constexpr (wire32) {
+            const uint32_t offs =
+                (paddr - PHYS_SRAM_BASE) &
+                static_cast<uint32_t>(sram.size() - 1);
+            return Utils::read_from_byte_array32(sram, offs);
+        } else {
+            abort_unimplemented_read<Wire>(paddr);
+        }
     } else if (PHYS_ROM_BASE <= paddr && paddr <= PHYS_ROM_END) {
         if constexpr (wire8) {
             abort_unimplemented_read<uint8_t>(paddr);
@@ -375,6 +391,18 @@ template <typename Wire> void write_paddr(uint32_t paddr, Wire value) {
             abort_unimplemented_write<uint64_t>(paddr);
         } else {
             static_assert(always_false<Wire>);
+        }
+    } else if (PHYS_SRAM_BASE <= paddr && paddr <= PHYS_SRAM_END) {
+        auto &sram = g_memory().get_sram();
+        if (sram.empty()) {
+            // No cartridge SRAM — ignore writes.
+        } else if constexpr (wire32) {
+            const uint32_t offs =
+                (paddr - PHYS_SRAM_BASE) &
+                static_cast<uint32_t>(sram.size() - 1);
+            Utils::write_to_byte_array32(sram, offs, value);
+        } else {
+            abort_unimplemented_write<Wire>(paddr);
         }
     } else if (PHYS_ROM_BASE <= paddr && paddr <= PHYS_ROM_END) {
         if constexpr (wire8) {

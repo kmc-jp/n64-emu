@@ -113,8 +113,24 @@ void Rom::load_file(const std::string &filepath) {
     const uint32_t checksum = crc32(0, &rom[0x40], 0x9C0);
     cic = checksum_to_cic(checksum);
 
+    detect_save_type();
+
     Utils::debug("imageName\t= \"{}\"", std::string(header.image_name));
     Utils::debug("CIC\t= {}", static_cast<int>(cic));
+}
+
+void Rom::detect_save_type() {
+    // Prefer raw header bytes; rom_header_t fields past image_name are unreliable.
+    // Game code at 0x3B..0x3D, country at 0x3E, version at 0x3F.
+    // Kirby 64 JP V1.0/V1.1 (NK4J, version < 2) uses SRAM 256 kbit.
+    save_type = SaveType::None;
+    if (rom.size() > 0x3F && rom[0x3B] == 'N' && rom[0x3C] == 'K' &&
+        rom[0x3D] == '4' && rom[0x3E] == 'J' && rom[0x3F] < 2) {
+        save_type = SaveType::Sram256k;
+        Utils::info("Save type: SRAM 256kbit (32 KiB)");
+    } else {
+        Utils::info("Save type: None");
+    }
 }
 
 RomType Rom::rom_type() {
@@ -134,6 +150,8 @@ RomType Rom::rom_type() {
 }
 
 CicType Rom::get_cic() const { return cic; }
+
+SaveType Rom::get_save_type() const { return save_type; }
 
 uint32_t Rom::get_cic_seed() const {
     // https://github.com/Dillonb/n64/blob/6502f7d2f163c3f14da5bff8cd6d5ccc47143156/src/mem/pif.c#L27

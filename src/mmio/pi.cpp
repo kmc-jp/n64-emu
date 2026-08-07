@@ -124,8 +124,7 @@ void PI::write_paddr32(uint32_t paddr, uint32_t value) {
 }
 
 void PI::dma_write() {
-    // https://github.com/Dillonb/n64/blob/6502f7d2f163c3f14da5bff8cd6d5ccc47143156/src/interface/pi.c#L160
-    // https://github.com/project64/project64/blob/353ef5ed897cb72a8904603feddbdc649dff9eca/Source/Project64-core/N64System/MemoryHandler/PeripheralInterfaceHandler.cpp#L364
+    // https://n64brew.dev/wiki/Peripheral_Interface
     uint32_t length = (reg_wr_len & 0x00FF'FFFF) + 1;
     uint32_t cart_addr = reg_cart_addr & 0xFFFFFFFE;
     uint32_t dram_addr = reg_dram_addr & 0x007FFFFE;
@@ -135,30 +134,43 @@ void PI::dma_write() {
     }
     reg_wr_len = length;
 
-    if (0x1000'0000 <= cart_addr && cart_addr <= 0xFFFF'FFFF) {
+    auto &rdram = g_memory().get_rdram();
+    auto &sram = g_memory().get_sram();
+
+    if (!sram.empty() && PHYS_SRAM_BASE <= cart_addr &&
+        cart_addr < PHYS_ROM_BASE) {
+        const uint32_t sram_mask = static_cast<uint32_t>(sram.size() - 1);
+        for (uint32_t i = 0; i < length; i++) {
+            const uint32_t sram_offs =
+                ((cart_addr - PHYS_SRAM_BASE) + i) & sram_mask;
+            rdram[(dram_addr + i) & RDRAM_SIZE_MASK] = sram[sram_offs];
+        }
+        Utils::debug("DMA Write: SRAM {:#010x} -> dram {:#010x} (len = {:#010x})",
+                     cart_addr, dram_addr, length);
+    } else if (0x1000'0000 <= cart_addr && cart_addr <= 0xFFFF'FFFF) {
         const uint32_t cart_offset = cart_addr - 0x1000'0000;
         for (uint32_t i = 0; i < length; i++) {
-            g_memory().get_rdram()[(dram_addr + i) & RDRAM_SIZE_MASK] =
+            rdram[(dram_addr + i) & RDRAM_SIZE_MASK] =
                 g_memory().rom.read_offset8(cart_offset + i);
         }
-
-        reg_status |= PiStatusFlags::DMA_BUSY;
-        reg_dram_addr = dram_addr + length;
-        reg_cart_addr = cart_addr + length;
 
         Utils::debug("DMA Write: cart offset {:#010x} -> dram offset {:#010x} "
                      "(len = {:#010x})",
                      cart_offset, dram_addr, length);
-        // https://github.com/project64/project64/blob/353ef5ed897cb72a8904603feddbdc649dff9eca/Source/Project64-core/N64System/MemoryHandler/PeripheralInterfaceHandler.cpp#L460
-        g_scheduler().set_timer(
-            length / 8,
-            N64System::Event{&PIScheduler::on_dma_write_completed});
     } else {
         Utils::critical(
             "DMA Write cart addr = {:#010x} -> dram addr = {:#010x}", cart_addr,
             dram_addr);
         Utils::unimplemented("DMA Transfer by PI");
+        return;
     }
+
+    reg_status |= PiStatusFlags::DMA_BUSY;
+    reg_dram_addr = dram_addr + length;
+    reg_cart_addr = cart_addr + length;
+    g_scheduler().set_timer(
+        length / 8,
+        N64System::Event{&PIScheduler::on_dma_write_completed});
 }
 
 void PIScheduler::on_dma_write_completed() {
@@ -171,7 +183,7 @@ void PIScheduler::on_dma_write_completed() {
 }
 
 void PI::dma_read() {
-    // https://github.com/Dillonb/n64/blob/6502f7d2f163c3f14da5bff8cd6d5ccc47143156/src/interface/pi.c#L123
+    // https://n64brew.dev/wiki/Peripheral_Interface
     uint32_t length = (reg_rd_len & 0x00FF'FFFF) + 1;
     uint32_t cart_addr = reg_cart_addr & 0xFFFFFFFE;
     uint32_t dram_addr = reg_dram_addr & 0x007FFFFE;
@@ -181,16 +193,31 @@ void PI::dma_read() {
     }
     reg_rd_len = length;
 
-    // RDRAM -> cartridge (typically SRAM). Stub: discard writes to ROM window.
-    if (0x0800'0000 <= cart_addr && cart_addr < 0x1000'0000) {
-        // SRAM window — handled later when SRAM is implemented; ignore for now
-        Utils::debug("DMA Read stub to cart {:#010x} len {:#010x}", cart_addr,
-                     length);
+    auto &rdram = g_memory().get_rdram();
+    auto &sram = g_memory().get_sram();
+
+    // RDRAM -> cartridge (typically SRAM)
+    if (PHYS_SRAM_BASE <= cart_addr && cart_addr < PHYS_ROM_BASE) {
+        if (!sram.empty()) {
+            const uint32_t sram_mask = static_cast<uint32_t>(sram.size() - 1);
+            for (uint32_t i = 0; i < length; i++) {
+                const uint32_t sram_offs =
+                    ((cart_addr - PHYS_SRAM_BASE) + i) & sram_mask;
+                sram[sram_offs] = rdram[(dram_addr + i) & RDRAM_SIZE_MASK];
+            }
+            Utils::debug(
+                "DMA Read: dram {:#010x} -> SRAM {:#010x} (len = {:#010x})",
+                dram_addr, cart_addr, length);
+        } else {
+            Utils::debug("DMA Read stub to cart {:#010x} len {:#010x} (no SRAM)",
+                         cart_addr, length);
+        }
     } else if (0x1000'0000 <= cart_addr) {
         Utils::warn("DMA Read to ROM ignored: cart {:#010x}", cart_addr);
     } else {
         Utils::critical("DMA Read cart addr = {:#010x}", cart_addr);
         Utils::unimplemented("DMA Transfer by PI");
+        return;
     }
 
     reg_status |= PiStatusFlags::DMA_BUSY;
