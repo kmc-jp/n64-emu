@@ -153,16 +153,14 @@ void Rsp::step() {
     next_pc = (pc + 4) & 0xffc;
     delay_slot_ = false;
 
-    execute(inst);
+    execute(inst, cur);
 
     if (status_reg.single_step) {
         status_reg.halt = 1;
     }
-
-    (void)cur;
 }
 
-void Rsp::execute(uint32_t inst) {
+void Rsp::execute(uint32_t inst, uint16_t inst_pc) {
     switch (op(inst)) {
     case OPC_SPECIAL:
         execute_special(inst);
@@ -267,7 +265,7 @@ void Rsp::execute(uint32_t inst) {
         break;
     default:
         Utils::warn("RSP unknown opcode {:#04x} inst={:#010x} pc={:#05x}",
-                    op(inst), inst, pc);
+                    op(inst), inst, inst_pc);
         break;
     }
 }

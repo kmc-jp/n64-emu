@@ -220,7 +220,7 @@ class Rsp {
     void dma_write();
 
     uint32_t fetch_instruction() const;
-    void execute(uint32_t inst);
+    void execute(uint32_t inst, uint16_t inst_pc);
     void execute_special(uint32_t inst);
     void execute_regimm(uint32_t inst);
     void execute_cop0(uint32_t inst);
