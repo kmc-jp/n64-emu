@@ -283,6 +283,10 @@ void Cpu::execute_instruction(instruction_t inst) {
         return CpuImpl::op_lw(*this, inst);
     case OPCODE_LWU: // LWU (I format)
         return CpuImpl::op_lwu(*this, inst);
+    case OPCODE_LWL: // LWL (I format)
+        return CpuImpl::op_lwl(*this, inst);
+    case OPCODE_LWR: // LWR (I format)
+        return CpuImpl::op_lwr(*this, inst);
     case OPCODE_LUI: // LUI (I format)
         return CpuImpl::op_lui(*this, inst);
     case OPCODE_LD: // LD (I format)
@@ -299,8 +303,12 @@ void Cpu::execute_instruction(instruction_t inst) {
         return CpuImpl::op_sb(*this, inst);
     case OPCODE_SH: // SH (I format)
         return CpuImpl::op_sh(*this, inst);
+    case OPCODE_SWL: // SWL (I format)
+        return CpuImpl::op_swl(*this, inst);
     case OPCODE_SW: // SW (I format)
         return CpuImpl::op_sw(*this, inst);
+    case OPCODE_SWR: // SWR (I format)
+        return CpuImpl::op_swr(*this, inst);
     case OPCODE_SD: // SD (I format)
         return CpuImpl::op_sd(*this, inst);
     case OPCODE_SDL: // SDL (I format)

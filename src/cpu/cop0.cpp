@@ -1,5 +1,6 @@
 ﻿#include "cpu/cop0.h"
 #include "debugger/debugger.h"
+#include "n64_system/interrupt.h"
 #include "utils/log.h"
 
 namespace N64 {
@@ -127,13 +128,21 @@ void Cop0::Reg::write(uint8_t reg_num, uint64_t value) {
         }
     } break;
     case Cop0Reg::COMPARE: {
-        compare = value;
+        // Writing Compare clears the timer interrupt (IP7).
+        compare = static_cast<uint32_t>(value);
+        cause.ip7 = false;
+        N64System::check_interrupt();
     } break;
     case Cop0Reg::STATUS: {
         status.raw = value;
+        // IE/IM changes can unmask an already-pending interrupt.
+        N64System::check_interrupt();
     } break;
     case Cop0Reg::CAUSE: {
-        cause.raw = value;
+        // Only IP1:0 are software-writable; IP7:2 are hardware-owned.
+        cause.ip0 = (value >> 8) & 1;
+        cause.ip1 = (value >> 9) & 1;
+        N64System::check_interrupt();
     } break;
     case Cop0Reg::EPC: {
         epc = value;
@@ -204,9 +213,7 @@ void Cop0::reset() {
     reg.entry_hi.raw = 0;
     reg.random = 31;
 
-    // FIXME: necessary?
-    reg.cause.ip4 = 1;
-
+    // Keep Random in Wired..31; no sticky IP4 from reset.
     llbit = false;
 }
 

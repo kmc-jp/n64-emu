@@ -96,6 +96,8 @@ void MI::write_paddr32(uint32_t paddr, uint32_t value) {
         if (value & 2048)
             // set dp interrupt mask
             reg_intr_mask.dp = 1;
+        // Enabling a mask bit must raise IP2 if that MI interrupt is pending.
+        N64System::check_interrupt();
     } break;
     default: {
         Utils::critical(

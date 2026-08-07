@@ -14,7 +14,7 @@ void VI::reset() {
     reg_status = 0xf;
     reg_origin = 0;
     reg_width = 320;
-    reg_intr = 0;
+    reg_intr = 0x3FF;
     reg_current = 0;
     reg_burst = 0; // FIXME: correct?
     reg_vsync = 0;

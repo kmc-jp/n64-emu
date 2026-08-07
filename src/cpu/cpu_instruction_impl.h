@@ -148,6 +148,10 @@ class CpuImpl {
 
     static void op_lwu(Cpu &cpu, instruction_t inst);
 
+    static void op_lwl(Cpu &cpu, instruction_t inst);
+
+    static void op_lwr(Cpu &cpu, instruction_t inst);
+
     static void op_lui(Cpu &cpu, instruction_t inst);
 
     static void op_ld(Cpu &cpu, instruction_t inst);
@@ -164,7 +168,11 @@ class CpuImpl {
 
     static void op_sh(Cpu &cpu, instruction_t inst);
 
+    static void op_swl(Cpu &cpu, instruction_t inst);
+
     static void op_sw(Cpu &cpu, instruction_t inst);
+
+    static void op_swr(Cpu &cpu, instruction_t inst);
 
     static void op_sd(Cpu &cpu, instruction_t inst);
 
