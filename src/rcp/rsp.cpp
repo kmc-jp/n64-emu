@@ -422,10 +422,29 @@ void Rsp::write_cp0(int reg, uint32_t value) {
         break;
     case 2:
         dma.raw = value;
+        // Ucode encodes DMA length as (nbytes - 1). A zero-length DL
+        // therefore writes 0xffffffff, which would otherwise become a
+        // 256×4096-byte wipe of DMEM/IMEM. Skip that transfer.
+        if (value == 0xffffffffu) {
+            static bool warned = false;
+            if (!warned) {
+                warned = true;
+                Utils::warn("RSP DMA_RDLEN=0xffffffff (0-byte length); skipping");
+            }
+            break;
+        }
         dma_read();
         break;
     case 3:
         dma.raw = value;
+        if (value == 0xffffffffu) {
+            static bool warned_w = false;
+            if (!warned_w) {
+                warned_w = true;
+                Utils::warn("RSP DMA_WRLEN=0xffffffff (0-byte length); skipping");
+            }
+            break;
+        }
         dma_write();
         break;
     case 4:
@@ -570,11 +589,13 @@ void Rsp::write_paddr32(uint32_t paddr, uint32_t value) {
         break;
     case PADDR_SP_RD_LEN:
         dma.raw = value;
-        dma_read();
+        if (value != 0xffffffffu)
+            dma_read();
         break;
     case PADDR_SP_WR_LEN:
         dma.raw = value;
-        dma_write();
+        if (value != 0xffffffffu)
+            dma_write();
         break;
     case PADDR_SP_STATUS:
         status_reg_write(value);
