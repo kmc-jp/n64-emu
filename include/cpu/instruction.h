@@ -214,10 +214,21 @@ constexpr uint8_t COP1_FUNCT_SQRT = 0b000100;
 constexpr uint8_t COP1_FUNCT_ABS = 0b000101;
 constexpr uint8_t COP1_FUNCT_MOV = 0b000110;
 constexpr uint8_t COP1_FUNCT_NEG = 0b000111;
+constexpr uint8_t COP1_FUNCT_ROUND_W = 0b001100;
+constexpr uint8_t COP1_FUNCT_TRUNC_W = 0b001101;
+constexpr uint8_t COP1_FUNCT_CEIL_W = 0b001110;
+constexpr uint8_t COP1_FUNCT_FLOOR_W = 0b001111;
 constexpr uint8_t COP1_FUNCT_CVT_S = 0b100000;
 constexpr uint8_t COP1_FUNCT_CVT_D = 0b100001;
 constexpr uint8_t COP1_FUNCT_CVT_W = 0b100100;
 constexpr uint8_t COP1_FUNCT_CVT_L = 0b100101;
+constexpr uint8_t COP1_FUNCT_C_F = 0b110000; // C.cond starts here; low 4 bits = cond
+
+// BC1 rt field
+constexpr uint8_t COP1_BC_F = 0b00000;
+constexpr uint8_t COP1_BC_T = 0b00001;
+constexpr uint8_t COP1_BC_FL = 0b00010;
+constexpr uint8_t COP1_BC_TL = 0b00011;
 
 // COP0 FUNCT
 constexpr uint8_t COP0_FUNCT_ERET = 0b011000;  // ERET

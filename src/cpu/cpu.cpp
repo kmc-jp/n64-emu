@@ -409,6 +409,8 @@ void Cpu::execute_instruction(instruction_t inst) {
             return FpuImpl::op_dmtc1(*this, inst);
         case COP_CTC: // CTC1
             return FpuImpl::op_ctc1(*this, inst);
+        case COP_BC: // BC1
+            return FpuImpl::op_bc1(*this, inst);
         case COP1_FMT_S:
         case COP1_FMT_D:
         case COP1_FMT_W:
