@@ -65,8 +65,8 @@ Only the z64 format (big-endian) is supported.
 
 | Option | Description |
 | --- | --- |
-| `--interpreter` | Use the CPU interpreter (default) |
-| `--jit` | Use the CPU dynarec (x86-64 only) |
+| `--jit` | Use the CPU dynarec (x86-64 only, default on x86-64) |
+| `--no-jit` | Disable CPU dynarec (use interpreter) |
 | `--log <file>` | Write logs to a file (default: stdout) |
 | `--log-level=<level>` | Set log level: `trace`, `debug`, `info` (default), `critical`, or `off` |
 | `--headless` | Run without a window / Vulkan present |
@@ -75,7 +75,7 @@ Only the z64 format (big-endian) is supported.
 Example:
 
 ```bash
-./n64 --jit --log-level=debug rom.z64
+./n64 --log-level=debug rom.z64
 ```
 
 ### Key mappings

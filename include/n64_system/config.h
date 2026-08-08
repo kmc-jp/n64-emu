@@ -24,7 +24,11 @@ struct Config {
     std::vector<uint32_t> watch_paddrs{};
     // >0: enter debugger when scheduler time reaches this (from boot).
     uint64_t break_after_cycles{0};
+#if defined(__x86_64__) || defined(_M_X64)
+    CpuBackend cpu_backend{CpuBackend::Jit};
+#else
     CpuBackend cpu_backend{CpuBackend::Interpreter};
+#endif
     // No SDL window / Vulkan present (for CPU tests and CI).
     bool headless{false};
 };

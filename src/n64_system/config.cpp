@@ -19,7 +19,11 @@ bool read_config_from_command_line(Config &config, int argc, char *argv[]) {
     config.break_pcs.clear();
     config.watch_paddrs.clear();
     config.break_after_cycles = 0;
+#if defined(__x86_64__) || defined(_M_X64)
+    config.cpu_backend = CpuBackend::Jit;
+#else
     config.cpu_backend = CpuBackend::Interpreter;
+#endif
     config.headless = false;
 
     for (int i = 1; i < argc; ++i) {
@@ -61,7 +65,7 @@ bool read_config_from_command_line(Config &config, int argc, char *argv[]) {
             config.debug = true;
         } else if (current == "--jit") {
             config.cpu_backend = CpuBackend::Jit;
-        } else if (current == "--interpreter") {
+        } else if (current == "--no-jit") {
             config.cpu_backend = CpuBackend::Interpreter;
         } else if (current.starts_with("--break=")) {
             std::string_view pc_str =
