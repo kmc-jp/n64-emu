@@ -9,21 +9,24 @@ namespace VI {
 
 void VI::reset() {
     Utils::debug("Resetting VI");
-    // TODO: reset registers
-    // https://github.com/SimoneN64/Kaizen/blob/dffd36fc31731a0391a9b90f88ac2e5ed5d3f9ec/src/backend/core/mmio/VI.cpp#L12
-    reg_status = 0xf;
+    // NTSC defaults (libultra osViModeNtscLan1 / n64brew tables).
+    reg_status = 0x00011003;
     reg_origin = 0;
     reg_width = 320;
     reg_intr = 0x3FF;
     reg_current = 0;
-    reg_burst = 0; // FIXME: correct?
-    reg_vsync = 0;
-    reg_hsync = 0;
-    reg_hsync_leap = 0; // FIXME: correct?
+    reg_burst = 0x03E52239;
+    reg_vsync = 0x20D;
+    reg_hsync = 0xC15;
+    reg_hsync_leap = 0x0C150C15;
+    reg_h_video = 0x006C02EC;
+    reg_v_video = 0x002501FF;
+    reg_v_burst = 0x000E0204;
+    reg_x_scale = 0x00000200;
+    reg_y_scale = 0x00000400;
 
     // https://n64brew.dev/wiki/Video_Interface#0x0440_0018_-_VI_V_SYNC
-    // Assume NTSC not PAL.
-    num_half_lines = 0x20d / 2; // 262
+    num_half_lines = reg_vsync / 2; // 262
     cycles_per_half_line = 1000;
 }
 
