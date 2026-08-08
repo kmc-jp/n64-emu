@@ -3,6 +3,7 @@
 #include "audio/audio.h"
 #include "memory/memory.h"
 #include "n64_system/n64_system.h"
+#include "rcp/rsp_thread.h"
 #include "utils/log.h"
 #include <SDL.h>
 #include <SDL_vulkan.h>
@@ -131,6 +132,7 @@ App::App(N64System::Config &config) : config(config), window(nullptr) {
     }
 }
 App::~App() {
+    N64::Rsp::g_rsp_thread().shutdown();
     Audio::shutdown();
     if (window) {
         SDL_DestroyWindow(window);

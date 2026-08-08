@@ -6,6 +6,7 @@
 #include "mmio/mi.h"
 #include "n64_system/interrupt.h"
 #include "rcp/dpc.h"
+#include "rcp/rsp_thread.h"
 #include "rcp/vu_profile.h"
 #include "utils/byte_array.h"
 #include "utils/log.h"
@@ -100,7 +101,7 @@ void Rsp::take_break() {
     status_reg.broke = 1;
     if (status_reg.intr_on_break) {
         g_mi().get_reg_intr().sp = 1;
-        N64System::check_interrupt();
+        g_rsp_thread().note_sp_interrupt();
     }
 }
 
@@ -550,6 +551,7 @@ void Rsp::execute_swc2(uint32_t inst) { vu_store(*this, inst); }
 // --- SP DMA / MMIO (unchanged behavior from prior commit) ---
 
 uint32_t Rsp::read_paddr32(uint32_t paddr) const {
+    g_rsp_thread().wait_idle();
     switch (paddr) {
     case PADDR_SP_MEM_ADDR:
         return mem_addr.raw;
@@ -581,6 +583,7 @@ uint32_t Rsp::read_paddr32(uint32_t paddr) const {
 }
 
 void Rsp::write_paddr32(uint32_t paddr, uint32_t value) {
+    g_rsp_thread().wait_idle();
     switch (paddr) {
     case PADDR_SP_MEM_ADDR:
         shadow_mem_addr.raw = value;
@@ -624,6 +627,7 @@ void Rsp::write_paddr32(uint32_t paddr, uint32_t value) {
 }
 
 void Rsp::dma_read() {
+    g_rsp_thread().wait_idle();
     uint32_t length = (dma.length + 1 + 7) & ~7u;
     uint32_t dram_address = shadow_dram_addr.address & RSP_DRAM_ADDR_MASK;
     uint32_t mem_address = shadow_mem_addr.address & RSP_MEM_ADDR_MASK;
@@ -657,6 +661,7 @@ void Rsp::dma_read() {
 }
 
 void Rsp::dma_write() {
+    g_rsp_thread().wait_idle();
     uint32_t length = (dma.length + 1 + 7) & ~7u;
     uint32_t dram_address = shadow_dram_addr.address & RSP_DRAM_ADDR_MASK;
     uint32_t mem_address = shadow_mem_addr.address & RSP_MEM_ADDR_MASK;
@@ -695,6 +700,7 @@ void Rsp::status_reg_write(uint32_t value) {
         status_reg.halt = 0;
         if (was_halted) {
             g_debugger().on_rsp_unhalt();
+            g_rsp_thread().kick_until_halt();
         }
     }
     if (!write.clear_halt && write.set_halt)
@@ -703,11 +709,11 @@ void Rsp::status_reg_write(uint32_t value) {
         status_reg.broke = false;
     if (write.clear_intr) {
         g_mi().get_reg_intr().sp = 0;
-        N64System::check_interrupt();
+        g_rsp_thread().note_sp_interrupt();
     }
     if (write.set_intr) {
         g_mi().get_reg_intr().sp = 1;
-        N64System::check_interrupt();
+        g_rsp_thread().note_sp_interrupt();
     }
     status_reg.single_step =
         write.clear_sstep ? 0 : (write.set_sstep ? 1 : status_reg.single_step);

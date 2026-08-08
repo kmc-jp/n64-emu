@@ -11,6 +11,7 @@
 #include "mmio/vi.h"
 #include "rcp/dpc.h"
 #include "rcp/rsp.h"
+#include "rcp/rsp_thread.h"
 #include "utils/byte_array.h"
 #include "utils/log.h"
 #include <cstdint>
@@ -79,6 +80,7 @@ template <typename Wire> Wire read_paddr(uint32_t paddr) {
         return Utils::read_from_byte_array<Wire>(g_memory().get_rdram(), offs);
     } else if (PHYS_SPDMEM_BASE <= paddr && paddr <= PHYS_SPDMEM_END) {
         // SP DMEM is stored big-endian (Dillonb convention); RDRAM/IMEM are host-endian.
+        Rsp::g_rsp_thread().wait_idle();
         const uint32_t offs = paddr - PHYS_SPDMEM_BASE;
         auto &dmem = g_rsp().get_sp_dmem();
         if constexpr (wire8) {
@@ -96,6 +98,7 @@ template <typename Wire> Wire read_paddr(uint32_t paddr) {
             static_assert(always_false<Wire>);
         }
     } else if (PHYS_SPIMEM_BASE <= paddr && paddr <= PHYS_SPIMEM_END) {
+        Rsp::g_rsp_thread().wait_idle();
         const uint32_t offs = paddr - PHYS_SPIMEM_BASE;
         if constexpr (wire8) {
             return Utils::read_from_byte_array8(g_rsp().get_sp_imem(), offs);
@@ -290,6 +293,7 @@ template <typename Wire> void write_paddr(uint32_t paddr, Wire value) {
     } else if (PHYS_SPDMEM_BASE <= paddr && paddr <= PHYS_SPDMEM_END) {
         // VR4300 sub-word stores to SP DMEM write a full aligned word and
         // zero the untouched bytes (same bus edge as PIF RAM / dillonb).
+        Rsp::g_rsp_thread().wait_idle();
         uint32_t offs = (paddr - PHYS_SPDMEM_BASE) & 0xFFF;
         auto &dmem = g_rsp().get_sp_dmem();
         if constexpr (wire8) {
@@ -310,6 +314,7 @@ template <typename Wire> void write_paddr(uint32_t paddr, Wire value) {
         }
     } else if (PHYS_SPIMEM_BASE <= paddr && paddr <= PHYS_SPIMEM_END) {
         // Same sub-word bus edge as DMEM; IMEM is host-endian word storage.
+        Rsp::g_rsp_thread().wait_idle();
         uint32_t offs = (paddr - PHYS_SPIMEM_BASE) & 0xFFF;
         auto &imem = g_rsp().get_sp_imem();
         if constexpr (wire8) {

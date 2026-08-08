@@ -20,6 +20,7 @@
 #include "n64_system/scheduler.h"
 #include "rcp/dpc.h"
 #include "rcp/rsp.h"
+#include "rcp/rsp_thread.h"
 #include "rcp/vu_profile.h"
 #include "utils/log.h"
 #include <chrono>
@@ -56,6 +57,11 @@ void set_up(Config &config) {
     Utils::info("Starting N64 system");
     N64System::reset_all(config);
     g_debugger().configure(config);
+
+    Rsp::g_rsp_thread().configure(config.rsp_thread, config.rsp_jit);
+    Rsp::g_rsp_thread().start();
+    if (config.rsp_thread)
+        Utils::info("RSP worker thread enabled");
 
     if (config.test_mode) {
         Utils::info("Copying ROM");
@@ -179,39 +185,47 @@ void step(Config &config, Vulkan::WSI *wsi) {
                 if (need_step_cb)
                     cpu_step_callback(config);
 
-                // RSP step. RSP ticks 2/3x faster than CPU
+                // RSP step. RSP ticks 2/3x faster than CPU.
+                // With --rsp-thread the worker owns execution; only re-kick
+                // if still unhalted after a quantum.
                 const auto rsp_t0 = profile_frame
                                        ? std::chrono::steady_clock::now()
                                        : std::chrono::steady_clock::time_point{};
-                while (consumed_cpu_cycles >= 3) {
-                    consumed_cpu_cycles -= 3;
+                if (config.rsp_thread) {
+                    if (!rsp.halted())
+                        Rsp::g_rsp_thread().kick_until_halt();
+                } else {
+                    while (consumed_cpu_cycles >= 3) {
+                        consumed_cpu_cycles -= 3;
+#if defined(N64_RSP_JIT)
+                        if (config.rsp_jit) {
+                            rsp_balance += 2;
+                        } else {
+                            rsp.step();
+                            rsp.step();
+                        }
+#else
+                        rsp.step();
+                        rsp.step();
+#endif
+                    }
 #if defined(N64_RSP_JIT)
                     if (config.rsp_jit) {
-                        rsp_balance += 2;
-                    } else {
-                        rsp.step();
-                        rsp.step();
-                    }
-#else
-                    rsp.step();
-                    rsp.step();
-#endif
-                }
-#if defined(N64_RSP_JIT)
-                if (config.rsp_jit) {
-                    while (rsp_balance > 0 && !rsp.halted()) {
-                        const int got = Rsp::Jit::g_dynarec().run(rsp_balance);
-                        if (got < 1) {
-                            rsp.step();
-                            --rsp_balance;
-                        } else {
-                            rsp_balance -= got;
+                        while (rsp_balance > 0 && !rsp.halted()) {
+                            const int got =
+                                Rsp::Jit::g_dynarec().run(rsp_balance);
+                            if (got < 1) {
+                                rsp.step();
+                                --rsp_balance;
+                            } else {
+                                rsp_balance -= got;
+                            }
                         }
+                        if (rsp.halted() && rsp_balance > 0)
+                            rsp_balance = 0;
                     }
-                    if (rsp.halted() && rsp_balance > 0)
-                        rsp_balance = 0;
-                }
 #endif
+                }
                 if (profile_frame) {
                     rsp_ms += std::chrono::duration<double, std::milli>(
                                   std::chrono::steady_clock::now() - rsp_t0)
@@ -229,6 +243,19 @@ void step(Config &config, Vulkan::WSI *wsi) {
         if ((g_vi().get_reg_current() & 0x3FE) == g_vi().get_reg_intr()) {
             g_mi().get_reg_intr().vi = 1;
             N64System::check_interrupt();
+        }
+        if (config.rsp_thread) {
+            const auto rsp_wait_t0 =
+                profile_frame ? std::chrono::steady_clock::now()
+                              : std::chrono::steady_clock::time_point{};
+            Rsp::g_rsp_thread().wait_idle();
+            if (!g_rsp().halted())
+                Rsp::g_rsp_thread().kick_until_halt();
+            if (profile_frame) {
+                prof_rsp_ms += std::chrono::duration<double, std::milli>(
+                                   std::chrono::steady_clock::now() - rsp_wait_t0)
+                                   .count();
+            }
         }
         const auto rdp_t0 = profile_frame ? std::chrono::steady_clock::now()
                                           : std::chrono::steady_clock::time_point{};

@@ -7,6 +7,7 @@ set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 enable_testing()
 
 find_package(SDL2 REQUIRED)
+find_package(Threads REQUIRED)
 
 option(N64_RSP_SIMD "Use EVE SIMD for RSP vector unit" ON)
 set(N64_SIMD_ARCH "native" CACHE STRING "SIMD arch flags for RSP (native, x86-64-v2, x86-64-v3, or empty)")

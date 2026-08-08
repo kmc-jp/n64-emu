@@ -2,6 +2,7 @@ add_library(rcp STATIC)
 target_sources(rcp PRIVATE
     rsp.cpp
     rsp_vector.cpp
+    rsp_thread.cpp
     dpc.cpp
     vu_profile.cpp
 )
@@ -29,4 +30,5 @@ target_link_libraries(rcp PUBLIC
     log
     mmio
     n64_system
+    Threads::Threads
 )

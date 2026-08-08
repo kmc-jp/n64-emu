@@ -26,6 +26,7 @@ bool read_config_from_command_line(Config &config, int argc, char *argv[]) {
 #endif
     config.headless = false;
     config.rsp_jit = false;
+    config.rsp_thread = false;
 
     for (int i = 1; i < argc; ++i) {
         const std::string_view current = argv[i];
@@ -72,6 +73,10 @@ bool read_config_from_command_line(Config &config, int argc, char *argv[]) {
             config.rsp_jit = true;
         } else if (current == "--no-rsp-jit") {
             config.rsp_jit = false;
+        } else if (current == "--rsp-thread") {
+            config.rsp_thread = true;
+        } else if (current == "--no-rsp-thread") {
+            config.rsp_thread = false;
         } else if (current.starts_with("--break=")) {
             std::string_view pc_str =
                 current.substr(std::string("--break=").size());
@@ -134,6 +139,12 @@ bool read_config_from_command_line(Config &config, int argc, char *argv[]) {
         return false;
     }
 #endif
+
+    if (config.rsp_thread && config.debug) {
+        std::cerr << "Error: --rsp-thread cannot be used with --debug"
+                  << std::endl;
+        return false;
+    }
 
     return true;
 }

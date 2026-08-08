@@ -32,6 +32,8 @@ struct Config {
     // RSP dynarec (x86-64). Off by default — still slower than interpreter for
     // VU-heavy titles until more of the hot path is emitted inline.
     bool rsp_jit{false};
+    // Run RSP on a worker thread (run-until-halt with quantum). Off by default.
+    bool rsp_thread{false};
     // No SDL window / Vulkan present (for CPU tests and CI).
     bool headless{false};
 };
