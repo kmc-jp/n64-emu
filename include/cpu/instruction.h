@@ -96,21 +96,29 @@ constexpr uint8_t OPCODE_LHU = 0b100101;
 
 constexpr uint8_t OPCODE_LW = 0b100011;
 constexpr uint8_t OPCODE_LWU = 0b100111;
+constexpr uint8_t OPCODE_LWL = 0b100010;
+constexpr uint8_t OPCODE_LWR = 0b100110;
 constexpr uint8_t OPCODE_LUI = 0b001111;
 constexpr uint8_t OPCODE_LD = 0b110111;
 constexpr uint8_t OPCODE_LDL = 0b011010;
 constexpr uint8_t OPCODE_LDR = 0b011011;
 constexpr uint8_t OPCODE_LL = 0b110000;
 constexpr uint8_t OPCODE_LLD = 0b110100;
+constexpr uint8_t OPCODE_LWC1 = 0b110001;
+constexpr uint8_t OPCODE_LDC1 = 0b110101;
 
 constexpr uint8_t OPCODE_SB = 0b101000;
 constexpr uint8_t OPCODE_SH = 0b101001;
+constexpr uint8_t OPCODE_SWL = 0b101010;
 constexpr uint8_t OPCODE_SW = 0b101011;
+constexpr uint8_t OPCODE_SWR = 0b101110;
 constexpr uint8_t OPCODE_SD = 0b111111;
 constexpr uint8_t OPCODE_SDL = 0b101100;
 constexpr uint8_t OPCODE_SDR = 0b101101;
 constexpr uint8_t OPCODE_SC = 0b111000;
 constexpr uint8_t OPCODE_SCD = 0b111100;
+constexpr uint8_t OPCODE_SWC1 = 0b111001;
+constexpr uint8_t OPCODE_SDC1 = 0b111101;
 
 constexpr uint8_t OPCODE_BEQ = 0b000100;
 constexpr uint8_t OPCODE_BEQL = 0b010100;
@@ -160,6 +168,8 @@ constexpr uint8_t SPECIAL_FUNCT_XOR = 0b100110;    // XOR
 constexpr uint8_t SPECIAL_FUNCT_NOR = 0b100111;    // NOR
 constexpr uint8_t SPECIAL_FUNCT_JR = 0b001000;     // JR
 constexpr uint8_t SPECIAL_FUNCT_JALR = 0b001001;   // JALR
+constexpr uint8_t SPECIAL_FUNCT_SYSCALL = 0b001100; // SYSCALL
+constexpr uint8_t SPECIAL_FUNCT_BREAK = 0b001101;   // BREAK
 constexpr uint8_t SPECIAL_FUNCT_MFHI = 0b010000;   // MFHI
 constexpr uint8_t SPECIAL_FUNCT_MFLO = 0b010010;   // MFLO
 constexpr uint8_t SPECIAL_FUNCT_MTHI = 0b010001;   // MTHI
@@ -193,11 +203,45 @@ constexpr uint8_t COP_MTC = 0b00100;  // MTC
 constexpr uint8_t COP_DMTC = 0b00101; // DMT
 constexpr uint8_t COP_CFC = 0b00010;  // CFC
 constexpr uint8_t COP_CTC = 0b00110;  // CTC
+constexpr uint8_t COP_BC = 0b01000;   // BC1
+
+// COP1 formats (rs field for arithmetic)
+constexpr uint8_t COP1_FMT_S = 0b10000; // single
+constexpr uint8_t COP1_FMT_D = 0b10001; // double
+constexpr uint8_t COP1_FMT_W = 0b10100; // word
+constexpr uint8_t COP1_FMT_L = 0b10101; // long
+
+// COP1 FUNCT
+constexpr uint8_t COP1_FUNCT_ADD = 0b000000;
+constexpr uint8_t COP1_FUNCT_SUB = 0b000001;
+constexpr uint8_t COP1_FUNCT_MUL = 0b000010;
+constexpr uint8_t COP1_FUNCT_DIV = 0b000011;
+constexpr uint8_t COP1_FUNCT_SQRT = 0b000100;
+constexpr uint8_t COP1_FUNCT_ABS = 0b000101;
+constexpr uint8_t COP1_FUNCT_MOV = 0b000110;
+constexpr uint8_t COP1_FUNCT_NEG = 0b000111;
+constexpr uint8_t COP1_FUNCT_ROUND_W = 0b001100;
+constexpr uint8_t COP1_FUNCT_TRUNC_W = 0b001101;
+constexpr uint8_t COP1_FUNCT_CEIL_W = 0b001110;
+constexpr uint8_t COP1_FUNCT_FLOOR_W = 0b001111;
+constexpr uint8_t COP1_FUNCT_CVT_S = 0b100000;
+constexpr uint8_t COP1_FUNCT_CVT_D = 0b100001;
+constexpr uint8_t COP1_FUNCT_CVT_W = 0b100100;
+constexpr uint8_t COP1_FUNCT_CVT_L = 0b100101;
+constexpr uint8_t COP1_FUNCT_C_F = 0b110000; // C.cond starts here; low 4 bits = cond
+
+// BC1 rt field
+constexpr uint8_t COP1_BC_F = 0b00000;
+constexpr uint8_t COP1_BC_T = 0b00001;
+constexpr uint8_t COP1_BC_FL = 0b00010;
+constexpr uint8_t COP1_BC_TL = 0b00011;
 
 // COP0 FUNCT
 constexpr uint8_t COP0_FUNCT_ERET = 0b011000;  // ERET
+constexpr uint8_t COP0_FUNCT_TLBR = 0b000001;  // TLBR
 constexpr uint8_t COP0_FUNCT_TLBWI = 0b000010; // TLBWI
-// TODO: LTBWR, TLBR, TLBP
+constexpr uint8_t COP0_FUNCT_TLBWR = 0b000110; // TLBWR
+constexpr uint8_t COP0_FUNCT_TLBP = 0b001000;  // TLBP
 
 } // namespace Cpu
 } // namespace N64

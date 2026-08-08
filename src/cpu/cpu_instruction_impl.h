@@ -76,6 +76,10 @@ class CpuImpl {
 
     static void op_jalr(Cpu &cpu, instruction_t inst);
 
+    static void op_syscall(Cpu &cpu, instruction_t inst);
+
+    static void op_break(Cpu &cpu, instruction_t inst);
+
     static void op_mfhi(Cpu &cpu, instruction_t inst);
 
     static void op_mflo(Cpu &cpu, instruction_t inst);
@@ -87,6 +91,12 @@ class CpuImpl {
     static void op_eret(Cpu &cpu, instruction_t inst);
 
     static void op_tlbwi(Cpu &cpu, instruction_t inst);
+
+    static void op_tlbwr(Cpu &cpu, instruction_t inst);
+
+    static void op_tlbp(Cpu &cpu, instruction_t inst);
+
+    static void op_tlbr(Cpu &cpu, instruction_t inst);
 
     static void op_tge(Cpu &cpu, instruction_t inst);
 
@@ -142,6 +152,10 @@ class CpuImpl {
 
     static void op_lwu(Cpu &cpu, instruction_t inst);
 
+    static void op_lwl(Cpu &cpu, instruction_t inst);
+
+    static void op_lwr(Cpu &cpu, instruction_t inst);
+
     static void op_lui(Cpu &cpu, instruction_t inst);
 
     static void op_ld(Cpu &cpu, instruction_t inst);
@@ -158,7 +172,11 @@ class CpuImpl {
 
     static void op_sh(Cpu &cpu, instruction_t inst);
 
+    static void op_swl(Cpu &cpu, instruction_t inst);
+
     static void op_sw(Cpu &cpu, instruction_t inst);
+
+    static void op_swr(Cpu &cpu, instruction_t inst);
 
     static void op_sd(Cpu &cpu, instruction_t inst);
 

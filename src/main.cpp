@@ -8,7 +8,15 @@ constexpr std::string_view USAGE =
     "Options:\n"
     "--log <file>\tspecify output log file(default to stdout)\n"
     "--log-level=[trace|debug|info|critical|off]\tset log level (default to "
-    "debug)\n";
+    "info)\n"
+    "--interpreter\tuse CPU interpreter (default)\n"
+    "--jit\tuse CPU dynarec (x86-64)\n"
+    "--headless\tno window / no Vulkan present\n"
+    "--test\trun n64-tests (implies --headless)\n"
+    "--debug\tenable interactive debugger\n"
+    "--break=ADDR\tbreak when PC hits ADDR (implies --debug)\n"
+    "--break-after=N\tbreak after N scheduler cycles (implies --debug)\n"
+    "--watch=PADDR\twatch physical bus access (implies --debug)\n";
 
 // Entry point of the n64-emu. Handles command line arguments and starts the
 // App.

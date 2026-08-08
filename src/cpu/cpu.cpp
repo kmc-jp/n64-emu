@@ -1,5 +1,6 @@
 ﻿#include "cpu/cpu.h"
 #include "cpu_instruction_impl.h"
+#include "debugger/debugger.h"
 #include "fpu_instruction_impl.h"
 #include "memory/bus.h"
 #include "mmu/mmu.h"
@@ -64,8 +65,25 @@ void Cpu::set_pc64(uint64_t value) {
 
 void Cpu::set_pc32(uint32_t value) {
     prev_pc = pc;
-    pc = (int64_t)((int32_t)value);
-    next_pc = value + 4;
+    // Keep pc and next_pc consistently sign-extended from 32-bit addresses.
+    pc = static_cast<uint64_t>(static_cast<int32_t>(value));
+    next_pc = pc + 4;
+}
+
+void Cpu::add_count(uint32_t n) {
+    if (n == 0)
+        return;
+    const uint64_t before = cop0.reg.count;
+    cop0.reg.count = (before + n) & 0x1FFFFFFFFULL;
+    // Timer interrupt when the internal (PClock) counter reaches Compare<<1.
+    // Detect crossing so JIT multi-cycle blocks cannot miss the edge.
+    const uint64_t target =
+        (static_cast<uint64_t>(cop0.reg.compare) << 1) & 0x1FFFFFFFFULL;
+    const uint64_t dist = (target - before) & 0x1FFFFFFFFULL;
+    if (dist <= static_cast<uint64_t>(n)) {
+        cop0.reg.cause.ip7 = true;
+        N64System::check_interrupt();
+    }
 }
 
 uint64_t Cpu::get_pc64() const { return pc; }
@@ -85,12 +103,6 @@ void Cpu::step() {
     Utils::trace("");
     Utils::trace("CPU cycle starts PC={:#018x}", pc);
 
-    // Compare interrupt
-    if (cop0.reg.count == (cop0.reg.compare << 1)) {
-        cop0.reg.cause.ip7 = true;
-        N64System::check_interrupt();
-    }
-
     // updates delay slot
     prev_delay_slot = delay_slot;
     delay_slot = false;
@@ -101,10 +113,12 @@ void Cpu::step() {
     }
 
     // instruction fetch
-    std::optional<uint32_t> paddr_of_pc = Mmu::resolve_vaddr(pc);
+    const uint32_t pc32 = static_cast<uint32_t>(pc);
+    std::optional<uint32_t> paddr_of_pc = Mmu::resolve_vaddr(pc32);
     if (!paddr_of_pc.has_value()) {
+        // Faulting PC is the current pc (not prev_pc).
         handle_exception(g_tlb().get_tlb_exception_code(Mmu::BusAccess::LOAD),
-                         0, true);
+                         0, false);
         return;
     }
 
@@ -118,8 +132,7 @@ void Cpu::step() {
 
     execute_instruction(inst);
 
-    cop0.reg.count += CPU_CYCLES_PER_INST;
-    cop0.reg.count &= 0x1FFFFFFFF;
+    add_count(CPU_CYCLES_PER_INST);
 }
 
 static bool is_xtlb_miss(uint64_t bad_vaddr, cop0_status_t status) {
@@ -203,6 +216,10 @@ void Cpu::execute_instruction(instruction_t inst) {
             return CpuImpl::op_jr(*this, inst);
         case SPECIAL_FUNCT_JALR: // JALR
             return CpuImpl::op_jalr(*this, inst);
+        case SPECIAL_FUNCT_SYSCALL: // SYSCALL
+            return CpuImpl::op_syscall(*this, inst);
+        case SPECIAL_FUNCT_BREAK: // BREAK
+            return CpuImpl::op_break(*this, inst);
         case SPECIAL_FUNCT_MFHI: // MFHI
             return CpuImpl::op_mfhi(*this, inst);
         case SPECIAL_FUNCT_MFLO: // MFLO
@@ -279,6 +296,10 @@ void Cpu::execute_instruction(instruction_t inst) {
         return CpuImpl::op_lw(*this, inst);
     case OPCODE_LWU: // LWU (I format)
         return CpuImpl::op_lwu(*this, inst);
+    case OPCODE_LWL: // LWL (I format)
+        return CpuImpl::op_lwl(*this, inst);
+    case OPCODE_LWR: // LWR (I format)
+        return CpuImpl::op_lwr(*this, inst);
     case OPCODE_LUI: // LUI (I format)
         return CpuImpl::op_lui(*this, inst);
     case OPCODE_LD: // LD (I format)
@@ -295,8 +316,12 @@ void Cpu::execute_instruction(instruction_t inst) {
         return CpuImpl::op_sb(*this, inst);
     case OPCODE_SH: // SH (I format)
         return CpuImpl::op_sh(*this, inst);
+    case OPCODE_SWL: // SWL (I format)
+        return CpuImpl::op_swl(*this, inst);
     case OPCODE_SW: // SW (I format)
         return CpuImpl::op_sw(*this, inst);
+    case OPCODE_SWR: // SWR (I format)
+        return CpuImpl::op_swr(*this, inst);
     case OPCODE_SD: // SD (I format)
         return CpuImpl::op_sd(*this, inst);
     case OPCODE_SDL: // SDL (I format)
@@ -343,6 +368,14 @@ void Cpu::execute_instruction(instruction_t inst) {
         return CpuImpl::op_slti(*this, inst);
     case OPCODE_SLTIU: // SLTIU
         return CpuImpl::op_sltiu(*this, inst);
+    case OPCODE_LWC1: // LWC1
+        return FpuImpl::op_lwc1(*this, inst);
+    case OPCODE_LDC1: // LDC1
+        return FpuImpl::op_ldc1(*this, inst);
+    case OPCODE_SWC1: // SWC1
+        return FpuImpl::op_swc1(*this, inst);
+    case OPCODE_SDC1: // SDC1
+        return FpuImpl::op_sdc1(*this, inst);
     case OPCODE_CP0: // CP0 instructions
     {
         // https://github.com/Dillonb/n64/blob/6502f7d2f163c3f14da5bff8cd6d5ccc47143156/src/cpu/r4300i.c#L133
@@ -363,10 +396,15 @@ void Cpu::execute_instruction(instruction_t inst) {
             }
         } else {
             // https://github.com/Dillonb/n64/blob/6502f7d2f163c3f14da5bff8cd6d5ccc47143156/src/cpu/r4300i.c#L152
-            // TODO: TLBWI, TLBP, TLBR, WAIT, TLBWR
             switch (inst.fr_type.funct) {
             case COP0_FUNCT_TLBWI:
                 return CpuImpl::op_tlbwi(*this, inst);
+            case COP0_FUNCT_TLBWR:
+                return CpuImpl::op_tlbwr(*this, inst);
+            case COP0_FUNCT_TLBP:
+                return CpuImpl::op_tlbp(*this, inst);
+            case COP0_FUNCT_TLBR:
+                return CpuImpl::op_tlbr(*this, inst);
             case COP0_FUNCT_ERET:
                 return CpuImpl::op_eret(*this, inst);
             default: {
@@ -380,10 +418,25 @@ void Cpu::execute_instruction(instruction_t inst) {
     case OPCODE_CP1: // CP1 instructions
     {
         switch (inst.r_type.rs) {
+        case COP_MFC: // MFC1
+            return FpuImpl::op_mfc1(*this, inst);
+        case COP_DMFC: // DMFC1
+            return FpuImpl::op_dmfc1(*this, inst);
         case COP_CFC: // CFC1
             return FpuImpl::op_cfc1(*this, inst);
+        case COP_MTC: // MTC1
+            return FpuImpl::op_mtc1(*this, inst);
+        case COP_DMTC: // DMTC1
+            return FpuImpl::op_dmtc1(*this, inst);
         case COP_CTC: // CTC1
             return FpuImpl::op_ctc1(*this, inst);
+        case COP_BC: // BC1
+            return FpuImpl::op_bc1(*this, inst);
+        case COP1_FMT_S:
+        case COP1_FMT_D:
+        case COP1_FMT_W:
+        case COP1_FMT_L:
+            return FpuImpl::op_cop1_arith(*this, inst);
         default: {
             Utils::abort("Unimplemented rs = {:#07b} for opcode = CP1.",
                          static_cast<uint32_t>(inst.r_type.rs));
@@ -461,21 +514,32 @@ void Cpu::handle_exception(ExceptionCode exception_code,
         Utils::unimplemented("BEV is set");
     }
 
+    uint32_t vector = 0x80000180;
     switch (exception_code) {
-    case ExceptionCode::INTERRUPT:          // fallthrough
-    case ExceptionCode::TLB_MODIFICATION:   // fallthrough
-    case ExceptionCode::ADDRESS_ERROR_LOAD: // fallthrough
-    case ExceptionCode::ADDRESS_ERROR_STORE: {
-        set_pc32(0x80000180);
+    case ExceptionCode::INTERRUPT:            // fallthrough
+    case ExceptionCode::TLB_MODIFICATION:     // fallthrough
+    case ExceptionCode::ADDRESS_ERROR_LOAD:   // fallthrough
+    case ExceptionCode::ADDRESS_ERROR_STORE:  // fallthrough
+    case ExceptionCode::BUS_ERROR_INS_FETCH:  // fallthrough
+    case ExceptionCode::BUS_ERROR_LOAD_STORE: // fallthrough
+    case ExceptionCode::SYSCALL:              // fallthrough
+    case ExceptionCode::BREAKPOINT:           // fallthrough
+    case ExceptionCode::RESERVED_INSTR:       // fallthrough
+    case ExceptionCode::COPROCESSOR_UNUSABLE: // fallthrough
+    case ExceptionCode::ARITHMETIC_OVERFLOW:  // fallthrough
+    case ExceptionCode::TRAP:                 // fallthrough
+    case ExceptionCode::FLOATING_POINT:       // fallthrough
+    case ExceptionCode::WATCH: {
+        vector = 0x80000180;
     } break;
     case ExceptionCode::TLB_MISS_LOAD: // fallthrough
     case ExceptionCode::TLB_MISS_STORE: {
         if (old_exl || g_tlb().get_last_error() == Mmu::TLBError::INVALID) {
-            set_pc32(0x80000180);
+            vector = 0x80000180;
         } else if (is_xtlb_miss(cop0.reg.bad_vaddr, cop0.reg.status)) {
-            set_pc32(0x80000080);
+            vector = 0x80000080;
         } else {
-            set_pc32(0x80000000);
+            vector = 0x80000000;
         }
     } break;
     default: {
@@ -484,6 +548,9 @@ void Cpu::handle_exception(ExceptionCode exception_code,
         Utils::abort("Aborted");
     } break;
     }
+
+    set_pc32(vector);
+    g_debugger().on_exception(exception_code, vector);
 }
 
 } // namespace Cpu

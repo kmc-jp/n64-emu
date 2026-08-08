@@ -11,6 +11,7 @@ target_link_libraries(n64 PRIVATE
 
 add_subdirectory(app)
 add_subdirectory(cpu)
+add_subdirectory(debugger)
 add_subdirectory(memory)
 add_subdirectory(mmio)
 add_subdirectory(mmu)

@@ -54,12 +54,21 @@ enum class CicType : uint32_t {
     CIC_NUS_6106_7106 = 6
 };
 
+// Cartridge backup save type (detected from ROM header bytes).
+enum class SaveType {
+    None,
+    Sram256k, // 256 kbit = 32 KiB
+};
+
+constexpr uint32_t SRAM_SIZE = 0x8000;
+
 class Rom {
   private:
     // `std::array` cannot be used because size of data is very large.
     std::vector<uint8_t> rom;
     rom_header_t header;
     CicType cic{};
+    SaveType save_type{SaveType::None};
 
   public:
     Rom();
@@ -72,6 +81,8 @@ class Rom {
 
     uint32_t get_cic_seed() const;
 
+    SaveType get_save_type() const;
+
     std::vector<uint8_t> &get_raw_data();
 
     uint8_t read_offset8(uint32_t offset) const;
@@ -79,6 +90,9 @@ class Rom {
     uint16_t read_offset16(uint32_t offset) const;
 
     uint32_t read_offset32(uint32_t offset) const;
+
+  private:
+    void detect_save_type();
 };
 
 } // namespace Memory

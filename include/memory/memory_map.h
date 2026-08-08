@@ -19,7 +19,10 @@ constexpr uint32_t PHYS_SPIMEM_BASE = 0x04001000;
 constexpr uint32_t PHYS_SPIMEM_END  = 0x04001FFF;
 
 constexpr uint32_t PHYS_RSP_REG_BASE = 0x04040000;
-constexpr uint32_t PHYS_RSP_REG_END = 0x040BFFFF;
+constexpr uint32_t PHYS_RSP_REG_END = 0x040FFFFF;
+
+constexpr uint32_t PHYS_DPC_BASE = 0x04100000;
+constexpr uint32_t PHYS_DPC_END = 0x041FFFFF;
 
 constexpr uint32_t PHYS_MI_BASE     = 0x04300000;
 constexpr uint32_t PHYS_MI_END      = 0x043FFFFF;
@@ -33,6 +36,10 @@ constexpr uint32_t PHYS_RI_BASE     = 0x04700000;
 constexpr uint32_t PHYS_RI_END      = 0x047FFFFF;
 constexpr uint32_t PHYS_SI_BASE     = 0x04800000;
 constexpr uint32_t PHYS_SI_END      = 0x048FFFFF;
+
+// Cartridge Domain 2 (SRAM / Flash / etc.)
+constexpr uint32_t PHYS_SRAM_BASE   = 0x08000000;
+constexpr uint32_t PHYS_SRAM_END    = 0x0FFFFFFF;
 
 constexpr uint32_t PHYS_ROM_BASE    = 0x10000000;
 constexpr uint32_t PHYS_ROM_END     = 0x1FBFFFFF;

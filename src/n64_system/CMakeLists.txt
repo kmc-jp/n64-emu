@@ -9,6 +9,7 @@ target_link_libraries(n64_system PUBLIC
     app
     common
     cpu
+    debugger
     log
     memory
     mmio

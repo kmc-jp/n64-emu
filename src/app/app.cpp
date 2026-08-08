@@ -1,4 +1,4 @@
-﻿#include "app/app.h"
+#include "app/app.h"
 #include "app/parallel_rdp_wrapper.h"
 #include "memory/memory.h"
 #include "n64_system/n64_system.h"
@@ -8,7 +8,7 @@
 namespace N64 {
 namespace Frontend {
 const char *WINDOW_TITLE = "n64-emu (dev)";
-constexpr int WINDOW_WIDTH = 800;
+constexpr int WINDOW_WIDTH = 1600;
 constexpr int WINDOW_HEIGHT = WINDOW_WIDTH * 3 / 4;
 // 増やすと軽くなる
 constexpr int WSI_NUM_THREADS = 1;
@@ -54,14 +54,33 @@ void SDL2Platform::poll_input() {
     }
 }
 
-App::App(N64System::Config &config) : config(config) {
+App::App(N64System::Config &config) : config(config), window(nullptr) {
+    if (config.headless)
+        return;
+
     if (SDL_Init(SDL_INIT_EVERYTHING) != 0) {
         Utils::critical("Failed to initialize SDL: %s", SDL_GetError());
         exit(-1);
     }
+    // Prefer the display under the mouse; plain CENTERED uses display 0.
+    int display_index = 0;
+    int mouse_x = 0, mouse_y = 0;
+    SDL_GetGlobalMouseState(&mouse_x, &mouse_y);
+    const int num_displays = SDL_GetNumVideoDisplays();
+    for (int i = 0; i < num_displays; ++i) {
+        SDL_Rect bounds;
+        if (SDL_GetDisplayBounds(i, &bounds) == 0 && mouse_x >= bounds.x &&
+            mouse_x < bounds.x + bounds.w && mouse_y >= bounds.y &&
+            mouse_y < bounds.y + bounds.h) {
+            display_index = i;
+            break;
+        }
+    }
+
     window = SDL_CreateWindow(
-        WINDOW_TITLE, SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED,
-        WINDOW_WIDTH, WINDOW_HEIGHT, SDL_WINDOW_VULKAN | SDL_WINDOW_RESIZABLE);
+        WINDOW_TITLE, SDL_WINDOWPOS_CENTERED_DISPLAY(display_index),
+        SDL_WINDOWPOS_CENTERED_DISPLAY(display_index), WINDOW_WIDTH,
+        WINDOW_HEIGHT, SDL_WINDOW_VULKAN | SDL_WINDOW_RESIZABLE);
     if (window == nullptr) {
         Utils::critical("Failed to open Window");
         exit(-1);
@@ -77,33 +96,50 @@ App::App(N64System::Config &config) : config(config) {
         Utils::critical("Failed to load Vulkan");
         exit(-1);
     }
-    // TODO: vulkan, wsi, etc.
 }
 App::~App() {
-    SDL_DestroyWindow(window);
-    SDL_Vulkan_UnloadLibrary();
-    SDL_Quit();
+    if (window) {
+        SDL_DestroyWindow(window);
+        SDL_Vulkan_UnloadLibrary();
+        SDL_Quit();
+    }
 }
+
+void App::run_headless() {
+    Utils::info("Running headless (no window / no Vulkan)");
+    N64System::set_up(config);
+    // Tests call exit() when finished; otherwise this loops until aborted.
+    while (true) {
+        N64System::step(config, nullptr);
+    }
+}
+
 void App::run() {
+    if (config.headless) {
+        run_headless();
+        return;
+    }
+
     SDL2Platform platform(window);
     Vulkan::WSI wsi;
     wsi.set_platform(&platform);
     // whats this?
     wsi.set_backbuffer_srgb(false);
-    wsi.set_present_mode(Vulkan::PresentMode::SyncToVBlank);
+    wsi.set_present_mode(Vulkan::PresentMode::UnlockedNoTearing);
     Vulkan::Context::SystemHandles system_handles;
     if (!wsi.init_simple(WSI_NUM_THREADS, system_handles)) {
         Utils::critical("Failed to initialize WSI");
         exit(-1);
     }
     Vulkan::Device &device = wsi.get_device();
+    (void)device;
 
     PRDPWrapper::init_prdp(wsi, g_memory().get_rdram().data());
 
     N64System::set_up(config);
 
     while (platform.is_alive) {
-        N64System::step(config, wsi);
+        N64System::step(config, &wsi);
 
         // Abort when Tab is pressed
         SDL_PumpEvents();

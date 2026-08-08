@@ -1,4 +1,7 @@
 ﻿#include "memory/bus.h"
+#include "cpu/cpu.h"
+#include "cpu/jit/invalidate_hook.h"
+#include "debugger/debugger.h"
 #include "memory/memory.h"
 #include "memory/memory_map.h"
 #include "mmio/ai.h"
@@ -6,6 +9,7 @@
 #include "mmio/pi.h"
 #include "mmio/si.h"
 #include "mmio/vi.h"
+#include "rcp/dpc.h"
 #include "rcp/rsp.h"
 #include "utils/byte_array.h"
 #include "utils/log.h"
@@ -74,15 +78,20 @@ template <typename Wire> Wire read_paddr(uint32_t paddr) {
         const uint32_t offs = paddr - PHYS_RDRAM_MEM_BASE;
         return Utils::read_from_byte_array<Wire>(g_memory().get_rdram(), offs);
     } else if (PHYS_SPDMEM_BASE <= paddr && paddr <= PHYS_SPDMEM_END) {
+        // SP DMEM is stored big-endian (Dillonb convention); RDRAM/IMEM are host-endian.
         const uint32_t offs = paddr - PHYS_SPDMEM_BASE;
+        auto &dmem = g_rsp().get_sp_dmem();
         if constexpr (wire8) {
-            return Utils::read_from_byte_array8(g_rsp().get_sp_dmem(), offs);
+            return dmem[offs & 0xFFF];
         } else if constexpr (wire16) {
-            return Utils::read_from_byte_array16(g_rsp().get_sp_dmem(), offs);
+            return Utils::read_from_byte_array16_be(dmem, offs & 0xFFF);
         } else if constexpr (wire32) {
-            return Utils::read_from_byte_array32(g_rsp().get_sp_dmem(), offs);
+            return Utils::read_from_byte_array32_be(dmem, offs & 0xFFF);
         } else if constexpr (wire64) {
-            return Utils::read_from_byte_array64(g_rsp().get_sp_dmem(), offs);
+            return (static_cast<uint64_t>(
+                        Utils::read_from_byte_array32_be(dmem, offs & 0xFFF))
+                    << 32) |
+                   Utils::read_from_byte_array32_be(dmem, (offs + 4) & 0xFFF);
         } else {
             static_assert(always_false<Wire>);
         }
@@ -106,6 +115,18 @@ template <typename Wire> Wire read_paddr(uint32_t paddr) {
             abort_unimplemented_read<uint16_t>(paddr);
         } else if constexpr (wire32) {
             return g_rsp().read_paddr32(paddr);
+        } else if constexpr (wire64) {
+            abort_unimplemented_read<uint64_t>(paddr);
+        } else {
+            static_assert(always_false<Wire>);
+        }
+    } else if (PHYS_DPC_BASE <= paddr && paddr <= PHYS_DPC_END) {
+        if constexpr (wire8) {
+            abort_unimplemented_read<uint8_t>(paddr);
+        } else if constexpr (wire16) {
+            abort_unimplemented_read<uint16_t>(paddr);
+        } else if constexpr (wire32) {
+            return g_dpc().read_paddr32(paddr);
         } else if constexpr (wire64) {
             abort_unimplemented_read<uint64_t>(paddr);
         } else {
@@ -183,6 +204,22 @@ template <typename Wire> Wire read_paddr(uint32_t paddr) {
         } else {
             static_assert(always_false<Wire>);
         }
+    } else if (PHYS_SRAM_BASE <= paddr && paddr <= PHYS_SRAM_END) {
+        auto &sram = g_memory().get_sram();
+        if (sram.empty()) {
+            if constexpr (wire32) {
+                return 0xFFFFFFFFu;
+            } else {
+                abort_unimplemented_read<Wire>(paddr);
+            }
+        } else if constexpr (wire32) {
+            const uint32_t offs =
+                (paddr - PHYS_SRAM_BASE) &
+                static_cast<uint32_t>(sram.size() - 1);
+            return Utils::read_from_byte_array32_be(sram, offs);
+        } else {
+            abort_unimplemented_read<Wire>(paddr);
+        }
     } else if (PHYS_ROM_BASE <= paddr && paddr <= PHYS_ROM_END) {
         if constexpr (wire8) {
             abort_unimplemented_read<uint8_t>(paddr);
@@ -202,7 +239,7 @@ template <typename Wire> Wire read_paddr(uint32_t paddr) {
             abort_unimplemented_read<uint16_t>(paddr);
         } else if constexpr (wire32) {
             uint64_t offset = paddr - PHYS_PIF_RAM_BASE;
-            return Utils::read_from_byte_array32(g_si().pif.ram, offset);
+            return Utils::read_from_byte_array32_be(g_si().pif.ram, offset);
         } else if constexpr (wire64) {
             abort_unimplemented_read<uint64_t>(paddr);
         } else {
@@ -214,7 +251,12 @@ template <typename Wire> Wire read_paddr(uint32_t paddr) {
 }
 
 uint64_t read_paddr64(uint32_t paddr) { return read_paddr<uint64_t>(paddr); }
-uint32_t read_paddr32(uint32_t paddr) { return read_paddr<uint32_t>(paddr); }
+uint32_t read_paddr32(uint32_t paddr) {
+    if (g_debugger().has_watches()) {
+        g_debugger().on_bus_access(paddr, false);
+    }
+    return read_paddr<uint32_t>(paddr);
+}
 uint16_t read_paddr16(uint32_t paddr) { return read_paddr<uint16_t>(paddr); }
 uint8_t read_paddr8(uint32_t paddr) { return read_paddr<uint8_t>(paddr); }
 
@@ -232,38 +274,57 @@ template <typename Wire> void write_paddr(uint32_t paddr, Wire value) {
         uint32_t offs = paddr - PHYS_RDRAM_MEM_BASE;
         if constexpr (wire8) {
             Utils::write_to_byte_array8(g_memory().get_rdram(), offs, value);
+            maybe_invalidate_code(paddr, 1);
         } else if constexpr (wire16) {
             Utils::write_to_byte_array16(g_memory().get_rdram(), offs, value);
+            maybe_invalidate_code(paddr, 2);
         } else if constexpr (wire32) {
             Utils::write_to_byte_array32(g_memory().get_rdram(), offs, value);
+            maybe_invalidate_code(paddr, 4);
         } else if constexpr (wire64) {
             Utils::write_to_byte_array64(g_memory().get_rdram(), offs, value);
+            maybe_invalidate_code(paddr, 8);
         } else {
             static_assert(always_false<Wire>);
         }
     } else if (PHYS_SPDMEM_BASE <= paddr && paddr <= PHYS_SPDMEM_END) {
-        uint32_t offs = paddr - PHYS_SPDMEM_BASE;
+        // VR4300 sub-word stores to SP DMEM write a full aligned word and
+        // zero the untouched bytes (same bus edge as PIF RAM / dillonb).
+        uint32_t offs = (paddr - PHYS_SPDMEM_BASE) & 0xFFF;
+        auto &dmem = g_rsp().get_sp_dmem();
         if constexpr (wire8) {
-            Utils::write_to_byte_array8(g_rsp().get_sp_dmem(), offs, value);
+            const uint32_t word =
+                static_cast<uint32_t>(value) << (8 * (3 - (offs & 3)));
+            Utils::write_to_byte_array32_be(dmem, offs & ~3u, word);
         } else if constexpr (wire16) {
-            Utils::write_to_byte_array16(g_rsp().get_sp_dmem(), offs, value);
+            uint32_t word = static_cast<uint32_t>(value);
+            if ((offs & 2) == 0)
+                word <<= 16;
+            Utils::write_to_byte_array32_be(dmem, offs & ~3u, word);
         } else if constexpr (wire32) {
-            Utils::write_to_byte_array32(g_rsp().get_sp_dmem(), offs, value);
+            Utils::write_to_byte_array32_be(dmem, offs & ~3u, value);
         } else if constexpr (wire64) {
-            Utils::write_to_byte_array64(g_rsp().get_sp_dmem(), offs, value);
+            Utils::write_to_byte_array64_be(dmem, offs & ~7u, value);
         } else {
             static_assert(always_false<Wire>);
         }
     } else if (PHYS_SPIMEM_BASE <= paddr && paddr <= PHYS_SPIMEM_END) {
+        // Same sub-word bus edge as DMEM; IMEM is host-endian word storage.
+        uint32_t offs = (paddr - PHYS_SPIMEM_BASE) & 0xFFF;
+        auto &imem = g_rsp().get_sp_imem();
         if constexpr (wire8) {
-            abort_unimplemented_write<uint8_t>(paddr);
+            const uint32_t word =
+                static_cast<uint32_t>(value) << (8 * (3 - (offs & 3)));
+            Utils::write_to_byte_array32(imem, offs & ~3u, word);
         } else if constexpr (wire16) {
-            abort_unimplemented_write<uint16_t>(paddr);
+            uint32_t word = static_cast<uint32_t>(value);
+            if ((offs & 2) == 0)
+                word <<= 16;
+            Utils::write_to_byte_array32(imem, offs & ~3u, word);
         } else if constexpr (wire32) {
-            uint32_t offs = paddr - PHYS_SPIMEM_BASE;
-            Utils::write_to_byte_array32(g_rsp().get_sp_imem(), offs, value);
+            Utils::write_to_byte_array32(imem, offs & ~3u, value);
         } else if constexpr (wire64) {
-            abort_unimplemented_write<uint64_t>(paddr);
+            Utils::write_to_byte_array64(imem, offs & ~7u, value);
         } else {
             static_assert(always_false<Wire>);
         }
@@ -274,6 +335,18 @@ template <typename Wire> void write_paddr(uint32_t paddr, Wire value) {
             abort_unimplemented_write<uint16_t>(paddr);
         } else if constexpr (wire32) {
             g_rsp().write_paddr32(paddr, value);
+        } else if constexpr (wire64) {
+            abort_unimplemented_write<uint64_t>(paddr);
+        } else {
+            static_assert(always_false<Wire>);
+        }
+    } else if (PHYS_DPC_BASE <= paddr && paddr <= PHYS_DPC_END) {
+        if constexpr (wire8) {
+            abort_unimplemented_write<uint8_t>(paddr);
+        } else if constexpr (wire16) {
+            abort_unimplemented_write<uint16_t>(paddr);
+        } else if constexpr (wire32) {
+            g_dpc().write_paddr32(paddr, value);
         } else if constexpr (wire64) {
             abort_unimplemented_write<uint64_t>(paddr);
         } else {
@@ -351,6 +424,18 @@ template <typename Wire> void write_paddr(uint32_t paddr, Wire value) {
         } else {
             static_assert(always_false<Wire>);
         }
+    } else if (PHYS_SRAM_BASE <= paddr && paddr <= PHYS_SRAM_END) {
+        auto &sram = g_memory().get_sram();
+        if (sram.empty()) {
+            // No cartridge SRAM — ignore writes.
+        } else if constexpr (wire32) {
+            const uint32_t offs =
+                (paddr - PHYS_SRAM_BASE) &
+                static_cast<uint32_t>(sram.size() - 1);
+            Utils::write_to_byte_array32_be(sram, offs, value);
+        } else {
+            abort_unimplemented_write<Wire>(paddr);
+        }
     } else if (PHYS_ROM_BASE <= paddr && paddr <= PHYS_ROM_END) {
         if constexpr (wire8) {
             abort_unimplemented_write<uint8_t>(paddr);
@@ -372,7 +457,7 @@ template <typename Wire> void write_paddr(uint32_t paddr, Wire value) {
             abort_unimplemented_write<uint16_t>(paddr);
         } else if constexpr (wire32) {
             uint64_t offs = paddr - PHYS_PIF_RAM_BASE;
-            Utils::write_to_byte_array32(g_si().pif.ram, offs, value);
+            Utils::write_to_byte_array32_be(g_si().pif.ram, offs, value);
             // Run Joy bus commands immidiately after the last byte of pif ram
             // updated
             if (paddr == 0x1FC007C0)
@@ -391,6 +476,9 @@ void write_paddr64(uint32_t paddr, uint64_t value) {
     write_paddr<uint64_t>(paddr, value);
 }
 void write_paddr32(uint32_t paddr, uint32_t value) {
+    if (g_debugger().has_watches()) {
+        g_debugger().on_bus_access(paddr, true);
+    }
     write_paddr<uint32_t>(paddr, value);
 }
 void write_paddr16(uint32_t paddr, uint16_t value) {

@@ -2,7 +2,9 @@
 #define CPU_COP0_H
 
 #include "utils/pack.h"
+#include <array>
 #include <cstdint>
+#include <string_view>
 
 namespace N64 {
 
@@ -34,18 +36,23 @@ union entry_lo1_t {
 
 static_assert(sizeof(entry_lo1_t) == 4);
 
-// FIXME: 64bit?
+// R4300 EntryHi is 64-bit: ASID / VPN2(27) / R(VA[63:62]). No G bit here.
 PACK(union entry_hi_t {
-    uint32_t raw;
+    uint64_t raw;
     PACK(struct {
-        unsigned asid : 8;
-        unsigned : 4;
-        unsigned g : 1;
-        unsigned vpn2 : 19;
+        uint64_t asid : 8;
+        uint64_t : 5;
+        uint64_t vpn2 : 27;
+        uint64_t fill : 22;
+        uint64_t r : 2;
     });
 });
 
-static_assert(sizeof(entry_hi_t) == 4);
+static_assert(sizeof(entry_hi_t) == 8);
+
+constexpr uint64_t CP0_ENTRY_HI_WRITE_MASK = 0xC00000FFFFFFE0FFULL;
+constexpr uint32_t CP0_ENTRY_LO_WRITE_MASK = 0x3FFFFFFF;
+constexpr uint32_t CP0_PAGEMASK_WRITE_MASK = 0x1FFE000;
 
 namespace Cpu {
 
@@ -144,18 +151,15 @@ union cop0_cause_t {
 
 static_assert(sizeof(cop0_cause_t) == 4, "cop0_cause_t must be 32bit");
 
-// FIXME: bit fieldの順番があってるか確認
+// Context / XContext: manipulate via masks to avoid cross-word bitfield issues.
+union cop0_context_t {
+    uint64_t raw;
+};
+
+static_assert(sizeof(cop0_context_t) == 8, "cop0_context_t must be 64bit");
+
 union cop0_x_context_t {
     uint64_t raw;
-    /* FIXME: MSVCだとrでワード境界を超えて、16bytesになってしまう
-    https://learn.microsoft.com/en-us/cpp/cpp/cpp-bit-fields?view=msvc-170
-    PACK(struct {
-        unsigned : 4;
-        unsigned badvpn2 : 27;
-        unsigned r : 2;
-        unsigned ptebase : 31;
-    });
-    */
 };
 
 static_assert(sizeof(cop0_x_context_t) == 8, "cop0_x_context_t must be 64bit");
@@ -210,23 +214,24 @@ class Cop0 {
         uint32_t random;
         entry_lo0_t entry_lo0;
         entry_lo1_t entry_lo1;
-        uint32_t context;   // TODO: refine type?
-        uint32_t page_mask; // TODO: refine type?
+        cop0_context_t context;
+        uint32_t page_mask;
         uint32_t wired;
         // 7th register is unknown
-        uint32_t bad_vaddr;
-        uint32_t count;
-        entry_hi_t entry_hi; // 64bit
+        uint64_t bad_vaddr;
+        // Internal PClock counter (33-bit). Software Count is this >> 1.
+        uint64_t count;
+        entry_hi_t entry_hi;
         uint32_t compare;
-        cop0_status_t status; // TODO: refine type?
-        cop0_cause_t cause;   // TODO: refine type?F
-        uint64_t epc;         // 64bit
+        cop0_status_t status;
+        cop0_cause_t cause;
+        uint64_t epc;
         uint32_t prid;
         uint32_t config;
         uint32_t lladdr;
-        uint32_t watch_lo; // TODO: refine type?
+        uint32_t watch_lo;
         uint32_t watch_hi;
-        cop0_x_context_t xcontext; // 64bit TODO: refine type?
+        cop0_x_context_t xcontext;
         // 21st register is unknown
         // 22st register is unknown
         // 23st register is unknown

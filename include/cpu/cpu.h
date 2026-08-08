@@ -1,4 +1,4 @@
-﻿#ifndef CPU_H
+#ifndef CPU_H
 #define CPU_H
 
 #include "cop0.h"
@@ -71,11 +71,24 @@ class Cpu {
 
     uint64_t get_pc64() const;
 
+    uint64_t get_prev_pc64() const { return prev_pc; }
+
     bool should_service_interrupt() const;
 
     // CPUの1ステップを実行する
     // https://github.com/Dillonb/n64/blob/6502f7d2f163c3f14da5bff8cd6d5ccc47143156/src/cpu/r4300i.c#L758
     void step();
+
+    // JIT: delay-slot + PC advance without instruction fetch.
+    void advance_pc_no_fetch() {
+        prev_delay_slot = delay_slot;
+        delay_slot = false;
+        prev_pc = pc;
+        pc = next_pc;
+        next_pc += 4;
+    }
+
+    void add_count(uint32_t n);
 
     void execute_instruction(instruction_t inst);
 

@@ -1,30 +1,24 @@
-# コントリビューションについて
+# Contributing
 
-このエミュレータに関するいろんな情報はScrapboxに載っています。
-https://scrapbox.io/kmc-n64/
+## How to Contribute
 
-質問はKMC Slackのtamaronまでお願いします。
-Slackチャンネル: #n64-emu
+As noted in the issues, we would especially appreciate contributions in the following areas:
 
-## コントリビューションの方法
+- Advancing the emulation implementation
+- Adding and improving tests
+- Improving the debugger
+- Bug verification
+- Verifying builds and improving the build environment on each platform
 
-Issueにも載っていますが、例えば以下の形で貢献してほしいです。
+## Formatter
 
-- エミュレーションの実装をすすめる
-- テストの追加、整備
-- デバッガの整備
-- バグ検証
-- 各プラットフォームの動作確認、ビルド環境整備
+Please use clang-format.
 
-## フォーマッタ
+## Debugging
 
-clang-formatを使用してください
+To enable CPU instruction logging, set the constant `LOG_INSTRUCTION` to `true`.
 
-## デバッグ
-
-CPUの命令ログを有効化するには定数`LOG_INSTRUCTION`にtrueをセットしてください。
-
-WindowsでVSCodeを利用している場合は、`.vscode/launch.json`を作成し、以下を書き込むことでGUIとしてデバッガを利用できます。
+If you are using VS Code on Windows, create `.vscode/launch.json` with the following contents to use the debugger from the GUI:
 
 ```json
 {
@@ -49,37 +43,38 @@ WindowsでVSCodeを利用している場合は、`.vscode/launch.json`を作成�
 
 https://code.visualstudio.com/docs/editor/debugging
 
-## コーディング規約
+## Coding Style
 
-命名規則
-- 普通の変数, 関数名, typedefした型の名前: snake_case, snake_case_t
-- Class, Struct, Enum: PascalCase
-- 定数, Enumのケース: UPPER_SNAKE_CASE
+Naming conventions:
 
-その他言及されていない箇所は変更するファイルに従ってください
+- Ordinary variables, function names, and typedef names: `snake_case`, `snake_case_t`
+- Classes, structs, and enums: `PascalCase`
+- Constants and enum cases: `UPPER_SNAKE_CASE`
 
-## リファレンス
+For anything not covered here, follow the conventions of the file you are modifying.
 
-基本的な64のハードウェア固有の仕様はn64brewに載っています。
+## References
+
+Basic N64 hardware specifications are documented on n64brew:
 https://n64brew.dev/wiki/Main_Page
 
-プロセッサの仕様は仕様書を参照してください。
+For processor specifications, refer to the official documentation.
 
-また、実装は基本的に、Project64、n64、Kaizenを参考にしています
+Parts of the implementation and design are also based on the following projects:
+
 - https://github.com/project64/project64
 - https://github.com/Dillonb/n64
 - https://github.com/SimoneN64/Kaizen
 
-Project64はおそらく最も正確です。できる限り、こちらを参照してください。
-Kaizenはn64を参考にして作られたため、ほとんど同じです。(違いはCかC++か)
-実装する際は、この二種類の実装を確認したのち、ソースコード中に該当箇所のパーマリンクを貼ってください。あとから確認しやすくするためです。
+Project64 is likely the most accurate — please prefer it when possible.
+Kaizen is based on Dillonb/n64, so they are largely the same (the main difference is C vs C++).
 
-## コード補完
+## LSP (VS Code)
 
-### Windows + VSCode
+### Windows + VS Code
 
-1. VSCodeの拡張機能のCMake Toolsをインストール
-2. プロジェクトのルートに`.vscode/settings.json`を作成し、以下を書き込む
+1. Install the CMake Tools extension for VS Code.
+2. Create `.vscode/settings.json` at the project root with the following contents:
 
 ```json
 {
@@ -97,4 +92,13 @@ Kaizenはn64を参考にして作られたため、ほとんど同じです。(�
 
 ### Linux / macOS
 
-CMakeでcompile_commands.jsonを出力し、clangdを起動する
+Have CMake output `compile_commands.json`, then start clangd.
+
+## For KMC Members
+
+Information about this emulator is available on Scrapbox:
+https://scrapbox.io/kmc-n64/
+
+For questions, please contact tamaron on KMC Slack.
+Slack channel: #n64-emu
+

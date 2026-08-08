@@ -23,7 +23,7 @@ constexpr N64Renderer n64_renderer = N64Renderer::CPU_RENDERER;
 
 void set_up(Config &config);
 
-void step(Config &config, Vulkan::WSI &wsi);
+void step(Config &config, Vulkan::WSI *wsi);
 
 } // namespace N64System
 } // namespace N64

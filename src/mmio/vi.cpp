@@ -7,24 +7,45 @@ namespace N64 {
 namespace Mmio {
 namespace VI {
 
+namespace {
+// NTSC VR4300 clock / 60 fps. Matches Dillonb n64system.h CPU_HERTZ/target_fps.
+// https://github.com/Dillonb/n64/blob/6502f7d2f163c3f14da5bff8cd6d5ccc47143156/src/system/n64system.h#L15-L16
+constexpr uint64_t CPU_CYCLES_PER_FRAME_NTSC = 93750000ull / 60ull;
+
+void update_halfline_timing(VI &vi) {
+    // https://github.com/Dillonb/n64/blob/6502f7d2f163c3f14da5bff8cd6d5ccc47143156/src/interface/vi.c#L53-L57
+    if (vi.num_half_lines <= 0) {
+        vi.num_half_lines = 1;
+    }
+    vi.cycles_per_half_line = static_cast<int>(
+        CPU_CYCLES_PER_FRAME_NTSC / static_cast<uint64_t>(vi.num_half_lines));
+    if (vi.cycles_per_half_line <= 0) {
+        vi.cycles_per_half_line = 1;
+    }
+}
+} // namespace
+
 void VI::reset() {
     Utils::debug("Resetting VI");
-    // TODO: reset registers
-    // https://github.com/SimoneN64/Kaizen/blob/dffd36fc31731a0391a9b90f88ac2e5ed5d3f9ec/src/backend/core/mmio/VI.cpp#L12
-    reg_status = 0xf;
+    // NTSC defaults (libultra osViModeNtscLan1 / n64brew tables).
+    reg_status = 0x00011003;
     reg_origin = 0;
     reg_width = 320;
-    reg_intr = 0;
+    reg_intr = 0x3FF;
     reg_current = 0;
-    reg_burst = 0; // FIXME: correct?
-    reg_vsync = 0;
-    reg_hsync = 0;
-    reg_hsync_leap = 0; // FIXME: correct?
+    reg_burst = 0x03E52239;
+    reg_vsync = 0x20D;
+    reg_hsync = 0xC15;
+    reg_hsync_leap = 0x0C150C15;
+    reg_h_video = 0x006C02EC;
+    reg_v_video = 0x002501FF;
+    reg_v_burst = 0x000E0204;
+    reg_x_scale = 0x00000200;
+    reg_y_scale = 0x00000400;
 
     // https://n64brew.dev/wiki/Video_Interface#0x0440_0018_-_VI_V_SYNC
-    // Assume NTSC not PAL.
-    num_half_lines = 0x20d / 2; // 262
-    cycles_per_half_line = 1000;
+    num_half_lines = reg_vsync / 2; // 262
+    update_halfline_timing(*this);
 }
 
 uint32_t VI::read_paddr32(uint32_t paddr) const {
@@ -46,7 +67,7 @@ uint32_t VI::read_paddr32(uint32_t paddr) const {
         // Kaizen: returns current << 1
         // n64: returns v_current
         // FIXME: correct?
-        Utils::debug("VI: Burst Read value =  {:#x}", reg_current);
+        Utils::trace("VI: CURRENT read value =  {:#x}", reg_current);
         return reg_current;
     } break;
     case PADDR_VI_BURST:
@@ -62,9 +83,9 @@ uint32_t VI::read_paddr32(uint32_t paddr) const {
         Utils::abort("VI: Read from VI_H_SYNC_LEAP is not supported");
         return reg_hsync_leap;
     case PADDR_VI_H_VIDEO:
-        return reg_v_video;
-    case PADDR_VI_V_VIDEO:
         return reg_h_video;
+    case PADDR_VI_V_VIDEO:
+        return reg_v_video;
     case PADDR_VI_V_BURST:
         Utils::abort("VI: Read from VI_V_BURST is not supported");
         return reg_v_burst;
@@ -90,8 +111,7 @@ void VI::write_paddr32(uint32_t paddr, uint32_t value) {
     case PADDR_VI_ORIGIN: {
         uint32_t masked = value & 0xFFFFFF;
         if (reg_origin != masked) {
-            // swap?
-            // https://github.com/SimoneN64/Kaizen/blob/dffd36fc31731a0391a9b90f88ac2e5ed5d3f9ec/src/backend/core/mmio/VI.cpp#L55
+            Utils::debug("VI_ORIGIN {:#x} -> {:#x}", reg_origin, masked);
         }
         reg_origin = masked;
         Utils::debug("VI: Origin set to {:#x}", reg_origin);
@@ -118,7 +138,9 @@ void VI::write_paddr32(uint32_t paddr, uint32_t value) {
     case PADDR_VI_V_SYNC: {
         reg_vsync = value & 0x3FF;
         num_half_lines = reg_vsync / 2;
-        Utils::debug("VI: V_Sync set to {:#x}", reg_vsync);
+        update_halfline_timing(*this);
+        Utils::debug("VI: V_Sync set to {:#x} ({} cycles/halfline)", reg_vsync,
+                     cycles_per_half_line);
     } break;
     case PADDR_VI_H_SYNC: {
         // TODO: support PAL. ignore leap for now

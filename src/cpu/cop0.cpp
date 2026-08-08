@@ -1,10 +1,18 @@
 ﻿#include "cpu/cop0.h"
+#include "debugger/debugger.h"
+#include "n64_system/interrupt.h"
 #include "utils/log.h"
 
 namespace N64 {
 namespace Cpu {
 
-uint64_t Cpu::Cop0::Reg::read(uint8_t reg_num) const {
+namespace {
+uint64_t se32_to_64(uint32_t value) {
+    return static_cast<uint64_t>(static_cast<int32_t>(value));
+}
+} // namespace
+
+uint64_t Cop0::Reg::read(uint8_t reg_num) const {
     switch (reg_num) {
     case Cop0Reg::INDEX:
         return index;
@@ -15,7 +23,7 @@ uint64_t Cpu::Cop0::Reg::read(uint8_t reg_num) const {
     case Cop0Reg::ENTRY_LO1:
         return entry_lo1.raw;
     case Cop0Reg::CONTEXT:
-        return context;
+        return context.raw;
     case Cop0Reg::PAGE_MASK:
         return page_mask;
     case Cop0Reg::WIRED:
@@ -23,7 +31,8 @@ uint64_t Cpu::Cop0::Reg::read(uint8_t reg_num) const {
     case Cop0Reg::BAD_VADDR:
         return bad_vaddr;
     case Cop0Reg::COUNT:
-        return count;
+        // Count/Compare use half the PClock; store full-rate internally.
+        return count >> 1;
     case Cop0Reg::ENTRY_HI:
         return entry_hi.raw;
     case Cop0Reg::COMPARE:
@@ -64,52 +73,79 @@ uint64_t Cpu::Cop0::Reg::read(uint8_t reg_num) const {
     }
 }
 
-void Cpu::Cop0::Reg::write(uint8_t reg_num, uint64_t value) {
-    // FIXME: Write to some registers should be ignored or masked.
-    // https://github.com/project64/project64/blob/353ef5ed897cb72a8904603feddbdc649dff9eca/Source/Project64-core/N64System/Mips/Register.cpp#L367
+void Cop0::Reg::write(uint8_t reg_num, uint64_t value) {
+    g_debugger().on_cop0_write(reg_num, value);
+
     switch (reg_num) {
     case Cop0Reg::INDEX: {
         index = value;
     } break;
     case Cop0Reg::RANDOM: {
-        random = value;
+        // Random is read-only on hardware; ignore software writes.
     } break;
     case Cop0Reg::ENTRY_LO0: {
-        // FIXME: Correct?
-        entry_lo0.raw = value & 0x3fff'ffff;
+        entry_lo0.raw = value & CP0_ENTRY_LO_WRITE_MASK;
     } break;
     case Cop0Reg::ENTRY_LO1: {
-        // FIXME: Correct?
-        entry_lo1.raw = value & 0x3fff'ffff;
+        entry_lo1.raw = value & CP0_ENTRY_LO_WRITE_MASK;
     } break;
     case Cop0Reg::CONTEXT: {
-        context = value;
+        // Software may only update PTEBase; preserve BadVPN2.
+        const uint64_t v = (value > 0xFFFFFFFFULL)
+                               ? value
+                               : se32_to_64(static_cast<uint32_t>(value));
+        context.raw =
+            (v & 0xFFFFFFFFFF800000ULL) | (context.raw & 0x7FFFFFULL);
     } break;
     case Cop0Reg::PAGE_MASK: {
-        page_mask = value;
+        page_mask = value & CP0_PAGEMASK_WRITE_MASK;
     } break;
     case Cop0Reg::WIRED: {
-        wired = value;
+        wired = value & 0x3F;
+        // Keep Random in Wired..31
+        const uint32_t lo = (wired > 31) ? 0 : wired;
+        const uint32_t hi = (wired > 31) ? 63 : 31;
+        if (random < lo || random > hi) {
+            random = lo;
+        }
     } break;
     case Cop0Reg::BAD_VADDR: {
-        bad_vaddr = value;
+        // Read-only
     } break;
     case Cop0Reg::COUNT: {
-        count = value;
+        // Software sees half-rate Count; keep the internal timer at PClock.
+        count = (static_cast<uint64_t>(static_cast<uint32_t>(value)) << 1) &
+                0x1FFFFFFFFULL;
     } break;
     case Cop0Reg::ENTRY_HI: {
-        // FIXME: should be masked with 0xC00000FFFFFFE0FF?
-        entry_hi.raw = value;
+        if (value <= 0xFFFFFFFFULL) {
+            // MTC0: 32-bit write. Derive R from sign bit; VPN2 is 19 bits for
+            // 32-bit addresses (do not let sign-extension pollute VPN2[26:19]).
+            const uint32_t v = static_cast<uint32_t>(value);
+            const uint64_t r = (static_cast<int32_t>(v) < 0) ? 0x3 : 0x0;
+            const uint64_t vpn2 = (v >> 13) & 0x7FFFF;
+            const uint64_t asid = v & 0xFF;
+            entry_hi.raw = (r << 62) | (vpn2 << 13) | asid;
+        } else {
+            entry_hi.raw = value & CP0_ENTRY_HI_WRITE_MASK;
+        }
     } break;
     case Cop0Reg::COMPARE: {
-        compare = value;
+        // Writing Compare clears the timer interrupt (IP7).
+        compare = static_cast<uint32_t>(value);
+        cause.ip7 = false;
+        N64System::check_interrupt();
     } break;
     case Cop0Reg::STATUS: {
         status.raw = value;
-        // FIXME: should check interrupt?
+        // IE/IM changes can unmask an already-pending interrupt.
+        N64System::check_interrupt();
     } break;
     case Cop0Reg::CAUSE: {
-        cause.raw = value;
+        // Only IP1:0 are software-writable; IP7:2 are hardware-owned.
+        cause.ip0 = (value >> 8) & 1;
+        cause.ip1 = (value >> 9) & 1;
+        N64System::check_interrupt();
     } break;
     case Cop0Reg::EPC: {
         epc = value;
@@ -130,7 +166,12 @@ void Cpu::Cop0::Reg::write(uint8_t reg_num, uint64_t value) {
         watch_hi = value;
     } break;
     case Cop0Reg::X_CONTEXT: {
-        xcontext.raw = value;
+        // Software may only update PTEBase; preserve BadVPN2 and R.
+        const uint64_t v = (value > 0xFFFFFFFFULL)
+                               ? value
+                               : se32_to_64(static_cast<uint32_t>(value));
+        xcontext.raw =
+            (v & 0xFFFFFFFE00000000ULL) | (xcontext.raw & 0x1FFFFFFFFULL);
     } break;
     case Cop0Reg::PARITY_ERROR: {
         parity_error = value;
@@ -155,11 +196,9 @@ void Cpu::Cop0::Reg::write(uint8_t reg_num, uint64_t value) {
     }
 }
 
-void Cpu::Cop0::reset() {
+void Cop0::reset() {
     Utils::debug("Resetting CPU COP0");
-    // https://github.com/SimoneN64/Kaizen/blob/dffd36fc31731a0391a9b90f88ac2e5ed5d3f9ec/src/backend/core/registers/Cop0.cpp#L11
     constexpr auto uint64_max = ~static_cast<uint64_t>(0);
-    constexpr auto uint32_max = ~static_cast<uint32_t>(0);
     reg.cause.raw = 0xB000007C;
     reg.status.raw = 0;
     reg.status.cu0 = 1;
@@ -171,16 +210,17 @@ void Cpu::Cop0::reset() {
     reg.error_epc = uint64_max;
     reg.wired = 0;
     reg.index = 63;
-    reg.bad_vaddr = uint32_max;
+    reg.bad_vaddr = uint64_max;
+    reg.context.raw = 0;
+    reg.xcontext.raw = 0;
+    reg.entry_hi.raw = 0;
+    reg.random = 31;
 
-    // FIXME: necessary?
-    // https://github.com/project64/project64/blob/353ef5ed897cb72a8904603feddbdc649dff9eca/Source/Project64-core/N64System/N64System.cpp#L855
-    reg.cause.ip4 = 1;
-
+    // Keep Random in Wired..31; no sticky IP4 from reset.
     llbit = false;
 }
 
-void Cpu::Cop0::dump() {
+void Cop0::dump() {
     for (int i = 0; i < 16; i++) {
         bool i_th_reg_is_unknwon = COP0_REG_NAMES[i] == UNUSED_COP0_REG_NAME;
         bool i_plus_16_th_reg_is_unknwon =
@@ -214,23 +254,6 @@ void Cpu::Cop0::dump() {
     Utils::info("cu1 = {}\tcu3 = {}", reg.status.cu1 ? "Enabled" : "Disabled",
                 reg.status.cu3 ? "Enabled" : "Disabled");
 }
-
-/*
-void Cpu::Cop0::on_status_updated() {
-    //
-https://github.com/Dillonb/n64/blob/6502f7d2f163c3f14da5bff8cd6d5ccc47143156/src/cpu/r4300i.h#L633
-    bool exception = reg.status.exl || reg.status.erl;
-
-    N64CPU.cp0.kernel_mode     =  exception || N64CPU.cp0.status.ksu ==
-CPU_MODE_KERNEL; N64CPU.cp0.supervisor_mode = !exception &&
-N64CPU.cp0.status.ksu == CPU_MODE_SUPERVISOR; N64CPU.cp0.user_mode       =
-!exception && N64CPU.cp0.status.ksu == CPU_MODE_USER;
-    N64CPU.cp0.is_64bit_addressing =
-            (N64CPU.cp0.kernel_mode && N64CPU.cp0.status.kx)
-            || (N64CPU.cp0.supervisor_mode && N64CPU.cp0.status.sx)
-               || (N64CPU.cp0.user_mode && N64CPU.cp0.status.ux);
-}
-*/
 
 } // namespace Cpu
 } // namespace N64

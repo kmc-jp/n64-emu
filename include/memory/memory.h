@@ -12,6 +12,7 @@ namespace Memory {
 
 class Memory {
     std::vector<uint8_t> rdram;
+    std::vector<uint8_t> sram;
 
   public:
     RI ri;
@@ -27,7 +28,11 @@ class Memory {
 
     std::vector<uint8_t> &get_rdram();
 
+    std::vector<uint8_t> &get_sram();
+
   private:
+    void allocate_sram();
+
     static Memory instance;
 };
 

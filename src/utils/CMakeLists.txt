@@ -1,6 +1,7 @@
 add_library(utils STATIC)
 target_sources(utils PRIVATE
     byte_array.cpp
+    invalidate_hook.cpp
 )
 target_link_libraries(utils PUBLIC
     common

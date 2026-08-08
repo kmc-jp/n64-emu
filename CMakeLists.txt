@@ -8,8 +8,27 @@ enable_testing()
 
 find_package(SDL2 REQUIRED)
 
+option(N64_RSP_SIMD "Use EVE SIMD for RSP vector unit" ON)
+set(N64_SIMD_ARCH "native" CACHE STRING "SIMD arch flags for RSP (native, x86-64-v2, x86-64-v3, or empty)")
+
 add_library(common INTERFACE)
 target_compile_features(common INTERFACE cxx_std_20)
+
+if(N64_RSP_SIMD)
+    target_compile_definitions(common INTERFACE N64_RSP_SIMD=1)
+else()
+    target_compile_definitions(common INTERFACE N64_RSP_SIMD=0)
+endif()
+
+if(N64_SIMD_ARCH AND NOT N64_SIMD_ARCH STREQUAL "")
+    if(N64_SIMD_ARCH STREQUAL "native")
+        target_compile_options(common INTERFACE
+            $<$<NOT:$<CXX_COMPILER_ID:MSVC>>:-march=native>)
+    else()
+        target_compile_options(common INTERFACE
+            $<$<NOT:$<CXX_COMPILER_ID:MSVC>>:-march=${N64_SIMD_ARCH}>)
+    endif()
+endif()
 
 # Copy of https://fuchsia.googlesource.com/third_party/safeside/+/refs/heads/upstream/analysis-py/demos/CMakeLists.txt
 if("${CMAKE_CXX_COMPILER_ID}" STREQUAL "MSVC")
@@ -51,6 +70,6 @@ target_precompile_headers(common INTERFACE
     <vector>
 )
 
+add_subdirectory(third_party)
 add_subdirectory(src)
 add_subdirectory(tests)
-add_subdirectory(third_party)

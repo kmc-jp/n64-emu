@@ -447,6 +447,16 @@ void CpuImpl::op_mtlo(Cpu &cpu, instruction_t inst) {
     cpu.lo = cpu.gpr.read(inst.r_type.rs);
 }
 
+void CpuImpl::op_syscall(Cpu &cpu, instruction_t inst) {
+    Utils::instruction_trace("SYSCALL");
+    cpu.handle_exception(ExceptionCode::SYSCALL, 0, true);
+}
+
+void CpuImpl::op_break(Cpu &cpu, instruction_t inst) {
+    Utils::instruction_trace("BREAK");
+    cpu.handle_exception(ExceptionCode::BREAKPOINT, 0, true);
+}
+
 void CpuImpl::op_eret(Cpu &cpu, instruction_t inst) {
     // https://github.com/Dillonb/n64/blob/6502f7d2f163c3f14da5bff8cd6d5ccc47143156/src/cpu/mips_instructions.c#L1151
     Utils::instruction_trace("ERET");
@@ -462,6 +472,19 @@ void CpuImpl::op_eret(Cpu &cpu, instruction_t inst) {
 
 void CpuImpl::op_tlbwi(Cpu &cpu, instruction_t inst) {
     g_tlb().write_entry(false);
+}
+
+void CpuImpl::op_tlbwr(Cpu &cpu, instruction_t inst) {
+    // https://github.com/Dillonb/n64/blob/6502f7d2f163c3f14da5bff8cd6d5ccc47143156/src/cpu/tlb_instructions.c#L51
+    g_tlb().write_entry(true);
+}
+
+void CpuImpl::op_tlbp(Cpu &cpu, instruction_t inst) {
+    g_tlb().probe_index();
+}
+
+void CpuImpl::op_tlbr(Cpu &cpu, instruction_t inst) {
+    g_tlb().read_entry();
 }
 
 void CpuImpl::op_tge(Cpu &cpu, instruction_t inst) {
@@ -763,6 +786,52 @@ void CpuImpl::op_lwu(Cpu &cpu, instruction_t inst) {
     }
 }
 
+void CpuImpl::op_lwl(Cpu &cpu, instruction_t inst) {
+    // Big-endian unaligned load (VR4300 / n64brew). Merges MSBs into rt.
+    int16_t offset = inst.i_type.imm;
+    uint64_t vaddr = cpu.gpr.read(inst.i_type.rs) + offset;
+    Utils::instruction_trace("LWL {} <= *({} + {:#x})",
+                             GPR_NAMES[inst.i_type.rt],
+                             GPR_NAMES[inst.i_type.rs], offset);
+    std::optional<uint32_t> paddr = Mmu::resolve_vaddr(vaddr);
+    if (paddr.has_value()) {
+        const uint32_t shift = 8 * static_cast<uint32_t>((vaddr ^ 0) & 3);
+        const uint32_t mask = 0xFFFFFFFFu << shift;
+        const uint32_t data = Memory::read_paddr32(paddr.value() & ~3u);
+        const uint32_t old =
+            static_cast<uint32_t>(cpu.gpr.read(inst.i_type.rt));
+        const int32_t result =
+            static_cast<int32_t>((old & ~mask) | (data << shift));
+        cpu.gpr.write(inst.i_type.rt, static_cast<int64_t>(result));
+    } else {
+        cpu.handle_exception(
+            g_tlb().get_tlb_exception_code(Mmu::BusAccess::LOAD), 0, true);
+    }
+}
+
+void CpuImpl::op_lwr(Cpu &cpu, instruction_t inst) {
+    // Big-endian unaligned load (VR4300 / n64brew). Merges LSBs into rt.
+    int16_t offset = inst.i_type.imm;
+    uint64_t vaddr = cpu.gpr.read(inst.i_type.rs) + offset;
+    Utils::instruction_trace("LWR {} <= *({} + {:#x})",
+                             GPR_NAMES[inst.i_type.rt],
+                             GPR_NAMES[inst.i_type.rs], offset);
+    std::optional<uint32_t> paddr = Mmu::resolve_vaddr(vaddr);
+    if (paddr.has_value()) {
+        const uint32_t shift = 8 * static_cast<uint32_t>((vaddr ^ 3) & 3);
+        const uint32_t mask = 0xFFFFFFFFu >> shift;
+        const uint32_t data = Memory::read_paddr32(paddr.value() & ~3u);
+        const uint32_t old =
+            static_cast<uint32_t>(cpu.gpr.read(inst.i_type.rt));
+        const int32_t result =
+            static_cast<int32_t>((old & ~mask) | (data >> shift));
+        cpu.gpr.write(inst.i_type.rt, static_cast<int64_t>(result));
+    } else {
+        cpu.handle_exception(
+            g_tlb().get_tlb_exception_code(Mmu::BusAccess::LOAD), 0, true);
+    }
+}
+
 void CpuImpl::op_lui(Cpu &cpu, instruction_t inst) {
     // https://github.com/Dillonb/n64/blob/6502f7d2f163c3f14da5bff8cd6d5ccc47143156/src/cpu/mips_instructions.c#L259
     assert_encoding_is_valid(inst.i_type.rs == 0);
@@ -879,7 +948,7 @@ void CpuImpl::op_sb(Cpu &cpu, instruction_t inst) {
     Utils::instruction_trace("SB: *({} + {:#x}) <= {}",
                              GPR_NAMES[inst.i_type.rs], offset,
                              GPR_NAMES[inst.r_type.rt]);
-    std::optional<uint32_t> paddr = Mmu::resolve_vaddr(vaddr);
+    std::optional<uint32_t> paddr = Mmu::resolve_vaddr(vaddr, Mmu::BusAccess::STORE);
 
     if (paddr.has_value()) {
         uint8_t value = cpu.gpr.read(inst.r_type.rt);
@@ -897,11 +966,34 @@ void CpuImpl::op_sh(Cpu &cpu, instruction_t inst) {
     Utils::instruction_trace("SH: *({} + {:#x}) <= {}",
                              GPR_NAMES[inst.i_type.rs], offset,
                              GPR_NAMES[inst.r_type.rt]);
-    std::optional<uint32_t> paddr = Mmu::resolve_vaddr(vaddr);
+    std::optional<uint32_t> paddr = Mmu::resolve_vaddr(vaddr, Mmu::BusAccess::STORE);
 
     if (paddr.has_value()) {
         uint16_t value = cpu.gpr.read(inst.r_type.rt);
-        Memory::write_paddr8(paddr.value(), value);
+        Memory::write_paddr16(paddr.value(), value);
+    } else {
+        cpu.handle_exception(
+            g_tlb().get_tlb_exception_code(Mmu::BusAccess::STORE), 0, true);
+    }
+}
+
+void CpuImpl::op_swl(Cpu &cpu, instruction_t inst) {
+    // Big-endian unaligned store of register MSBs into containing word.
+    int16_t offset = inst.i_type.imm;
+    uint64_t vaddr = cpu.gpr.read(inst.i_type.rs) + offset;
+    Utils::instruction_trace("SWL: *({} + {:#x}) <= {}",
+                             GPR_NAMES[inst.i_type.rs], offset,
+                             GPR_NAMES[inst.r_type.rt]);
+    std::optional<uint32_t> paddr =
+        Mmu::resolve_vaddr(vaddr, Mmu::BusAccess::STORE);
+    if (paddr.has_value()) {
+        const uint32_t shift = 8 * static_cast<uint32_t>((vaddr ^ 0) & 3);
+        const uint32_t mask = 0xFFFFFFFFu >> shift;
+        const uint32_t data = Memory::read_paddr32(paddr.value() & ~3u);
+        const uint32_t reg =
+            static_cast<uint32_t>(cpu.gpr.read(inst.r_type.rt));
+        Memory::write_paddr32(paddr.value() & ~3u,
+                              (data & ~mask) | (reg >> shift));
     } else {
         cpu.handle_exception(
             g_tlb().get_tlb_exception_code(Mmu::BusAccess::STORE), 0, true);
@@ -915,11 +1007,34 @@ void CpuImpl::op_sw(Cpu &cpu, instruction_t inst) {
     Utils::instruction_trace("SW: *({} + {:#x}) <= {}",
                              GPR_NAMES[inst.i_type.rs], offset,
                              GPR_NAMES[inst.r_type.rt]);
-    std::optional<uint32_t> paddr = Mmu::resolve_vaddr(vaddr);
+    std::optional<uint32_t> paddr = Mmu::resolve_vaddr(vaddr, Mmu::BusAccess::STORE);
 
     if (paddr.has_value()) {
         uint32_t word = cpu.gpr.read(inst.r_type.rt);
         Memory::write_paddr32(paddr.value(), word);
+    } else {
+        cpu.handle_exception(
+            g_tlb().get_tlb_exception_code(Mmu::BusAccess::STORE), 0, true);
+    }
+}
+
+void CpuImpl::op_swr(Cpu &cpu, instruction_t inst) {
+    // Big-endian unaligned store of register LSBs into containing word.
+    int16_t offset = inst.i_type.imm;
+    uint64_t vaddr = cpu.gpr.read(inst.i_type.rs) + offset;
+    Utils::instruction_trace("SWR: *({} + {:#x}) <= {}",
+                             GPR_NAMES[inst.i_type.rs], offset,
+                             GPR_NAMES[inst.r_type.rt]);
+    std::optional<uint32_t> paddr =
+        Mmu::resolve_vaddr(vaddr, Mmu::BusAccess::STORE);
+    if (paddr.has_value()) {
+        const uint32_t shift = 8 * static_cast<uint32_t>((vaddr ^ 3) & 3);
+        const uint32_t mask = 0xFFFFFFFFu << shift;
+        const uint32_t data = Memory::read_paddr32(paddr.value() & ~3u);
+        const uint32_t reg =
+            static_cast<uint32_t>(cpu.gpr.read(inst.r_type.rt));
+        Memory::write_paddr32(paddr.value() & ~3u,
+                              (data & ~mask) | (reg << shift));
     } else {
         cpu.handle_exception(
             g_tlb().get_tlb_exception_code(Mmu::BusAccess::STORE), 0, true);
@@ -933,7 +1048,7 @@ void CpuImpl::op_sd(Cpu &cpu, instruction_t inst) {
                              GPR_NAMES[inst.i_type.rs], offset,
                              GPR_NAMES[inst.r_type.rt]);
     uint64_t vaddr = cpu.gpr.read(inst.i_type.rs) + offset;
-    std::optional<uint32_t> paddr = Mmu::resolve_vaddr(vaddr);
+    std::optional<uint32_t> paddr = Mmu::resolve_vaddr(vaddr, Mmu::BusAccess::STORE);
 
     if (paddr.has_value()) {
         uint64_t dword = cpu.gpr.read(inst.r_type.rt);
@@ -949,7 +1064,7 @@ void CpuImpl::op_sdl(Cpu &cpu, instruction_t inst) {
     int16_t offset = inst.fi_type.offset;
     uint64_t vaddr = cpu.gpr.read(inst.fi_type.base) + offset;
     // TODO: trace log
-    std::optional<uint32_t> paddr = Mmu::resolve_vaddr(vaddr);
+    std::optional<uint32_t> paddr = Mmu::resolve_vaddr(vaddr, Mmu::BusAccess::STORE);
     if (paddr.has_value()) {
         int32_t shift = 8 * ((vaddr ^ 0) & 7);
         uint64_t mask = 0xFFFFFFFFFFFFFFFF >> shift;
@@ -968,7 +1083,7 @@ void CpuImpl::op_sdr(Cpu &cpu, instruction_t inst) {
     int16_t offset = inst.fi_type.offset;
     uint64_t vaddr = cpu.gpr.read(inst.fi_type.base) + offset;
     // TODO: trace log
-    std::optional<uint32_t> paddr = Mmu::resolve_vaddr(vaddr);
+    std::optional<uint32_t> paddr = Mmu::resolve_vaddr(vaddr, Mmu::BusAccess::STORE);
     if (paddr.has_value()) {
         int32_t shift = 8 * ((vaddr ^ 7) & 7);
         uint64_t mask = (uint64_t)0xFFFFFFFFFFFFFFFF << shift;
@@ -983,11 +1098,53 @@ void CpuImpl::op_sdr(Cpu &cpu, instruction_t inst) {
 }
 
 void CpuImpl::op_sc(Cpu &cpu, instruction_t inst) {
-    Utils::unimplemented("SC");
+    // https://n64brew.dev/wiki/MIPS_III_instructions
+    int16_t offset = inst.i_type.imm;
+    uint64_t vaddr = cpu.gpr.read(inst.i_type.rs) + offset;
+    Utils::instruction_trace("SC: *({} + {:#x}) <= {} ?",
+                             GPR_NAMES[inst.i_type.rs], offset,
+                             GPR_NAMES[inst.i_type.rt]);
+
+    if (cpu.cop0.llbit) {
+        cpu.cop0.llbit = false;
+        std::optional<uint32_t> paddr =
+            Mmu::resolve_vaddr(vaddr, Mmu::BusAccess::STORE);
+        if (paddr.has_value()) {
+            uint32_t word = static_cast<uint32_t>(cpu.gpr.read(inst.i_type.rt));
+            Memory::write_paddr32(paddr.value(), word);
+            cpu.gpr.write(inst.i_type.rt, 1);
+        } else {
+            cpu.handle_exception(
+                g_tlb().get_tlb_exception_code(Mmu::BusAccess::STORE), 0, true);
+        }
+    } else {
+        cpu.gpr.write(inst.i_type.rt, 0);
+    }
 }
 
 void CpuImpl::op_scd(Cpu &cpu, instruction_t inst) {
-    Utils::unimplemented("SCD");
+    // https://n64brew.dev/wiki/MIPS_III_instructions
+    int16_t offset = inst.i_type.imm;
+    uint64_t vaddr = cpu.gpr.read(inst.i_type.rs) + offset;
+    Utils::instruction_trace("SCD: *({} + {:#x}) <= {} ?",
+                             GPR_NAMES[inst.i_type.rs], offset,
+                             GPR_NAMES[inst.i_type.rt]);
+
+    if (cpu.cop0.llbit) {
+        cpu.cop0.llbit = false;
+        std::optional<uint32_t> paddr =
+            Mmu::resolve_vaddr(vaddr, Mmu::BusAccess::STORE);
+        if (paddr.has_value()) {
+            uint64_t dword = cpu.gpr.read(inst.i_type.rt);
+            Memory::write_paddr64(paddr.value(), dword);
+            cpu.gpr.write(inst.i_type.rt, 1);
+        } else {
+            cpu.handle_exception(
+                g_tlb().get_tlb_exception_code(Mmu::BusAccess::STORE), 0, true);
+        }
+    } else {
+        cpu.gpr.write(inst.i_type.rt, 0);
+    }
 }
 
 void CpuImpl::op_addi(Cpu &cpu, instruction_t inst) {

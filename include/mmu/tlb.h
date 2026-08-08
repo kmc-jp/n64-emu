@@ -21,30 +21,30 @@ enum class BusAccess {
     STORE,
 };
 
-// TLB entry. Only 32bit mode is supported.
-// See p.143
-// http://datasheets.chipdb.org/NEC/Vr-Series/Vr43xx/U10504EJ7V0UMJ1.pdf
+// TLB entry. See R4300 manual / n64brew.
 class TLBEntry {
     friend class TLB;
 
   public:
-    // Create and reset entry
-    TLBEntry() : is_valid(false) {}
+    TLBEntry() : is_valid(false), global(false) {}
 
     bool valid() const { return is_valid; }
 
     void invalidate() { is_valid = false; }
 
-    void validate(entry_lo0_t lo0, entry_lo1_t lo1, entry_hi_t hi,
-                  uint32_t page_mask_);
+    bool is_global() const { return global; }
+    entry_lo0_t lo0() const { return entry_lo0; }
+    entry_lo1_t lo1() const { return entry_lo1; }
+    entry_hi_t hi() const { return entry_hi; }
+    uint32_t mask() const { return page_mask; }
 
   private:
-    // Valid bit, representing whether the entry is defined
     bool is_valid;
-    entry_lo0_t entry_lo0;
-    entry_lo1_t entry_lo1;
-    entry_hi_t entry_hi;
-    uint32_t page_mask;
+    bool global;
+    entry_lo0_t entry_lo0{};
+    entry_lo1_t entry_lo1{};
+    entry_hi_t entry_hi{};
+    uint32_t page_mask{};
 };
 
 class TLB {
@@ -57,22 +57,37 @@ class TLB {
 
     void write_entry(bool random);
 
-    std::optional<int> lookup_tlb_entry_index(uint32_t vaddr);
+    void read_entry();
 
-    std::optional<uint32_t> probe(uint32_t vaddr);
+    void probe_index();
+
+    std::optional<int> lookup_tlb_entry_index(uint64_t vaddr);
+
+    std::optional<uint32_t> probe(uint32_t vaddr, BusAccess bus_access);
 
     TLBError get_last_error() const { return error; }
+
+    // Update BadVAddr / Context / XContext / EntryHi after a TLB exception.
+    // vaddr should be the full 64-bit faulting address (sign-extend 32-bit VAs).
+    static void on_tlb_exception(uint64_t vaddr);
+
+    // Advance COP0 Random within Wired..31 (or 0..63 if Wired > 31).
+    static void advance_random();
+
+    void dump_entries() const;
+
+    const TLBEntry &entry_at(int index) const { return entries[index & 0x1f]; }
 
     inline static TLB &get_instance() { return instance; }
 
   private:
     TLBEntry entries[32];
-    // Last TLB error
     TLBError error;
 
     static TLB instance;
 
-    static uint32_t calculate_vpn(uint32_t vaddr, uint64_t page_mask);
+    static uint64_t calculate_vpn(uint64_t vaddr, uint32_t page_mask);
+    static uint64_t sign_extend_vaddr32(uint32_t vaddr);
 };
 
 } // namespace Mmu

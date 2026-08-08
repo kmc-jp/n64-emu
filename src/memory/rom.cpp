@@ -2,6 +2,7 @@
 #include "utils/byte_array.h"
 #include "utils/log.h"
 #include <fstream>
+#include <span>
 
 namespace N64 {
 namespace Memory {
@@ -88,7 +89,7 @@ void Rom::load_file(const std::string &filepath) {
         return;
     }
 
-    // set header
+    // set header (while ROM is still big-endian / z64 byte order)
     header = *reinterpret_cast<rom_header_t *>(rom.data());
 
     switch (rom_type()) {
@@ -109,18 +110,37 @@ void Rom::load_file(const std::string &filepath) {
         break;
     }
 
-    // set cic
+    // set cic (CRC must run on big-endian bytes)
     const uint32_t checksum = crc32(0, &rom[0x40], 0x9C0);
     cic = checksum_to_cic(checksum);
 
+    detect_save_type();
+
     Utils::debug("imageName\t= \"{}\"", std::string(header.image_name));
     Utils::debug("CIC\t= {}", static_cast<int>(cic));
+
+    // paraLLEl-RDP / host CPU expect host-endian word storage with byte^3.
+    Utils::byteswap_to_host(
+        std::span<uint8_t>(rom.data(), static_cast<size_t>(file_size)));
+}
+
+void Rom::detect_save_type() {
+    // Prefer raw header bytes; rom_header_t fields past image_name are
+    // unreliable. Game code at 0x3B..0x3D, country at 0x3E, version at 0x3F.
+    save_type = SaveType::None;
+    if (rom.size() > 0x3F && rom[0x3B] == 'N' && rom[0x3C] == 'K' &&
+        rom[0x3D] == '4' && rom[0x3E] == 'J' && rom[0x3F] < 2) {
+        save_type = SaveType::Sram256k;
+        Utils::info("Save type: SRAM 256kbit (32 KiB)");
+    } else {
+        Utils::info("Save type: None");
+    }
 }
 
 RomType Rom::rom_type() {
-    // initial value as big endian
+    // Detect from raw file bytes (big-endian) before byteswap_to_host.
     uint32_t initial_value_be =
-        Utils::read_from_byte_array32(header.initial_values, 0);
+        Utils::read_from_byte_array32_be(header.initial_values, 0);
     switch (initial_value_be) {
     case 0x80371240:
         return RomType::Z64;
@@ -135,24 +155,27 @@ RomType Rom::rom_type() {
 
 CicType Rom::get_cic() const { return cic; }
 
+SaveType Rom::get_save_type() const { return save_type; }
+
 uint32_t Rom::get_cic_seed() const {
-    // TODO: switch文にする
-    // https://github.com/SimoneN64/Kaizen/blob/dffd36fc31731a0391a9b90f88ac2e5ed5d3f9ec/src/backend/core/mmio/PIF.hpp#L84
+    // https://github.com/Dillonb/n64/blob/6502f7d2f163c3f14da5bff8cd6d5ccc47143156/src/mem/pif.c#L27
     uint32_t CIC_SEEDS[] = {
         0x0,
         0x00043F3F, // CIC_NUS_6101
         0x00043F3F, // CIC_NUS_7102
-        0x00043F3F, // CIC_NUS_6102_7101
-        0x00047878, // CIC_NUS_6103_7103
-        0x00049191, // CIC_NUS_6105_7105
-        0x00048585, // CIC_NUS_6106_7106
+        0x00003F3F, // CIC_NUS_6102_7101
+        0x0000783F, // CIC_NUS_6103_7103
+        0x0000913F, // CIC_NUS_6105_7105
+        0x0000853F, // CIC_NUS_6106_7106
     };
     return CIC_SEEDS[static_cast<uint32_t>(cic)];
 }
 
 std::vector<uint8_t> &Rom::get_raw_data() { return rom; }
 
-uint8_t Rom::read_offset8(uint32_t offset) const { return rom.at(offset); }
+uint8_t Rom::read_offset8(uint32_t offset) const {
+    return Utils::read_from_byte_array8(rom, offset);
+}
 
 uint16_t Rom::read_offset16(uint32_t offset) const {
     return Utils::read_from_byte_array16(rom, offset);
