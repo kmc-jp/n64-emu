@@ -21,10 +21,9 @@ uint32_t g_dpc_cmd_buf[0x100000];
 
 // Command word counts from the RDP command set (n64brew RDP docs).
 static const int COMMAND_LENGTHS[64] = {
-    2, 2, 2, 2, 2, 2, 2, 2, 8, 12, 24, 28, 24, 28, 40, 44,
-    2, 2, 2, 2, 2, 2, 2, 2, 2, 2,  2,  2,  2,  2,  2,  2,
-    2, 2, 2, 2, 4, 4, 2, 2, 2, 2,  2,  2,  2,  2,  2,  2,
-    2, 2, 2, 2, 2, 2, 2, 2, 2, 2,  2,  2,  2,  2,  2,  2};
+    2, 2, 2, 2, 2, 2, 2, 2, 8, 12, 24, 28, 24, 28, 40, 44, 2, 2, 2, 2, 2, 2,
+    2, 2, 2, 2, 2, 2, 2, 2, 2, 2,  2,  2,  2,  2,  4,  4,  2, 2, 2, 2, 2, 2,
+    2, 2, 2, 2, 2, 2, 2, 2, 2, 2,  2,  2,  2,  2,  2,  2,  2, 2, 2, 2};
 
 constexpr uint8_t RDP_COMMAND_FULL_SYNC = 0x29;
 constexpr uint32_t RDP_COMMAND_BUFFER_SIZE = 0x100000;
@@ -76,7 +75,8 @@ void Dpc::write_paddr32(uint32_t paddr, uint32_t value) {
     case PADDR_DPC_END:
         end = value & 0x00FFFFF8;
         // https://n64brew.dev/wiki/Reality_Display_Processor/Interface#0x0410_0004_-_DPC_END
-        // When START_PENDING (start_valid), latch CURRENT from START then clear.
+        // When START_PENDING (start_valid), latch CURRENT from START then
+        // clear.
         if (status.start_valid) {
             // A new START range must not keep a partial command from a previous
             // fifo segment (wrap / restart). Incremental END-only updates keep
@@ -211,8 +211,8 @@ void Dpc::process_list() {
             leftover = length_words - buf_index;
             // Copy via temp buffer so overlapping regions cannot corrupt
             // a partial command carried into the next DPC submission.
-            std::vector<uint32_t> temp(
-                cmd_buf + buf_index, cmd_buf + buf_index + leftover);
+            std::vector<uint32_t> temp(cmd_buf + buf_index,
+                                       cmd_buf + buf_index + leftover);
             for (int i = 0; i < leftover; i++)
                 cmd_buf[i] = temp[static_cast<size_t>(i)];
             processed_all = false;
@@ -221,17 +221,7 @@ void Dpc::process_list() {
 
         // Don't need to process commands under 8
         if (command >= 8) {
-            // Kirby S2DEX previously emitted TexRect XL≈705 from half-swapped
-            // uObjBg fields; keep a debug breadcrumb if that regresses.
-            if (command == 0x24 && command_length >= 2) {
-                const int xl = (cmd_buf[buf_index] >> 12) & 0xFFF;
-                if ((xl >> 2) >= 680 && (xl >> 2) <= 720) {
-                    Utils::debug("Suspicious TexRect XL={} w0={:#010x}",
-                                 xl >> 2, cmd_buf[buf_index]);
-                }
-            }
-            PRDPWrapper::enqueue_command(command_length,
-                                         &cmd_buf[buf_index]);
+            PRDPWrapper::enqueue_command(command_length, &cmd_buf[buf_index]);
         }
 
         if (command == RDP_COMMAND_FULL_SYNC) {

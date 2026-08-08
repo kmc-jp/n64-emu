@@ -1,7 +1,6 @@
 #include "mmio/vi.h"
 #include "mmio/mi.h"
 #include "n64_system/interrupt.h"
-#include "n64_system/scheduler.h"
 #include "utils/log.h"
 
 namespace N64 {
@@ -18,8 +17,8 @@ void update_halfline_timing(VI &vi) {
     if (vi.num_half_lines <= 0) {
         vi.num_half_lines = 1;
     }
-    vi.cycles_per_half_line = static_cast<int>(CPU_CYCLES_PER_FRAME_NTSC /
-                                               static_cast<uint64_t>(vi.num_half_lines));
+    vi.cycles_per_half_line = static_cast<int>(
+        CPU_CYCLES_PER_FRAME_NTSC / static_cast<uint64_t>(vi.num_half_lines));
     if (vi.cycles_per_half_line <= 0) {
         vi.cycles_per_half_line = 1;
     }
@@ -112,24 +111,7 @@ void VI::write_paddr32(uint32_t paddr, uint32_t value) {
     case PADDR_VI_ORIGIN: {
         uint32_t masked = value & 0xFFFFFF;
         if (reg_origin != masked) {
-            // Boot often uses 0 / 0x280; first real framebuffer is a logo/gfx milestone.
-            static bool logged_framebuffer = false;
-            static uint32_t swap_count = 0;
-            if (!logged_framebuffer && masked > 0x280) {
-                logged_framebuffer = true;
-                Utils::info("First framebuffer VI_ORIGIN {:#x} -> {:#x}",
-                            reg_origin, masked);
-            } else {
-                Utils::debug("VI_ORIGIN {:#x} -> {:#x}", reg_origin, masked);
-            }
-            if (masked > 0x280) {
-                swap_count++;
-                if ((swap_count % 120) == 0) {
-                    Utils::info("VI_ORIGIN swaps={} latest={:#x} time={:#x}",
-                                swap_count, masked,
-                                g_scheduler().get_current_time());
-                }
-            }
+            Utils::debug("VI_ORIGIN {:#x} -> {:#x}", reg_origin, masked);
         }
         reg_origin = masked;
         Utils::debug("VI: Origin set to {:#x}", reg_origin);

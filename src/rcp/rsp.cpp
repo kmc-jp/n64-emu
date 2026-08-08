@@ -1,8 +1,8 @@
 ﻿#include "rcp/rsp.h"
 #include "cpu/jit/invalidate_hook.h"
+#include "debugger/debugger.h"
 #include "memory/memory.h"
 #include "memory/memory_map.h"
-#include "debugger/debugger.h"
 #include "mmio/mi.h"
 #include "n64_system/interrupt.h"
 #include "rcp/dpc.h"
@@ -48,9 +48,7 @@ inline uint8_t rt(uint32_t i) { return static_cast<uint8_t>((i >> 16) & 0x1F); }
 inline uint8_t rd(uint32_t i) { return static_cast<uint8_t>((i >> 11) & 0x1F); }
 inline uint8_t sa(uint32_t i) { return static_cast<uint8_t>((i >> 6) & 0x1F); }
 inline uint8_t funct(uint32_t i) { return static_cast<uint8_t>(i & 0x3F); }
-inline int16_t imm_se(uint32_t i) {
-    return static_cast<int16_t>(i & 0xFFFF);
-}
+inline int16_t imm_se(uint32_t i) { return static_cast<int16_t>(i & 0xFFFF); }
 inline uint16_t imm_ze(uint32_t i) { return static_cast<uint16_t>(i & 0xFFFF); }
 inline uint32_t target(uint32_t i) { return (i & 0x03FFFFFF) << 2; }
 } // namespace
@@ -89,9 +87,7 @@ void Rsp::set_pc(uint16_t value) {
     delay_slot_ = false;
 }
 
-void Rsp::branch(uint16_t target_pc) {
-    next_pc = target_pc & 0xffc;
-}
+void Rsp::branch(uint16_t target_pc) { next_pc = target_pc & 0xffc; }
 
 void Rsp::take_break() {
     // https://n64brew.dev/wiki/Reality_Signal_Processor/CPU_Core
@@ -110,9 +106,7 @@ void Rsp::take_break() {
     }
 }
 
-uint8_t Rsp::dmem_load8(uint32_t addr) const {
-    return sp_dmem[addr & 0xFFF];
-}
+uint8_t Rsp::dmem_load8(uint32_t addr) const { return sp_dmem[addr & 0xFFF]; }
 
 uint16_t Rsp::dmem_load16(uint32_t addr) const {
     // RSP allows misaligned DMEM access (n64brew).
@@ -128,9 +122,7 @@ uint32_t Rsp::dmem_load32(uint32_t addr) const {
            static_cast<uint32_t>(sp_dmem[(a + 3) & 0xFFF]);
 }
 
-void Rsp::dmem_store8(uint32_t addr, uint8_t v) {
-    sp_dmem[addr & 0xFFF] = v;
-}
+void Rsp::dmem_store8(uint32_t addr, uint8_t v) { sp_dmem[addr & 0xFFF] = v; }
 
 void Rsp::dmem_store16(uint32_t addr, uint16_t v) {
     const uint32_t a = addr & 0xFFF;
@@ -215,9 +207,8 @@ void Rsp::execute(uint32_t inst, uint16_t inst_pc) {
                 static_cast<int32_t>(gpr(rs(inst))) < imm_se(inst) ? 1 : 0);
         break;
     case OPC_SLTIU:
-        set_gpr(rt(inst), gpr(rs(inst)) < static_cast<uint32_t>(imm_se(inst))
-                              ? 1
-                              : 0);
+        set_gpr(rt(inst),
+                gpr(rs(inst)) < static_cast<uint32_t>(imm_se(inst)) ? 1 : 0);
         break;
     case OPC_ANDI:
         set_gpr(rt(inst), gpr(rs(inst)) & imm_ze(inst));
@@ -287,8 +278,8 @@ void Rsp::execute_special(uint32_t inst) {
         set_gpr(rd(inst), gpr(rt(inst)) >> sa(inst));
         break;
     case 0x03: // SRA
-        set_gpr(rd(inst), static_cast<uint32_t>(static_cast<int32_t>(gpr(rt(inst))) >>
-                                                 sa(inst)));
+        set_gpr(rd(inst), static_cast<uint32_t>(
+                              static_cast<int32_t>(gpr(rt(inst))) >> sa(inst)));
         break;
     case 0x04: // SLLV
         set_gpr(rd(inst), gpr(rt(inst)) << (gpr(rs(inst)) & 31));
@@ -299,7 +290,7 @@ void Rsp::execute_special(uint32_t inst) {
     case 0x07: // SRAV
         set_gpr(rd(inst),
                 static_cast<uint32_t>(static_cast<int32_t>(gpr(rt(inst))) >>
-                                     (gpr(rs(inst)) & 31)));
+                                      (gpr(rs(inst)) & 31)));
         break;
     case 0x08: { // JR
         delay_slot_ = true;
@@ -692,12 +683,7 @@ void Rsp::status_reg_write(uint32_t value) {
         status_reg.halt = 0;
         if (was_halted) {
             const uint32_t type = dmem_load32(0xFC0);
-            // type 1 = gfx, type 2 = audio — log first gfx as a boot milestone.
-            static bool logged_first_gfx = false;
-            if (type == 1 && !logged_first_gfx) {
-                logged_first_gfx = true;
-                Utils::info("First gfx OSTask (RSP unhalt)");
-            } else if (type != 1 && type != 2) {
+            if (type != 1 && type != 2) {
                 Utils::info("RSP unhalt OSTask type={}", type);
             } else {
                 Utils::debug("RSP unhalt OSTask type={}", type);

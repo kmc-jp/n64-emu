@@ -125,9 +125,8 @@ void Rom::load_file(const std::string &filepath) {
 }
 
 void Rom::detect_save_type() {
-    // Prefer raw header bytes; rom_header_t fields past image_name are unreliable.
-    // Game code at 0x3B..0x3D, country at 0x3E, version at 0x3F.
-    // Kirby 64 JP V1.0/V1.1 (NK4J, version < 2) uses SRAM 256 kbit.
+    // Prefer raw header bytes; rom_header_t fields past image_name are
+    // unreliable. Game code at 0x3B..0x3D, country at 0x3E, version at 0x3F.
     save_type = SaveType::None;
     if (rom.size() > 0x3F && rom[0x3B] == 'N' && rom[0x3C] == 'K' &&
         rom[0x3D] == '4' && rom[0x3E] == 'J' && rom[0x3F] < 2) {

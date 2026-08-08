@@ -18,7 +18,6 @@
 #include "rcp/dpc.h"
 #include "rcp/rsp.h"
 #include "utils/log.h"
-#include <cstdlib>
 
 namespace N64 {
 namespace N64System {
@@ -79,60 +78,6 @@ static void cpu_step_callback(Config &config) {
                 Utils::info("Test failed");
                 exit(-1);
             }
-        }
-    }
-
-    // Boot progress sampling (every ~1M cycles); skip when debugger owns tracing
-    if (!config.debug) {
-        static bool left_ipl3 = false;
-        static bool entered_game = false;
-        const uint64_t t = N64::g_scheduler().get_current_time();
-        if (t % 0x10'0000 == 0) {
-            const uint32_t pc = static_cast<uint32_t>(N64::g_cpu().get_pc64());
-            Utils::debug("pc sample = {:#010x}", pc);
-            if (!left_ipl3 && (pc < 0xA4000000 || pc > 0xA4001FFF)) {
-                left_ipl3 = true;
-                Utils::info("Left IPL3 (DMEM). pc = {:#010x}", pc);
-            }
-            if (!entered_game && (pc & 0xFFF00000) == 0x80100000) {
-                entered_game = true;
-                Utils::info("Entered game code region. pc = {:#010x}", pc);
-            }
-        }
-    }
-
-    if (config.stop_after_cycles != 0 &&
-        N64::g_scheduler().get_current_time() >= config.stop_after_cycles) {
-        Utils::info("Reached --stop-after={:#x} (pc={:#010x} vi_origin={:#x})",
-                    config.stop_after_cycles,
-                    static_cast<uint32_t>(N64::g_cpu().get_pc64()),
-                    g_vi().reg_origin);
-        std::exit(0);
-    }
-
-    // After the first real framebuffer, warn if swaps stall for a long time.
-    {
-        static uint64_t last_origin = 0;
-        static uint64_t last_change_time = 0;
-        static bool armed = false;
-        static bool warned = false;
-        const uint32_t origin = g_vi().reg_origin;
-        const uint64_t t = N64::g_scheduler().get_current_time();
-        if (!armed && origin > 0x280) {
-            armed = true;
-            last_origin = origin;
-            last_change_time = t;
-        } else if (armed && origin != last_origin) {
-            last_origin = origin;
-            last_change_time = t;
-            warned = false;
-        } else if (armed && !warned && t - last_change_time > 0x80'0000) {
-            warned = true;
-            Utils::warn(
-                "VI_ORIGIN stalled for {:#x} cycles at time={:#x} "
-                "(origin={:#x} pc={:#010x})",
-                t - last_change_time, t, origin,
-                static_cast<uint32_t>(N64::g_cpu().get_pc64()));
         }
     }
 

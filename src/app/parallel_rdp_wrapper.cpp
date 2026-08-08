@@ -4,7 +4,6 @@
 #include "rdp_device.hpp"
 #include "utils/log.h"
 #include "wsi.hpp"
-#include <cstdlib>
 
 namespace N64 {
 namespace PRDPWrapper {
@@ -118,12 +117,10 @@ void render_screen(Vulkan::WSI &wsi, Util::IntrusivePtr<Vulkan::Image> image) {
         scissor.offset.x = static_cast<int32_t>(vp.x);
         scissor.offset.y = static_cast<int32_t>(vp.y);
         // Ceil extent so fractional viewport edges are not clipped short.
-        scissor.extent.width =
-            static_cast<uint32_t>(vp.x + vp.width + 0.5f) -
-            static_cast<uint32_t>(scissor.offset.x);
-        scissor.extent.height =
-            static_cast<uint32_t>(vp.y + vp.height + 0.5f) -
-            static_cast<uint32_t>(scissor.offset.y);
+        scissor.extent.width = static_cast<uint32_t>(vp.x + vp.width + 0.5f) -
+                               static_cast<uint32_t>(scissor.offset.x);
+        scissor.extent.height = static_cast<uint32_t>(vp.y + vp.height + 0.5f) -
+                                static_cast<uint32_t>(scissor.offset.y);
 
         cmd->set_program(program);
         cmd->set_opaque_state();
@@ -140,18 +137,18 @@ void render_screen(Vulkan::WSI &wsi, Util::IntrusivePtr<Vulkan::Image> image) {
 }
 void update_screen(Vulkan::WSI &wsi, N64::Mmio::VI::VI &vi) {
     uint32_t h_video = vi.reg_h_video;
-    // H_START=H_END=0 blanks the VI (n64brew). Kirby boots that way; if the
-    // subsequent osViSetMode store never lands, scanout stays invalid and
-    // persist_frame_on_invalid_input shows garbage / clipped frames.
+    // H_START=H_END=0 blanks the VI (n64brew). Some titles leave it blank
+    // until osViSetMode; use NTSC defaults so scanout is not invalid.
     const uint32_t h_start = (h_video >> 16) & 0x3ff;
     const uint32_t h_end = h_video & 0x3ff;
-    if (h_start == 0 && h_end == 0 && vi.reg_width != 0 &&
-        vi.reg_origin != 0 && vi.reg_origin != 0x280) {
+    if (h_start == 0 && h_end == 0 && vi.reg_width != 0 && vi.reg_origin != 0 &&
+        vi.reg_origin != 0x280) {
         static bool logged = false;
         if (!logged) {
-            Utils::warn("VI_H_VIDEO is blank (0); using NTSC default 0x006c02ec "
-                        "for scanout (origin={:#x})",
-                        vi.reg_origin);
+            Utils::warn(
+                "VI_H_VIDEO is blank (0); using NTSC default 0x006c02ec "
+                "for scanout (origin={:#x})",
+                vi.reg_origin);
             logged = true;
         }
         h_video = 0x006c02ec;
@@ -174,21 +171,10 @@ void update_screen(Vulkan::WSI &wsi, N64::Mmio::VI::VI &vi) {
     command_processor->set_vi_register(RDP::VIRegister::XScale, vi.reg_x_scale);
     command_processor->set_vi_register(RDP::VIRegister::YScale, vi.reg_y_scale);
 
-    // Skip llvmpipe present while VI still points at the boot placeholder
-    // framebuffer — full scanout/present every field dominates wall time
-    // and begin_frame_context can block with zero CPU progress.
+    // Skip present while VI still points at the boot placeholder framebuffer.
     if (vi.reg_origin == 0 || vi.reg_origin == 0x280) {
         return;
     }
-
-    // Optional: N64_SKIP_PRESENT=1 skips Vulkan present (faster CPU/RDP QA).
-    static int skip_present = -1;
-    if (skip_present < 0) {
-        const char *e = std::getenv("N64_SKIP_PRESENT");
-        skip_present = (e && e[0] == '1') ? 1 : 0;
-    }
-    if (skip_present)
-        return;
 
     //  FIXME: quarks?
     // https://github.com/simple64/simple64/blob/1e4ab555054a659c6e6a91db16ce46714be7ac00/parallel-rdp-standalone/parallel_imp.cpp#L257C7-L257C7

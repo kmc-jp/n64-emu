@@ -47,10 +47,9 @@ void Debugger::configure(const N64System::Config &config) {
     break_on_any_exception_ = false;
     break_on_cop0_any_ = false;
     break_on_cop0_reg_ = -1;
-    break_at_time_ =
-        config.break_after_cycles > 0
-            ? static_cast<int64_t>(config.break_after_cycles)
-            : -1;
+    break_at_time_ = config.break_after_cycles > 0
+                         ? static_cast<int64_t>(config.break_after_cycles)
+                         : -1;
     break_sp_task_type_ = -2;
     pause_requested_ = false;
     step_one_ = false;
@@ -319,8 +318,8 @@ bool Debugger::handle_repl_line(const std::string &line) {
             char *end = nullptr;
             const unsigned long n = std::strtoul(after.c_str(), &end, 0);
             if (end != after.c_str() && *end == '\0') {
-                break_at_time_ = static_cast<int64_t>(
-                    g_scheduler().get_current_time() + n);
+                break_at_time_ =
+                    static_cast<int64_t>(g_scheduler().get_current_time() + n);
                 dbg_out("continue until time {:#x}", break_at_time_);
             } else {
                 dbg_out("usage: c [cycles]");
@@ -380,6 +379,10 @@ bool Debugger::handle_repl_line(const std::string &line) {
         while (iss >> a) {
             addrs.push_back(
                 static_cast<uint32_t>(std::strtoul(a.c_str(), nullptr, 0)));
+        }
+        if (addrs.empty()) {
+            dbg_out("usage: ost <tcb_addr>...");
+            return false;
         }
         cmd_ost(addrs);
         return false;
@@ -456,8 +459,9 @@ bool Debugger::handle_repl_line(const std::string &line) {
         }
         uint32_t limit = 64;
         iss >> limit;
-        cmd_find(static_cast<uint32_t>(std::strtoul(word_s.c_str(), nullptr, 0)),
-                 limit);
+        cmd_find(
+            static_cast<uint32_t>(std::strtoul(word_s.c_str(), nullptr, 0)),
+            limit);
         return false;
     }
     if (cmd == "break") {
@@ -476,10 +480,10 @@ bool Debugger::handle_repl_line(const std::string &line) {
                 dbg_out("usage: break after <cycles>");
             } else {
                 const unsigned long n = std::strtoul(n_s.c_str(), nullptr, 0);
-                break_at_time_ = static_cast<int64_t>(
-                    g_scheduler().get_current_time() + n);
+                break_at_time_ =
+                    static_cast<int64_t>(g_scheduler().get_current_time() + n);
                 dbg_out("break after {} cycles (at time {:#x})", n,
-                            break_at_time_);
+                        break_at_time_);
             }
         } else if (arg == "time") {
             std::string n_s;
@@ -549,8 +553,8 @@ bool Debugger::handle_repl_line(const std::string &line) {
             const uint32_t paddr =
                 static_cast<uint32_t>(std::strtoul(arg.c_str(), nullptr, 0));
             watches_.push_back(WatchEntry{paddr, write_only});
-            dbg_out("added {}watch paddr {:#010x}",
-                        write_only ? "write-" : "", paddr);
+            dbg_out("added {}watch paddr {:#010x}", write_only ? "write-" : "",
+                    paddr);
         } else {
             dbg_out("usage: watch [w] 0xPADDR");
         }
@@ -570,16 +574,14 @@ bool Debugger::handle_repl_line(const std::string &line) {
 
 void Debugger::cmd_regs() const {
     auto &cpu = g_cpu();
-    dbg_out("PC={:#018x} HI={:#018x} LO={:#018x} time={:#x}",
-                cpu.get_pc64(), cpu.hi, cpu.lo,
-                g_scheduler().get_current_time());
+    dbg_out("PC={:#018x} HI={:#018x} LO={:#018x} time={:#x}", cpu.get_pc64(),
+            cpu.hi, cpu.lo, g_scheduler().get_current_time());
     for (int i = 0; i < 32; i += 4) {
         dbg_out("{:>2}={:#018x}  {:>2}={:#018x}  {:>2}={:#018x}  "
-                    "{:>2}={:#018x}",
-                    Cpu::GPR_NAMES[i], cpu.gpr.read(i), Cpu::GPR_NAMES[i + 1],
-                    cpu.gpr.read(i + 1), Cpu::GPR_NAMES[i + 2],
-                    cpu.gpr.read(i + 2), Cpu::GPR_NAMES[i + 3],
-                    cpu.gpr.read(i + 3));
+                "{:>2}={:#018x}",
+                Cpu::GPR_NAMES[i], cpu.gpr.read(i), Cpu::GPR_NAMES[i + 1],
+                cpu.gpr.read(i + 1), Cpu::GPR_NAMES[i + 2], cpu.gpr.read(i + 2),
+                Cpu::GPR_NAMES[i + 3], cpu.gpr.read(i + 3));
     }
 }
 
@@ -590,14 +592,14 @@ void Debugger::cmd_cop0() const {
     const uint64_t xctx = r.xcontext.raw;
     dbg_out("EPC={:#018x} BadVAddr={:#018x}", r.epc, r.bad_vaddr);
     dbg_out("Cause={:#010x} Status={:#010x} (exl={} ie={} im={:#04x})",
-                r.cause.raw, r.status.raw, (unsigned)r.status.exl,
-                (unsigned)r.status.ie, (unsigned)r.status.im);
+            r.cause.raw, r.status.raw, (unsigned)r.status.exl,
+            (unsigned)r.status.ie, (unsigned)r.status.im);
     dbg_out("EntryHi={:#018x} Context={:#018x} XContext={:#018x}", entry_hi,
-                ctx, xctx);
+            ctx, xctx);
     dbg_out("Random={:#x} Wired={:#x} Index={:#010x} PageMask={:#010x}",
-                r.random, r.wired, r.index, r.page_mask);
+            r.random, r.wired, r.index, r.page_mask);
     dbg_out("Compare={:#010x} Count={:#010x} (internal={:#018x})", r.compare,
-                static_cast<uint32_t>(r.count >> 1), r.count);
+            static_cast<uint32_t>(r.count >> 1), r.count);
 }
 
 void Debugger::cmd_tlb() const { g_tlb().dump_entries(); }
@@ -622,17 +624,17 @@ void Debugger::cmd_ex() const {
         return;
     }
     dbg_out("Recent exceptions (oldest -> newest), {} entries:",
-                ex_ring_count_);
+            ex_ring_count_);
     const size_t start =
         (ex_ring_next_ + EX_RING_SIZE - ex_ring_count_) % EX_RING_SIZE;
     for (size_t i = 0; i < ex_ring_count_; i++) {
         const size_t idx = (start + i) % EX_RING_SIZE;
         const auto &e = ex_ring[idx];
         dbg_out("  [{:>2}] code={} err={} BadV={:#018x} EPC={:#018x} "
-                    "EntryHi={:#018x} Context={:#018x} XContext={:#018x} "
-                    "vec={:#010x} Random={}",
-                    i, e.code, e.tlb_err, e.bad_vaddr, e.epc, e.entry_hi,
-                    e.context, e.xcontext, e.vector, e.random);
+                "EntryHi={:#018x} Context={:#018x} XContext={:#018x} "
+                "vec={:#010x} Random={}",
+                i, e.code, e.tlb_err, e.bad_vaddr, e.epc, e.entry_hi, e.context,
+                e.xcontext, e.vector, e.random);
     }
 }
 
@@ -660,38 +662,36 @@ void Debugger::cmd_pmem(uint32_t paddr, int words) const {
 void Debugger::cmd_vi() const {
     auto &vi = g_vi();
     dbg_out("VI CTRL={:#010x} ORIGIN={:#010x} WIDTH={:#x} INTR={:#x} "
-                "CURRENT={:#x}",
-                vi.reg_status, vi.reg_origin, vi.reg_width, vi.reg_intr,
-                vi.reg_current);
+            "CURRENT={:#x}",
+            vi.reg_status, vi.reg_origin, vi.reg_width, vi.reg_intr,
+            vi.reg_current);
     dbg_out("VI V_SYNC={:#x} H_SYNC={:#x} H_VIDEO={:#010x} V_VIDEO={:#010x}",
-                vi.reg_vsync, vi.reg_hsync, vi.reg_h_video, vi.reg_v_video);
+            vi.reg_vsync, vi.reg_hsync, vi.reg_h_video, vi.reg_v_video);
     dbg_out("VI X_SCALE={:#010x} Y_SCALE={:#010x} half_lines={} "
-                "cyc/half={}",
-                vi.reg_x_scale, vi.reg_y_scale, vi.num_half_lines,
-                vi.cycles_per_half_line);
+            "cyc/half={}",
+            vi.reg_x_scale, vi.reg_y_scale, vi.num_half_lines,
+            vi.cycles_per_half_line);
 }
 
 void Debugger::cmd_mi() const {
     auto &mi = g_mi();
     const auto intr = mi.get_reg_intr();
     const auto mask = mi.get_reg_intr_mask();
-    dbg_out("MI INTR={:#010x} (sp={} si={} ai={} vi={} pi={} dp={})",
-                intr.raw, (unsigned)intr.sp, (unsigned)intr.si,
-                (unsigned)intr.ai, (unsigned)intr.vi, (unsigned)intr.pi,
-                (unsigned)intr.dp);
-    dbg_out("MI MASK={:#010x} (sp={} si={} ai={} vi={} pi={} dp={})",
-                mask.raw, (unsigned)mask.sp, (unsigned)mask.si,
-                (unsigned)mask.ai, (unsigned)mask.vi, (unsigned)mask.pi,
-                (unsigned)mask.dp);
+    dbg_out("MI INTR={:#010x} (sp={} si={} ai={} vi={} pi={} dp={})", intr.raw,
+            (unsigned)intr.sp, (unsigned)intr.si, (unsigned)intr.ai,
+            (unsigned)intr.vi, (unsigned)intr.pi, (unsigned)intr.dp);
+    dbg_out("MI MASK={:#010x} (sp={} si={} ai={} vi={} pi={} dp={})", mask.raw,
+            (unsigned)mask.sp, (unsigned)mask.si, (unsigned)mask.ai,
+            (unsigned)mask.vi, (unsigned)mask.pi, (unsigned)mask.dp);
 }
 
 void Debugger::cmd_rsp() const {
     auto &rsp = g_rsp();
     const uint32_t status = rsp.read_paddr32(Rsp::PADDR_SP_STATUS);
     const uint32_t pc = rsp.read_paddr32(Rsp::PADDR_SP_PC);
-    dbg_out("SP STATUS={:#010x} PC={:#05x} halt={} broke={} iob={}", status,
-            pc, (status & 1u) != 0, (status & 2u) != 0, (status & 0x40u) != 0);
-    // Kirby / many titles pack OSTask as u32 fields (0x40 bytes @ DMEM 0xFC0).
+    dbg_out("SP STATUS={:#010x} PC={:#05x} halt={} broke={} iob={}", status, pc,
+            (status & 1u) != 0, (status & 2u) != 0, (status & 0x40u) != 0);
+    // OSTask as u32 fields (0x40 bytes @ DMEM 0xFC0).
     const uint32_t type = rsp.dmem_load32(0xFC0);
     const uint32_t flags = rsp.dmem_load32(0xFC4);
     const uint32_t boot = rsp.dmem_load32(0xFC8);
@@ -721,22 +721,16 @@ void Debugger::cmd_rsp() const {
 void Debugger::cmd_dpc() const {
     auto &dpc = g_dpc();
     dbg_out("DPC START={:#010x} END={:#010x} CURRENT={:#010x} STATUS={:#010x}",
-                dpc.get_start(), dpc.get_end(), dpc.get_current(),
-                dpc.get_status().raw);
+            dpc.get_start(), dpc.get_end(), dpc.get_current(),
+            dpc.get_status().raw);
 }
 
 void Debugger::cmd_ost(const std::vector<uint32_t> &tbaddrs) const {
-    // Default: Kirby 64 TCBs seen in prior diagnosis (RDRAM physical).
-    static const uint32_t kDefault[] = {0x42080, 0x42330, 0x428e0, 0x43090};
-    const uint32_t *addrs = tbaddrs.empty() ? kDefault : tbaddrs.data();
-    const size_t n = tbaddrs.empty() ? 4 : tbaddrs.size();
-
     dbg_out("OSThreads (libultra layout):");
-    for (size_t i = 0; i < n; i++) {
-        const uint32_t base = addrs[i] & RDRAM_SIZE_MASK;
+    for (size_t i = 0; i < tbaddrs.size(); i++) {
+        const uint32_t base = tbaddrs[i] & RDRAM_SIZE_MASK;
         // Accept either physical or KSEG0 virtual.
-        const uint32_t p =
-            (base >= 0x80000000u) ? (base & 0x1FFFFFFFu) : base;
+        const uint32_t p = (base >= 0x80000000u) ? (base & 0x1FFFFFFFu) : base;
         const uint32_t next = read_rdram32(p + 0x00);
         const uint32_t pri = read_rdram32(p + 0x04);
         const uint32_t queue = read_rdram32(p + 0x08);
@@ -745,11 +739,10 @@ void Debugger::cmd_ost(const std::vector<uint32_t> &tbaddrs) const {
         const uint16_t flags = static_cast<uint16_t>(state_flags & 0xFFFF);
         const uint32_t id = read_rdram32(p + 0x14);
         const uint32_t thr_pc = read_rdram32(p + 0x110);
-        dbg_out(
-            "  TCB {:#010x}: id={} pri={} state={}({}) flags={:#x} "
-            "queue={:#010x} next={:#010x} ctx.pc={:#010x}",
-            p, id, pri, state, osthread_state_name(state), flags, queue, next,
-            thr_pc);
+        dbg_out("  TCB {:#010x}: id={} pri={} state={}({}) flags={:#x} "
+                "queue={:#010x} next={:#010x} ctx.pc={:#010x}",
+                p, id, pri, state, osthread_state_name(state), flags, queue,
+                next, thr_pc);
     }
 }
 
@@ -762,12 +755,13 @@ void Debugger::cmd_mq(uint32_t vaddr) const {
     const int32_t msgCount = static_cast<int32_t>(read_vaddr32(vaddr + 0x10));
     const uint32_t msg = read_vaddr32(vaddr + 0x14);
     dbg_out("OSMesgQueue {:#010x}: valid={}/{} first={} mtqueue={:#010x} "
-                "fullqueue={:#010x} msg*={:#010x}",
-                vaddr, valid, msgCount, first, mtqueue, fullqueue, msg);
+            "fullqueue={:#010x} msg*={:#010x}",
+            vaddr, valid, msgCount, first, mtqueue, fullqueue, msg);
     const int show = valid > 8 ? 8 : (valid < 0 ? 0 : valid);
     for (int i = 0; i < show; i++) {
         const int idx = (first + i) % (msgCount > 0 ? msgCount : 1);
-        const uint32_t mesg = read_vaddr32(msg + static_cast<uint32_t>(idx * 4));
+        const uint32_t mesg =
+            read_vaddr32(msg + static_cast<uint32_t>(idx * 4));
         dbg_out("  msg[{}]={:#010x}", idx, mesg);
     }
 }
@@ -788,8 +782,7 @@ void Debugger::cmd_scan_task(uint32_t type, uint32_t limit) const {
         if (boot_hi != 0 && boot_hi != 0xFFFFFFFF) {
             continue;
         }
-        dbg_out("  candidate {:#010x}: type={} flags={:#010x}", p, t,
-                    flags);
+        dbg_out("  candidate {:#010x}: type={} flags={:#010x}", p, t, flags);
         if (++found >= limit) {
             dbg_out("  (limit {})", limit);
             break;

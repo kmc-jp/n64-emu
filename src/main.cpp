@@ -16,7 +16,6 @@ constexpr std::string_view USAGE =
     "--debug\tenable interactive debugger\n"
     "--break=ADDR\tbreak when PC hits ADDR (implies --debug)\n"
     "--break-after=N\tbreak after N scheduler cycles (implies --debug)\n"
-    "--stop-after=N\texit cleanly after N scheduler cycles\n"
     "--watch=PADDR\twatch physical bus access (implies --debug)\n";
 
 // Entry point of the n64-emu. Handles command line arguments and starts the

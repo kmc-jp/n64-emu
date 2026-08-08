@@ -19,7 +19,6 @@ bool read_config_from_command_line(Config &config, int argc, char *argv[]) {
     config.break_pcs.clear();
     config.watch_paddrs.clear();
     config.break_after_cycles = 0;
-    config.stop_after_cycles = 0;
     config.cpu_backend = CpuBackend::Interpreter;
     config.headless = false;
 
@@ -90,18 +89,6 @@ bool read_config_from_command_line(Config &config, int argc, char *argv[]) {
             }
             config.debug = true;
             config.break_after_cycles = n;
-        } else if (current.starts_with("--stop-after=")) {
-            std::string_view n_str =
-                current.substr(std::string("--stop-after=").size());
-            char *end = nullptr;
-            const std::string n_s(n_str);
-            const unsigned long long n = std::strtoull(n_s.c_str(), &end, 0);
-            if (end == n_s.c_str() || *end != '\0' || n == 0) {
-                std::cerr << "Error: invalid --stop-after value `" << n_str
-                          << "`" << std::endl;
-                return false;
-            }
-            config.stop_after_cycles = n;
         } else if (current.starts_with("--watch=")) {
             std::string_view p_str =
                 current.substr(std::string("--watch=").size());
