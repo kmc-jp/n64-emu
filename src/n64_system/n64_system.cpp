@@ -131,12 +131,14 @@ void step(Config &config, Vulkan::WSI *wsi) {
             int remaining = g_vi().get_cycles_per_half_line();
             const bool use_jit =
 #if defined(N64_JIT_X64)
-                config.cpu_backend == CpuBackend::Jit && !config.debug;
+                config.cpu_backend == CpuBackend::Jit;
 #else
                 false;
 #endif
             while (remaining > 0) {
                 int taken = 1;
+                // Debugger hooks before each run unit (insn or JIT block).
+                g_debugger().on_step();
                 if (use_jit) {
 #if defined(N64_JIT_X64)
                     taken = Cpu::Jit::g_dynarec().run(remaining);
@@ -144,7 +146,6 @@ void step(Config &config, Vulkan::WSI *wsi) {
                         taken = 1;
 #endif
                 } else {
-                    g_debugger().on_step();
                     g_cpu().step();
                     taken = static_cast<int>(Cpu::CPU_CYCLES_PER_INST);
                 }

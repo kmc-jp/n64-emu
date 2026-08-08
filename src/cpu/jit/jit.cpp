@@ -59,7 +59,6 @@ CompiledBlock *Dynarec::compile(uint32_t vaddr, uint32_t paddr) {
 int Dynarec::run(int budget) {
     // Execute a single interpreter step or one compiled block per call so the
     // outer N64System loop can tick the scheduler (PI/SI DMA, timers, etc.).
-    // Batching many DMEM IPL3 steps without scheduler breaks cart DMA.
     (void)budget;
 
     auto &cpu = g_cpu();
@@ -72,12 +71,12 @@ int Dynarec::run(int budget) {
     if (should_interpret_paddr(paddr.value()))
         return run_interpreter_fallback();
 
-    // Match Cpu::step compare / interrupt servicing before a JIT block.
-    // Interpreter fallback already does this inside Cpu::step().
-    if (cpu.cop0.reg.count == (cpu.cop0.reg.compare << 1)) {
-        cpu.cop0.reg.cause.ip7 = true;
-        N64System::check_interrupt();
-    }
+    // Match Cpu::step: retire delay-slot flags before interrupt check / fetch.
+    // After a compiled branch+delay block, prev_delay_slot is left true; if we
+    // service an interrupt without clearing it, EPC is wrongly set to PC-4.
+    cpu.prev_delay_slot = cpu.delay_slot;
+    cpu.delay_slot = false;
+
     if (cpu.should_service_interrupt()) {
         cpu.handle_exception(ExceptionCode::INTERRUPT, 0, false);
         return static_cast<int>(CPU_CYCLES_PER_INST);
