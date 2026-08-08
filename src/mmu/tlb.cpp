@@ -1,4 +1,5 @@
 #include "mmu/tlb.h"
+#include "mmu/soft_tlb.h"
 #include "utils/log.h"
 
 namespace N64 {
@@ -15,6 +16,7 @@ void TLB::reset() {
     for (int i = 0; i < 32; i++) {
         entries[i] = TLBEntry();
     }
+    soft_tlb_invalidate();
 }
 
 uint64_t TLB::sign_extend_vaddr32(uint32_t vaddr) {
@@ -114,6 +116,7 @@ void TLB::write_entry(bool random) {
     entry.entry_lo0.raw = cop0.entry_lo0.raw & 0x03FFFFFE;
     entry.entry_lo1.raw = cop0.entry_lo1.raw & 0x03FFFFFE;
     entry.global = cop0.entry_lo0.global && cop0.entry_lo1.global;
+    soft_tlb_invalidate();
 }
 
 void TLB::read_entry() {

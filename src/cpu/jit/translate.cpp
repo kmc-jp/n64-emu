@@ -49,7 +49,14 @@ bool try_special(instruction_t inst, IrOp &op) {
     case SPECIAL_FUNCT_DADDU:
         op.kind = IrOpKind::Daddu;
         return true;
+    case SPECIAL_FUNCT_DADD:
+        // Overflow not trapped (same as interpreter TODO).
+        op.kind = IrOpKind::Daddu;
+        return true;
     case SPECIAL_FUNCT_DSUBU:
+        op.kind = IrOpKind::Dsubu;
+        return true;
+    case SPECIAL_FUNCT_DSUB:
         op.kind = IrOpKind::Dsubu;
         return true;
     case SPECIAL_FUNCT_SLL:
@@ -196,6 +203,10 @@ bool decode_one(uint32_t raw, IrOp &op) {
         op.kind = IrOpKind::Jal;
         op.target = inst.j_type.target;
         return true;
+    case OPCODE_ADDI:
+        // Overflow not trapped (same as interpreter TODO).
+        op.kind = IrOpKind::Addiu;
+        break;
     case OPCODE_ADDIU:
         op.kind = IrOpKind::Addiu;
         break;
@@ -216,6 +227,9 @@ bool decode_one(uint32_t raw, IrOp &op) {
         break;
     case OPCODE_SLTIU:
         op.kind = IrOpKind::Sltiu;
+        break;
+    case OPCODE_DADDI:
+        op.kind = IrOpKind::Daddiu;
         break;
     case OPCODE_DADDIU:
         op.kind = IrOpKind::Daddiu;
@@ -265,6 +279,12 @@ bool decode_one(uint32_t raw, IrOp &op) {
     case OPCODE_LD:
         op.kind = IrOpKind::Ld;
         break;
+    case OPCODE_LWL:
+        op.kind = IrOpKind::Lwl;
+        break;
+    case OPCODE_LWR:
+        op.kind = IrOpKind::Lwr;
+        break;
     case OPCODE_SB:
         op.kind = IrOpKind::Sb;
         break;
@@ -276,6 +296,12 @@ bool decode_one(uint32_t raw, IrOp &op) {
         break;
     case OPCODE_SD:
         op.kind = IrOpKind::Sd;
+        break;
+    case OPCODE_SWL:
+        op.kind = IrOpKind::Swl;
+        break;
+    case OPCODE_SWR:
+        op.kind = IrOpKind::Swr;
         break;
     case OPCODE_CACHE:
         op.kind = IrOpKind::Nop;

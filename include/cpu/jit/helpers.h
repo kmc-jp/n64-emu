@@ -55,10 +55,14 @@ void do_lhu(uint8_t rt, uint8_t base, int16_t offset);
 void do_lw(uint8_t rt, uint8_t base, int16_t offset);
 void do_lwu(uint8_t rt, uint8_t base, int16_t offset);
 void do_ld(uint8_t rt, uint8_t base, int16_t offset);
+void do_lwl(uint8_t rt, uint8_t base, int16_t offset);
+void do_lwr(uint8_t rt, uint8_t base, int16_t offset);
 void do_sb(uint8_t rt, uint8_t base, int16_t offset);
 void do_sh(uint8_t rt, uint8_t base, int16_t offset);
 void do_sw(uint8_t rt, uint8_t base, int16_t offset);
 void do_sd(uint8_t rt, uint8_t base, int16_t offset);
+void do_swl(uint8_t rt, uint8_t base, int16_t offset);
+void do_swr(uint8_t rt, uint8_t base, int16_t offset);
 
 void do_mfc0(uint8_t rt, uint8_t rd);
 void do_mtc0(uint8_t rt, uint8_t rd);

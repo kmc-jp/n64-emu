@@ -39,7 +39,7 @@ enum class IrOpKind : uint8_t {
     Dsll32,
     Dsrl32,
     Dsra32,
-    // immediate
+    // immediate (ADDI/DADDI match interpreter: overflow not trapped)
     Addiu,
     Andi,
     Ori,
@@ -75,10 +75,14 @@ enum class IrOpKind : uint8_t {
     Lw,
     Lwu,
     Ld,
+    Lwl,
+    Lwr,
     Sb,
     Sh,
     Sw,
     Sd,
+    Swl,
+    Swr,
     // hi/lo
     Mfhi,
     Mflo,

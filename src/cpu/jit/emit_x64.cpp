@@ -3,6 +3,9 @@
 #include "cpu/jit/helpers.h"
 #include "cpu/jit/ir.h"
 #include "cpu/jit/jit.h"
+#include "memory/memory.h"
+#include "memory/memory_map.h"
+#include "mmu/soft_tlb.h"
 #include <xbyak/xbyak.h>
 #include <cstddef>
 #include <cstring>
@@ -58,13 +61,43 @@ bool is_mem_op(IrOpKind k) {
     case IrOpKind::Lw:
     case IrOpKind::Lwu:
     case IrOpKind::Ld:
+    case IrOpKind::Lwl:
+    case IrOpKind::Lwr:
     case IrOpKind::Sb:
     case IrOpKind::Sh:
     case IrOpKind::Sw:
     case IrOpKind::Sd:
+    case IrOpKind::Swl:
+    case IrOpKind::Swr:
         return true;
     default:
         return false;
+    }
+}
+
+uint32_t mem_access_size(IrOpKind k) {
+    switch (k) {
+    case IrOpKind::Lb:
+    case IrOpKind::Lbu:
+    case IrOpKind::Sb:
+        return 1;
+    case IrOpKind::Lh:
+    case IrOpKind::Lhu:
+    case IrOpKind::Sh:
+        return 2;
+    case IrOpKind::Lw:
+    case IrOpKind::Lwu:
+    case IrOpKind::Sw:
+    case IrOpKind::Lwl:
+    case IrOpKind::Lwr:
+    case IrOpKind::Swl:
+    case IrOpKind::Swr:
+        return 4;
+    case IrOpKind::Ld:
+    case IrOpKind::Sd:
+        return 8;
+    default:
+        return 4;
     }
 }
 
@@ -86,6 +119,12 @@ class BlockEmitter : public CodeGenerator {
             reinterpret_cast<uintptr_t>(&exec_state_ptr()->aborted);
         annul_ptr_ =
             reinterpret_cast<uintptr_t>(&exec_state_ptr()->annul_delay_slot);
+        rdram_base_ =
+            reinterpret_cast<uintptr_t>(g_memory().get_rdram().data());
+        soft_tlb_load_ =
+            reinterpret_cast<uintptr_t>(Mmu::soft_tlb_load_table());
+        soft_tlb_store_ =
+            reinterpret_cast<uintptr_t>(Mmu::soft_tlb_store_table());
     }
 
     BlockFn emit(const IrBlock &block) {
@@ -150,6 +189,9 @@ class BlockEmitter : public CodeGenerator {
     uintptr_t next_pc_ptr_{};
     uintptr_t aborted_ptr_{};
     uintptr_t annul_ptr_{};
+    uintptr_t rdram_base_{};
+    uintptr_t soft_tlb_load_{};
+    uintptr_t soft_tlb_store_{};
 
     void call_fn(const void *fn) {
         mov(rax, reinterpret_cast<uintptr_t>(fn));
@@ -516,7 +558,7 @@ class BlockEmitter : public CodeGenerator {
         }
     }
 
-    void emit_mem(const IrOp &op) {
+    void emit_mem_helper(const IrOp &op) {
         mov(JIT_ARG1d, op.rt);
         mov(JIT_ARG2d, op.rs);
         mov(JIT_ARG3d, static_cast<int16_t>(op.imm));
@@ -543,6 +585,12 @@ class BlockEmitter : public CodeGenerator {
         case IrOpKind::Ld:
             fn = reinterpret_cast<const void *>(&do_ld);
             break;
+        case IrOpKind::Lwl:
+            fn = reinterpret_cast<const void *>(&do_lwl);
+            break;
+        case IrOpKind::Lwr:
+            fn = reinterpret_cast<const void *>(&do_lwr);
+            break;
         case IrOpKind::Sb:
             fn = reinterpret_cast<const void *>(&do_sb);
             break;
@@ -555,11 +603,178 @@ class BlockEmitter : public CodeGenerator {
         case IrOpKind::Sd:
             fn = reinterpret_cast<const void *>(&do_sd);
             break;
+        case IrOpKind::Swl:
+            fn = reinterpret_cast<const void *>(&do_swl);
+            break;
+        case IrOpKind::Swr:
+            fn = reinterpret_cast<const void *>(&do_swr);
+            break;
         default:
             break;
         }
         if (fn)
             call_fn(fn);
+    }
+
+    // Emit RDRAM load/store given paddr in eax and rdram base already in rdx.
+    // Clobbers rax/rcx/r12 as needed. Does not jump.
+    void emit_rdram_access(const IrOp &op) {
+        switch (op.kind) {
+        case IrOpKind::Lb:
+            xor_(eax, 3);
+            movsx(rax, byte[rdx + rax]);
+            rax_to_gpr(op.rt);
+            break;
+        case IrOpKind::Lbu:
+            xor_(eax, 3);
+            movzx(eax, byte[rdx + rax]);
+            rax_to_gpr(op.rt);
+            break;
+        case IrOpKind::Lh:
+            xor_(eax, 2);
+            movsx(rax, word[rdx + rax]);
+            rax_to_gpr(op.rt);
+            break;
+        case IrOpKind::Lhu:
+            xor_(eax, 2);
+            movzx(eax, word[rdx + rax]);
+            rax_to_gpr(op.rt);
+            break;
+        case IrOpKind::Lw:
+            mov(eax, dword[rdx + rax]);
+            cdqe();
+            rax_to_gpr(op.rt);
+            break;
+        case IrOpKind::Lwu:
+            mov(eax, dword[rdx + rax]);
+            rax_to_gpr(op.rt);
+            break;
+        case IrOpKind::Ld: {
+            mov(r12d, dword[rdx + rax]);
+            mov(ecx, dword[rdx + rax + 4]);
+            shl(r12, 32);
+            mov(eax, ecx);
+            or_(rax, r12);
+            rax_to_gpr(op.rt);
+            break;
+        }
+        case IrOpKind::Sb: {
+            mov(r12d, eax);
+            gpr_to_rax(op.rt);
+            mov(ecx, eax);
+            mov(eax, r12d);
+            xor_(eax, 3);
+            mov(byte[rdx + rax], cl);
+            break;
+        }
+        case IrOpKind::Sh: {
+            mov(r12d, eax);
+            gpr_to_rax(op.rt);
+            mov(ecx, eax);
+            mov(eax, r12d);
+            xor_(eax, 2);
+            mov(word[rdx + rax], cx);
+            break;
+        }
+        case IrOpKind::Sw: {
+            mov(r12d, eax);
+            gpr_to_rax(op.rt);
+            mov(dword[rdx + r12], eax);
+            break;
+        }
+        case IrOpKind::Sd: {
+            mov(r12d, eax);
+            gpr_to_rax(op.rt);
+            mov(ecx, eax);
+            shr(rax, 32);
+            mov(dword[rdx + r12], eax);
+            mov(dword[rdx + r12 + 4], ecx);
+            break;
+        }
+        default:
+            break;
+        }
+    }
+
+    bool is_store_op(IrOpKind k) const {
+        switch (k) {
+        case IrOpKind::Sb:
+        case IrOpKind::Sh:
+        case IrOpKind::Sw:
+        case IrOpKind::Sd:
+        case IrOpKind::Swl:
+        case IrOpKind::Swr:
+            return true;
+        default:
+            return false;
+        }
+    }
+
+    // KSEG0/KSEG1 + RDRAM, then soft-TLB + RDRAM; else C++ helper.
+    void emit_mem(const IrOp &op) {
+        if (op.kind == IrOpKind::Lwl || op.kind == IrOpKind::Lwr ||
+            op.kind == IrOpKind::Swl || op.kind == IrOpKind::Swr) {
+            emit_mem_helper(op);
+            return;
+        }
+
+        const int16_t simm = static_cast<int16_t>(op.imm);
+        const uint32_t access_size = mem_access_size(op.kind);
+        const uint32_t max_paddr = RDRAM_SIZE - access_size;
+        const bool is_store = is_store_op(op.kind);
+
+        Xbyak::Label slow, done, seg_ok, try_soft;
+
+        // vaddr32 in ecx
+        gpr_to_rax(op.rs);
+        if (simm != 0)
+            add(eax, simm);
+        mov(ecx, eax);
+
+        // KSEG0/KSEG1 direct map
+        shr(eax, 29);
+        cmp(al, 4);
+        je(seg_ok, T_NEAR);
+        cmp(al, 5);
+        jne(try_soft, T_NEAR);
+        L(seg_ok);
+
+        mov(eax, ecx);
+        and_(eax, 0x1FFFFFFFu);
+        cmp(eax, max_paddr);
+        ja(slow, T_NEAR);
+        mov(rdx, rdram_base_);
+        emit_rdram_access(op);
+        jmp(done, T_NEAR);
+
+        // Soft TLB: same 4 KiB page, cached RDRAM mapping
+        L(try_soft);
+        mov(eax, ecx);
+        and_(eax, 0xFFFu);
+        cmp(eax, 0x1000u - access_size);
+        ja(slow, T_NEAR); // crosses page
+
+        mov(eax, ecx);
+        shr(eax, 12); // vpn
+        mov(r12d, eax);
+        and_(eax, Mmu::SOFT_TLB_MASK);
+        mov(rdx, is_store ? soft_tlb_store_ : soft_tlb_load_);
+        // entry is 8 bytes: vpn, pa_page
+        cmp(dword[rdx + rax * 8], r12d);
+        jne(slow, T_NEAR);
+        mov(eax, dword[rdx + rax * 8 + 4]); // pa_page
+        mov(edx, ecx);
+        and_(edx, 0xFFFu);
+        or_(eax, edx); // paddr
+        cmp(eax, max_paddr);
+        ja(slow, T_NEAR);
+        mov(rdx, rdram_base_);
+        emit_rdram_access(op);
+        jmp(done, T_NEAR);
+
+        L(slow);
+        emit_mem_helper(op);
+        L(done);
     }
 
     void emit_op(const IrOp &op, Xbyak::Label & /*exit_label*/) {
@@ -653,10 +868,14 @@ class BlockEmitter : public CodeGenerator {
         case IrOpKind::Lw:
         case IrOpKind::Lwu:
         case IrOpKind::Ld:
+        case IrOpKind::Lwl:
+        case IrOpKind::Lwr:
         case IrOpKind::Sb:
         case IrOpKind::Sh:
         case IrOpKind::Sw:
         case IrOpKind::Sd:
+        case IrOpKind::Swl:
+        case IrOpKind::Swr:
             emit_mem(op);
             break;
         case IrOpKind::Mfhi:
@@ -726,8 +945,8 @@ class BlockEmitter : public CodeGenerator {
 } // namespace
 
 BlockFn emit_block(const IrBlock &block, CodeCache &cache) {
-    // Most blocks are small; 16 KiB is plenty for helper-call style emit.
-    constexpr size_t kBufSize = 16 * 1024;
+    // Inlined KSEG0/RDRAM mem paths need more room than helper-call emit.
+    constexpr size_t kBufSize = 32 * 1024;
     uint8_t *buf = cache.alloc_exec(kBufSize);
     BlockEmitter emitter(buf, kBufSize);
     BlockFn fn = emitter.emit(block);

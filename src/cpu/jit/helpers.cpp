@@ -2,9 +2,15 @@
 #include "cpu/cpu.h"
 #include "cpu/jit/jit.h"
 #include "memory/bus.h"
+#include "memory/memory.h"
+#include "memory/memory_map.h"
 #include "mmu/mmu.h"
+#include "mmu/soft_tlb.h"
 #include "mmu/tlb.h"
 #include "n64_system/interrupt.h"
+#include "utils/byte_array.h"
+#include <optional>
+#include <span>
 
 namespace N64 {
 namespace Cpu {
@@ -13,7 +19,28 @@ namespace Jit {
 namespace {
 // Not thread_local: the JIT embeds absolute addresses of this object.
 ExecState g_exec{};
+
+uint8_t *rdram_data() { return g_memory().get_rdram().data(); }
+
+bool paddr_in_rdram(uint32_t paddr, uint32_t access_size) {
+    return paddr <= PHYS_RDRAM_MEM_END &&
+           paddr + (access_size - 1) <= PHYS_RDRAM_MEM_END;
 }
+
+// Soft-TLB hit for an access that stays within one 4 KiB page.
+std::optional<uint32_t> soft_lookup(uint32_t vaddr, uint32_t access_size,
+                                    bool is_store) {
+    if ((vaddr & 0xFFFu) + access_size - 1 > 0xFFFu)
+        return std::nullopt;
+    const uint32_t vpn = vaddr >> 12;
+    const Mmu::SoftTlbEntry &e =
+        is_store ? Mmu::soft_tlb_store_table()[vpn & Mmu::SOFT_TLB_MASK]
+                 : Mmu::soft_tlb_load_table()[vpn & Mmu::SOFT_TLB_MASK];
+    if (e.vpn != vpn)
+        return std::nullopt;
+    return e.pa_page | (vaddr & 0xFFFu);
+}
+} // namespace
 
 ExecState &exec_state() { return g_exec; }
 ExecState *exec_state_ptr() { return &g_exec; }
@@ -111,14 +138,28 @@ void do_divu(uint8_t rs, uint8_t rt) {
 
 namespace {
 
-template <typename ReadFn, typename WriteGprFn>
-void do_load(uint8_t rt, uint8_t base, int16_t offset, ReadFn read,
-             WriteGprFn write_val) {
+template <typename ReadRdram, typename ReadBus, typename WriteGprFn>
+void do_load(uint8_t rt, uint8_t base, int16_t offset, uint32_t access_size,
+             ReadRdram read_rdram, ReadBus read_bus, WriteGprFn write_val) {
     auto &cpu = g_cpu();
-    const uint64_t vaddr = cpu.gpr.read(base) + offset;
-    std::optional<uint32_t> paddr = Mmu::resolve_vaddr(static_cast<uint32_t>(vaddr));
+    const uint32_t va32 =
+        static_cast<uint32_t>(cpu.gpr.read(base) + offset);
+    if (auto cached = soft_lookup(va32, access_size, false)) {
+        const uint32_t p = cached.value();
+        if (paddr_in_rdram(p, access_size)) {
+            write_val(cpu, rt, read_rdram(p));
+            return;
+        }
+    }
+    std::optional<uint32_t> paddr = Mmu::resolve_vaddr(va32);
     if (paddr.has_value()) {
-        write_val(cpu, rt, read(paddr.value()));
+        const uint32_t p = paddr.value();
+        if (paddr_in_rdram(p, access_size)) {
+            Mmu::soft_tlb_note_load(va32, p);
+            write_val(cpu, rt, read_rdram(p));
+        } else {
+            write_val(cpu, rt, read_bus(p));
+        }
     } else {
         cpu.handle_exception(
             g_tlb().get_tlb_exception_code(Mmu::BusAccess::LOAD), 0, true);
@@ -126,14 +167,30 @@ void do_load(uint8_t rt, uint8_t base, int16_t offset, ReadFn read,
     }
 }
 
-template <typename StoreFn>
-void do_store(uint8_t rt, uint8_t base, int16_t offset, StoreFn store) {
+template <typename StoreRdram, typename StoreBus>
+void do_store(uint8_t rt, uint8_t base, int16_t offset, uint32_t access_size,
+              StoreRdram store_rdram, StoreBus store_bus) {
     auto &cpu = g_cpu();
-    const uint64_t vaddr = cpu.gpr.read(base) + offset;
+    const uint32_t va32 =
+        static_cast<uint32_t>(cpu.gpr.read(base) + offset);
+    const uint64_t v = cpu.gpr.read(rt);
+    if (auto cached = soft_lookup(va32, access_size, true)) {
+        const uint32_t p = cached.value();
+        if (paddr_in_rdram(p, access_size)) {
+            store_rdram(p, v);
+            return;
+        }
+    }
     std::optional<uint32_t> paddr =
-        Mmu::resolve_vaddr(static_cast<uint32_t>(vaddr), Mmu::BusAccess::STORE);
+        Mmu::resolve_vaddr(va32, Mmu::BusAccess::STORE);
     if (paddr.has_value()) {
-        store(paddr.value(), cpu.gpr.read(rt));
+        const uint32_t p = paddr.value();
+        if (paddr_in_rdram(p, access_size)) {
+            Mmu::soft_tlb_note_store(va32, p);
+            store_rdram(p, v);
+        } else {
+            store_bus(p, v);
+        }
     } else {
         cpu.handle_exception(
             g_tlb().get_tlb_exception_code(Mmu::BusAccess::STORE), 0, true);
@@ -144,80 +201,251 @@ void do_store(uint8_t rt, uint8_t base, int16_t offset, StoreFn store) {
 } // namespace
 
 void do_lb(uint8_t rt, uint8_t base, int16_t offset) {
-    do_load(rt, base, offset,
-            [](uint32_t p) { return Memory::read_paddr8(p); },
-            [](Cpu &c, uint8_t r, uint8_t v) {
-                c.gpr.write(r, static_cast<int64_t>(static_cast<int8_t>(v)));
-            });
+    do_load(
+        rt, base, offset, 1,
+        [](uint32_t p) {
+            return Utils::read_from_byte_array8(
+                std::span<const uint8_t>(rdram_data(), RDRAM_SIZE), p);
+        },
+        [](uint32_t p) { return Memory::read_paddr8(p); },
+        [](Cpu &c, uint8_t r, uint8_t v) {
+            c.gpr.write(r, static_cast<int64_t>(static_cast<int8_t>(v)));
+        });
 }
 
 void do_lbu(uint8_t rt, uint8_t base, int16_t offset) {
-    do_load(rt, base, offset,
-            [](uint32_t p) { return Memory::read_paddr8(p); },
-            [](Cpu &c, uint8_t r, uint8_t v) {
-                c.gpr.write(r, static_cast<uint64_t>(v));
-            });
+    do_load(
+        rt, base, offset, 1,
+        [](uint32_t p) {
+            return Utils::read_from_byte_array8(
+                std::span<const uint8_t>(rdram_data(), RDRAM_SIZE), p);
+        },
+        [](uint32_t p) { return Memory::read_paddr8(p); },
+        [](Cpu &c, uint8_t r, uint8_t v) {
+            c.gpr.write(r, static_cast<uint64_t>(v));
+        });
 }
 
 void do_lh(uint8_t rt, uint8_t base, int16_t offset) {
-    do_load(rt, base, offset,
-            [](uint32_t p) { return Memory::read_paddr16(p); },
-            [](Cpu &c, uint8_t r, uint16_t v) {
-                c.gpr.write(r, static_cast<int64_t>(static_cast<int16_t>(v)));
-            });
+    do_load(
+        rt, base, offset, 2,
+        [](uint32_t p) {
+            return Utils::read_from_byte_array16(
+                std::span<const uint8_t>(rdram_data(), RDRAM_SIZE), p);
+        },
+        [](uint32_t p) { return Memory::read_paddr16(p); },
+        [](Cpu &c, uint8_t r, uint16_t v) {
+            c.gpr.write(r, static_cast<int64_t>(static_cast<int16_t>(v)));
+        });
 }
 
 void do_lhu(uint8_t rt, uint8_t base, int16_t offset) {
-    do_load(rt, base, offset,
-            [](uint32_t p) { return Memory::read_paddr16(p); },
-            [](Cpu &c, uint8_t r, uint16_t v) {
-                c.gpr.write(r, static_cast<uint64_t>(v));
-            });
+    do_load(
+        rt, base, offset, 2,
+        [](uint32_t p) {
+            return Utils::read_from_byte_array16(
+                std::span<const uint8_t>(rdram_data(), RDRAM_SIZE), p);
+        },
+        [](uint32_t p) { return Memory::read_paddr16(p); },
+        [](Cpu &c, uint8_t r, uint16_t v) {
+            c.gpr.write(r, static_cast<uint64_t>(v));
+        });
 }
 
 void do_lw(uint8_t rt, uint8_t base, int16_t offset) {
-    do_load(rt, base, offset,
-            [](uint32_t p) { return Memory::read_paddr32(p); },
-            [](Cpu &c, uint8_t r, uint32_t v) {
-                c.gpr.write(r, static_cast<int64_t>(static_cast<int32_t>(v)));
-            });
+    do_load(
+        rt, base, offset, 4,
+        [](uint32_t p) {
+            return Utils::read_from_byte_array32(
+                std::span<const uint8_t>(rdram_data(), RDRAM_SIZE), p);
+        },
+        [](uint32_t p) { return Memory::read_paddr32(p); },
+        [](Cpu &c, uint8_t r, uint32_t v) {
+            c.gpr.write(r, static_cast<int64_t>(static_cast<int32_t>(v)));
+        });
 }
 
 void do_lwu(uint8_t rt, uint8_t base, int16_t offset) {
-    do_load(rt, base, offset,
-            [](uint32_t p) { return Memory::read_paddr32(p); },
-            [](Cpu &c, uint8_t r, uint32_t v) {
-                c.gpr.write(r, static_cast<uint64_t>(v));
-            });
+    do_load(
+        rt, base, offset, 4,
+        [](uint32_t p) {
+            return Utils::read_from_byte_array32(
+                std::span<const uint8_t>(rdram_data(), RDRAM_SIZE), p);
+        },
+        [](uint32_t p) { return Memory::read_paddr32(p); },
+        [](Cpu &c, uint8_t r, uint32_t v) {
+            c.gpr.write(r, static_cast<uint64_t>(v));
+        });
 }
 
 void do_ld(uint8_t rt, uint8_t base, int16_t offset) {
-    do_load(rt, base, offset,
-            [](uint32_t p) { return Memory::read_paddr64(p); },
-            [](Cpu &c, uint8_t r, uint64_t v) { c.gpr.write(r, v); });
+    do_load(
+        rt, base, offset, 8,
+        [](uint32_t p) {
+            return Utils::read_from_byte_array64(
+                std::span<const uint8_t>(rdram_data(), RDRAM_SIZE), p);
+        },
+        [](uint32_t p) { return Memory::read_paddr64(p); },
+        [](Cpu &c, uint8_t r, uint64_t v) { c.gpr.write(r, v); });
+}
+
+void do_lwl(uint8_t rt, uint8_t base, int16_t offset) {
+    auto &cpu = g_cpu();
+    const uint64_t vaddr = cpu.gpr.read(base) + offset;
+    std::optional<uint32_t> paddr =
+        Mmu::resolve_vaddr(static_cast<uint32_t>(vaddr));
+    if (paddr.has_value()) {
+        const uint32_t shift = 8 * static_cast<uint32_t>((vaddr ^ 0) & 3);
+        const uint32_t mask = 0xFFFFFFFFu << shift;
+        const uint32_t aligned = paddr.value() & ~3u;
+        const uint32_t data =
+            paddr_in_rdram(aligned, 4)
+                ? Utils::read_from_byte_array32(
+                      std::span<const uint8_t>(rdram_data(), RDRAM_SIZE),
+                      aligned)
+                : Memory::read_paddr32(aligned);
+        const uint32_t old = static_cast<uint32_t>(cpu.gpr.read(rt));
+        const int32_t result =
+            static_cast<int32_t>((old & ~mask) | (data << shift));
+        cpu.gpr.write(rt, static_cast<int64_t>(result));
+    } else {
+        cpu.handle_exception(
+            g_tlb().get_tlb_exception_code(Mmu::BusAccess::LOAD), 0, true);
+        exec_state().aborted = true;
+    }
+}
+
+void do_lwr(uint8_t rt, uint8_t base, int16_t offset) {
+    auto &cpu = g_cpu();
+    const uint64_t vaddr = cpu.gpr.read(base) + offset;
+    std::optional<uint32_t> paddr =
+        Mmu::resolve_vaddr(static_cast<uint32_t>(vaddr));
+    if (paddr.has_value()) {
+        const uint32_t shift = 8 * static_cast<uint32_t>((vaddr ^ 3) & 3);
+        const uint32_t mask = 0xFFFFFFFFu >> shift;
+        const uint32_t aligned = paddr.value() & ~3u;
+        const uint32_t data =
+            paddr_in_rdram(aligned, 4)
+                ? Utils::read_from_byte_array32(
+                      std::span<const uint8_t>(rdram_data(), RDRAM_SIZE),
+                      aligned)
+                : Memory::read_paddr32(aligned);
+        const uint32_t old = static_cast<uint32_t>(cpu.gpr.read(rt));
+        const int32_t result =
+            static_cast<int32_t>((old & ~mask) | (data >> shift));
+        cpu.gpr.write(rt, static_cast<int64_t>(result));
+    } else {
+        cpu.handle_exception(
+            g_tlb().get_tlb_exception_code(Mmu::BusAccess::LOAD), 0, true);
+        exec_state().aborted = true;
+    }
 }
 
 void do_sb(uint8_t rt, uint8_t base, int16_t offset) {
-    do_store(rt, base, offset, [](uint32_t p, uint64_t v) {
-        Memory::write_paddr8(p, static_cast<uint8_t>(v));
-    });
+    do_store(
+        rt, base, offset, 1,
+        [](uint32_t p, uint64_t v) {
+            Utils::write_to_byte_array8(
+                std::span<uint8_t>(rdram_data(), RDRAM_SIZE), p,
+                static_cast<uint8_t>(v));
+        },
+        [](uint32_t p, uint64_t v) {
+            Memory::write_paddr8(p, static_cast<uint8_t>(v));
+        });
 }
 
 void do_sh(uint8_t rt, uint8_t base, int16_t offset) {
-    do_store(rt, base, offset, [](uint32_t p, uint64_t v) {
-        Memory::write_paddr16(p, static_cast<uint16_t>(v));
-    });
+    do_store(
+        rt, base, offset, 2,
+        [](uint32_t p, uint64_t v) {
+            Utils::write_to_byte_array16(
+                std::span<uint8_t>(rdram_data(), RDRAM_SIZE), p,
+                static_cast<uint16_t>(v));
+        },
+        [](uint32_t p, uint64_t v) {
+            Memory::write_paddr16(p, static_cast<uint16_t>(v));
+        });
 }
 
 void do_sw(uint8_t rt, uint8_t base, int16_t offset) {
-    do_store(rt, base, offset, [](uint32_t p, uint64_t v) {
-        Memory::write_paddr32(p, static_cast<uint32_t>(v));
-    });
+    do_store(
+        rt, base, offset, 4,
+        [](uint32_t p, uint64_t v) {
+            Utils::write_to_byte_array32(
+                std::span<uint8_t>(rdram_data(), RDRAM_SIZE), p,
+                static_cast<uint32_t>(v));
+        },
+        [](uint32_t p, uint64_t v) {
+            Memory::write_paddr32(p, static_cast<uint32_t>(v));
+        });
 }
 
 void do_sd(uint8_t rt, uint8_t base, int16_t offset) {
-    do_store(rt, base, offset,
-             [](uint32_t p, uint64_t v) { Memory::write_paddr64(p, v); });
+    do_store(
+        rt, base, offset, 8,
+        [](uint32_t p, uint64_t v) {
+            Utils::write_to_byte_array64(
+                std::span<uint8_t>(rdram_data(), RDRAM_SIZE), p, v);
+        },
+        [](uint32_t p, uint64_t v) { Memory::write_paddr64(p, v); });
+}
+
+void do_swl(uint8_t rt, uint8_t base, int16_t offset) {
+    auto &cpu = g_cpu();
+    const uint64_t vaddr = cpu.gpr.read(base) + offset;
+    std::optional<uint32_t> paddr = Mmu::resolve_vaddr(
+        static_cast<uint32_t>(vaddr), Mmu::BusAccess::STORE);
+    if (paddr.has_value()) {
+        const uint32_t shift = 8 * static_cast<uint32_t>((vaddr ^ 0) & 3);
+        const uint32_t mask = 0xFFFFFFFFu >> shift;
+        const uint32_t aligned = paddr.value() & ~3u;
+        const uint32_t data =
+            paddr_in_rdram(aligned, 4)
+                ? Utils::read_from_byte_array32(
+                      std::span<const uint8_t>(rdram_data(), RDRAM_SIZE),
+                      aligned)
+                : Memory::read_paddr32(aligned);
+        const uint32_t reg = static_cast<uint32_t>(cpu.gpr.read(rt));
+        const uint32_t out = (data & ~mask) | (reg >> shift);
+        if (paddr_in_rdram(aligned, 4))
+            Utils::write_to_byte_array32(
+                std::span<uint8_t>(rdram_data(), RDRAM_SIZE), aligned, out);
+        else
+            Memory::write_paddr32(aligned, out);
+    } else {
+        cpu.handle_exception(
+            g_tlb().get_tlb_exception_code(Mmu::BusAccess::STORE), 0, true);
+        exec_state().aborted = true;
+    }
+}
+
+void do_swr(uint8_t rt, uint8_t base, int16_t offset) {
+    auto &cpu = g_cpu();
+    const uint64_t vaddr = cpu.gpr.read(base) + offset;
+    std::optional<uint32_t> paddr = Mmu::resolve_vaddr(
+        static_cast<uint32_t>(vaddr), Mmu::BusAccess::STORE);
+    if (paddr.has_value()) {
+        const uint32_t shift = 8 * static_cast<uint32_t>((vaddr ^ 3) & 3);
+        const uint32_t mask = 0xFFFFFFFFu << shift;
+        const uint32_t aligned = paddr.value() & ~3u;
+        const uint32_t data =
+            paddr_in_rdram(aligned, 4)
+                ? Utils::read_from_byte_array32(
+                      std::span<const uint8_t>(rdram_data(), RDRAM_SIZE),
+                      aligned)
+                : Memory::read_paddr32(aligned);
+        const uint32_t reg = static_cast<uint32_t>(cpu.gpr.read(rt));
+        const uint32_t out = (data & ~mask) | (reg << shift);
+        if (paddr_in_rdram(aligned, 4))
+            Utils::write_to_byte_array32(
+                std::span<uint8_t>(rdram_data(), RDRAM_SIZE), aligned, out);
+        else
+            Memory::write_paddr32(aligned, out);
+    } else {
+        cpu.handle_exception(
+            g_tlb().get_tlb_exception_code(Mmu::BusAccess::STORE), 0, true);
+        exec_state().aborted = true;
+    }
 }
 
 void do_mfc0(uint8_t rt, uint8_t rd) {

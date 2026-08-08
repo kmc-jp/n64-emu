@@ -1,5 +1,6 @@
 ﻿#include "cpu/cop0.h"
 #include "debugger/debugger.h"
+#include "mmu/soft_tlb.h"
 #include "n64_system/interrupt.h"
 #include "utils/log.h"
 
@@ -118,6 +119,7 @@ void Cop0::Reg::write(uint8_t reg_num, uint64_t value) {
                 0x1FFFFFFFFULL;
     } break;
     case Cop0Reg::ENTRY_HI: {
+        const uint8_t old_asid = static_cast<uint8_t>(entry_hi.asid);
         if (value <= 0xFFFFFFFFULL) {
             // MTC0: 32-bit write. Derive R from sign bit; VPN2 is 19 bits for
             // 32-bit addresses (do not let sign-extension pollute VPN2[26:19]).
@@ -129,6 +131,10 @@ void Cop0::Reg::write(uint8_t reg_num, uint64_t value) {
         } else {
             entry_hi.raw = value & CP0_ENTRY_HI_WRITE_MASK;
         }
+        // VPN2 updates are frequent during TLB refill; only ASID changes
+        // can make cached translations wrong without a TLBWI.
+        if (static_cast<uint8_t>(entry_hi.asid) != old_asid)
+            Mmu::soft_tlb_invalidate();
     } break;
     case Cop0Reg::COMPARE: {
         // Writing Compare clears the timer interrupt (IP7).
