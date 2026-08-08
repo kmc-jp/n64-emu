@@ -11,8 +11,8 @@ bool read_config_from_command_line(Config &config, int argc, char *argv[]) {
     if (argc < 2)
         return false;
 
-    // default to debug
-    config.log_level = Utils::LogLevel::DEBUG;
+    // default to info
+    config.log_level = Utils::LogLevel::INFO;
     // default to false
     config.test_mode = false;
     config.debug = false;

@@ -8,7 +8,7 @@ constexpr std::string_view USAGE =
     "Options:\n"
     "--log <file>\tspecify output log file(default to stdout)\n"
     "--log-level=[trace|debug|info|critical|off]\tset log level (default to "
-    "debug)\n";
+    "info)\n";
 
 // Entry point of the n64-emu. Handles command line arguments and starts the
 // App.
