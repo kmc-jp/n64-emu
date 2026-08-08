@@ -14,7 +14,6 @@ namespace Rdp {
 
 namespace {
 // Carried across DPC submissions when END lands mid-command.
-// File-scope so a new START latch can discard a stale partial command.
 int g_dpc_leftover_words = 0;
 uint32_t g_dpc_cmd_buf[0x100000];
 } // namespace
@@ -78,15 +77,13 @@ void Dpc::write_paddr32(uint32_t paddr, uint32_t value) {
         // When START_PENDING (start_valid), latch CURRENT from START then
         // clear.
         if (status.start_valid) {
-            // A new START range must not keep a partial command from a previous
-            // fifo segment (wrap / restart). Incremental END-only updates keep
-            // leftover so mid-command flushes still work.
-            g_dpc_leftover_words = 0;
+            // Do NOT clear leftover here. The RDP command FIFO can wrap (new
+            // START while a partial command is still pending from the previous
+            // END). Discarding leftover desyncs the parser so FULL_SYNC is
+            // never seen again (Kirby 64 screen freeze).
             current = start;
             status.start_valid = 0;
         }
-        Utils::debug("DPC END={:#010x} (start={:#010x} current={:#010x})", end,
-                     start, current);
         run_command();
         break;
     case PADDR_DPC_CURRENT:
