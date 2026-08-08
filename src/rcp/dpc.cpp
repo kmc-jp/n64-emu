@@ -12,6 +12,13 @@
 namespace N64 {
 namespace Rdp {
 
+namespace {
+// Carried across DPC submissions when END lands mid-command.
+// File-scope so a new START latch can discard a stale partial command.
+int g_dpc_leftover_words = 0;
+uint32_t g_dpc_cmd_buf[0x100000];
+} // namespace
+
 // Command word counts from the RDP command set (n64brew RDP docs).
 static const int COMMAND_LENGTHS[64] = {
     2, 2, 2, 2, 2, 2, 2, 2, 8, 12, 24, 28, 24, 28, 40, 44,
@@ -30,6 +37,7 @@ void Dpc::reset() {
     status.raw = 0;
     clock = 0;
     tmem = 0;
+    g_dpc_leftover_words = 0;
 }
 
 uint32_t Dpc::read_paddr32(uint32_t paddr) const {
@@ -70,6 +78,10 @@ void Dpc::write_paddr32(uint32_t paddr, uint32_t value) {
         // https://n64brew.dev/wiki/Reality_Display_Processor/Interface#0x0410_0004_-_DPC_END
         // When START_PENDING (start_valid), latch CURRENT from START then clear.
         if (status.start_valid) {
+            // A new START range must not keep a partial command from a previous
+            // fifo segment (wrap / restart). Incremental END-only updates keep
+            // leftover so mid-command flushes still work.
+            g_dpc_leftover_words = 0;
             current = start;
             status.start_valid = 0;
         }
@@ -156,8 +168,8 @@ void Dpc::process_list() {
         return;
     }
 
-    static uint32_t cmd_buf[RDP_COMMAND_BUFFER_SIZE];
-    static int leftover = 0;
+    int &leftover = g_dpc_leftover_words;
+    auto *cmd_buf = g_dpc_cmd_buf;
 
     if (static_cast<uint32_t>((display_list_length >> 2) + leftover) >
         RDP_COMMAND_BUFFER_SIZE) {
