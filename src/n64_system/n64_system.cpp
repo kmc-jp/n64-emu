@@ -156,7 +156,9 @@ void step(Config &config, Vulkan::WSI *wsi) {
                                        : std::chrono::steady_clock::time_point{};
                 if (use_jit) {
 #if defined(N64_JIT_X64)
-                    taken = Cpu::Jit::g_dynarec().run(remaining);
+                    // Dynarec soft-chains and advances RSP + scheduler per BB.
+                    taken = Cpu::Jit::g_dynarec().run(remaining,
+                                                     config.rsp_thread);
                     if (taken < 1)
                         taken = 1;
 #endif
@@ -170,33 +172,34 @@ void step(Config &config, Vulkan::WSI *wsi) {
                                   .count();
                 }
 
-                consumed_cpu_cycles += taken;
                 if (need_step_cb)
                     cpu_step_callback(config);
 
-                // RSP step. RSP ticks 2/3x faster than CPU.
-                // With --rsp-thread the worker owns execution; only re-kick
-                // if still unhalted after a quantum.
-                const auto rsp_t0 = profile_frame
-                                       ? std::chrono::steady_clock::now()
-                                       : std::chrono::steady_clock::time_point{};
-                if (config.rsp_thread) {
-                    if (!rsp.halted())
-                        Rsp::g_rsp_thread().kick_until_halt();
-                } else {
-                    while (consumed_cpu_cycles >= 3) {
-                        consumed_cpu_cycles -= 3;
-                        rsp.step();
-                        rsp.step();
-                    }
-                }
-                if (profile_frame) {
-                    rsp_ms += std::chrono::duration<double, std::milli>(
-                                  std::chrono::steady_clock::now() - rsp_t0)
-                                  .count();
-                }
+                if (!use_jit) {
+                    consumed_cpu_cycles += taken;
 
-                sched.tick(static_cast<uint64_t>(taken));
+                    // RSP step. RSP ticks 2/3x faster than CPU.
+                    const auto rsp_t0 =
+                        profile_frame ? std::chrono::steady_clock::now()
+                                      : std::chrono::steady_clock::time_point{};
+                    if (config.rsp_thread) {
+                        if (!rsp.halted())
+                            Rsp::g_rsp_thread().kick_until_halt();
+                    } else {
+                        while (consumed_cpu_cycles >= 3) {
+                            consumed_cpu_cycles -= 3;
+                            rsp.step();
+                            rsp.step();
+                        }
+                    }
+                    if (profile_frame) {
+                        rsp_ms += std::chrono::duration<double, std::milli>(
+                                      std::chrono::steady_clock::now() - rsp_t0)
+                                      .count();
+                    }
+
+                    sched.tick(static_cast<uint64_t>(taken));
+                }
                 remaining -= taken;
             }
             if (profile_frame) {

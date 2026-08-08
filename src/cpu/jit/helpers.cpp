@@ -86,6 +86,21 @@ void do_branch_likely_offset(bool cond, int16_t offset) {
 
 void do_link(uint8_t reg) { Cpu::link(g_cpu(), reg); }
 
+void do_j(uint32_t target26) {
+    auto &cpu = g_cpu();
+    uint64_t target = static_cast<uint64_t>(target26) << 2;
+    target |= ((cpu.get_pc64() - 4) & 0xFFFFFFFFF0000000ULL);
+    Cpu::branch_addr64(cpu, true, target);
+}
+
+void do_jal(uint32_t target26) {
+    auto &cpu = g_cpu();
+    Cpu::link(cpu, RA);
+    uint64_t target = static_cast<uint64_t>(target26) << 2;
+    target |= ((cpu.get_pc64() - 4) & 0xFFFFFFFFF0000000ULL);
+    Cpu::branch_addr64(cpu, true, target);
+}
+
 uint64_t gpr_get(uint8_t n) { return g_cpu().gpr.read(n); }
 
 void gpr_set(uint8_t n, uint64_t v) { g_cpu().gpr.write(n, v); }

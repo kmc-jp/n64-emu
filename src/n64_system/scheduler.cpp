@@ -1,5 +1,6 @@
 ﻿#include "n64_system/scheduler.h"
 #include "utils/log.h"
+#include <cstdint>
 
 namespace N64 {
 namespace N64System {
@@ -27,6 +28,15 @@ void Scheduler::tick(uint64_t cycles) {
             e.second.perform();
         }
     }
+}
+
+uint64_t Scheduler::cycles_until_next_event() const {
+    if (event_queue.empty())
+        return UINT64_MAX;
+    const uint64_t at = event_queue.top().first;
+    if (at <= current_time)
+        return 0;
+    return at - current_time;
 }
 
 Scheduler Scheduler::instance{};

@@ -57,6 +57,9 @@ class Scheduler {
 
     uint64_t get_current_time() const { return current_time; }
 
+    // Cycles until the next queued event. UINT64_MAX if the queue is empty.
+    uint64_t cycles_until_next_event() const;
+
     inline static Scheduler &get_instance() { return instance; }
 };
 

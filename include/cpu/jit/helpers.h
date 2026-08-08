@@ -33,6 +33,9 @@ void do_branch_likely_addr(bool cond, uint64_t target);
 void do_branch_offset(bool cond, int16_t offset);
 void do_branch_likely_offset(bool cond, int16_t offset);
 void do_link(uint8_t reg);
+// J / JAL with delay-slot-out: region bits from branch PC (pc-4 after advance).
+void do_j(uint32_t target26);
+void do_jal(uint32_t target26);
 
 uint64_t gpr_get(uint8_t n);
 void gpr_set(uint8_t n, uint64_t v);

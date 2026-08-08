@@ -1,4 +1,4 @@
-#ifndef CPU_JIT_JIT_H
+﻿#ifndef CPU_JIT_JIT_H
 #define CPU_JIT_JIT_H
 
 #include "cpu/jit/code_cache.h"
@@ -13,8 +13,9 @@ class Dynarec {
   public:
     void reset();
 
-    // Execute up to `budget` guest cycles. Always returns >= 1 when CPU runs.
-    int run(int budget);
+    // Soft-chain blocks up to `budget` cycles; advances RSP + scheduler after
+    // each unit. Always returns >= 1 with matching machine advance.
+    int run(int budget, bool rsp_thread);
 
     void invalidate_page(uint32_t paddr);
     void invalidate_range(uint32_t paddr, uint32_t length);

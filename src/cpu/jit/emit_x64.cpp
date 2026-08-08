@@ -462,34 +462,14 @@ class BlockEmitter : public CodeGenerator {
             mov(JIT_ARG1d, op.rd);
             call_fn(reinterpret_cast<const void *>(&do_link));
             break;
-        case IrOpKind::J: {
-            // After advance_pc, cpu.pc is the delay-slot address (= old_pc+4).
-            mov(rax, pc_ptr_);
-            mov(rax, qword[rax]);
-            mov(rcx, 0xFFFFFFFFF0000000ULL);
-            and_(rax, rcx);
-            mov(rcx, static_cast<uint64_t>(op.target) << 2);
-            or_(rax, rcx);
-            mov(JIT_ARG2q, rax);
-            mov(JIT_ARG1d, 1);
-            call_fn(reinterpret_cast<const void *>(&do_branch_addr));
+        case IrOpKind::J:
+            mov(JIT_ARG1d, op.target);
+            call_fn(reinterpret_cast<const void *>(&do_j));
             break;
-        }
-        case IrOpKind::Jal: {
-            mov(rax, pc_ptr_);
-            mov(rax, qword[rax]);
-            mov(r12, rax);
-            mov(rcx, 0xFFFFFFFFF0000000ULL);
-            and_(rax, rcx);
-            mov(rcx, static_cast<uint64_t>(op.target) << 2);
-            or_(rax, rcx);
-            mov(JIT_ARG2q, rax);
-            mov(JIT_ARG1d, 1);
-            call_fn(reinterpret_cast<const void *>(&do_branch_addr));
-            mov(JIT_ARG1d, 31);
-            call_fn(reinterpret_cast<const void *>(&do_link));
+        case IrOpKind::Jal:
+            mov(JIT_ARG1d, op.target);
+            call_fn(reinterpret_cast<const void *>(&do_jal));
             break;
-        }
         case IrOpKind::Beq:
         case IrOpKind::Beql:
         case IrOpKind::Bne:

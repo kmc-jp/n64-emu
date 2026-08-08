@@ -396,17 +396,14 @@ bool translate_block(uint32_t vaddr, uint32_t paddr, IrBlock &out) {
 
         if (is_branch(op.kind)) {
             out.ends_with_branch = true;
-            // Include delay slot.
+            // Include delay slot in the same block. Machine advance between
+            // soft-chained blocks is enough; folding avoids interpreting every
+            // delay slot (was the main soft-chain slowdown).
             if (static_cast<int>(out.ops.size()) >= MAX_BLOCK_INSNS)
                 break;
-            if ((cur_p & ~0xFFFu) != start_page) {
-                // Delay slot on next page — still include if possible.
-            }
             const uint32_t ds_raw = Memory::read_paddr32(cur_p);
             IrOp ds{};
             if (!decode_one(ds_raw, ds)) {
-                // Cannot compile delay slot; drop the branch too if it was
-                // the only way — force interpreter for this PC.
                 out.ops.pop_back();
                 return !out.ops.empty();
             }

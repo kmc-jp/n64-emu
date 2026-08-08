@@ -2,6 +2,7 @@ add_library(n64_system STATIC)
 target_sources(n64_system PRIVATE
     config.cpp
     interrupt.cpp
+    machine_advance.cpp
     n64_system.cpp
     scheduler.cpp
 )
