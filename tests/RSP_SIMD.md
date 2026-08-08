@@ -14,29 +14,6 @@ Pinned EVE: submodule `third_party/eve` ([jfalcou/eve](https://github.com/jfalco
 
 ACC is stored as **H/M/L** three `VuReg` (16bit×8), matching CEN64 / parallel-rsp.
 
-## Correctness
-
-```bash
-ctest --test-dir build -R rsp_vu_diff --output-on-failure
-./build/tests/rsp_vu_diff_test
-```
-
-## Microbench
-
-```bash
-./build/tests/rsp_vu_bench
-```
-
-Example (Release, `-march=native`) after H/M/L:
-
-| group   | speedup |
-|---------|---------|
-| logical | ~1.4x   |
-| compare | ~2.9x   |
-| addsub  | ~1.7x   |
-| mulmac  | ~2.2x   |
-| chain3  | ~2.9x   |
-
 ## Covered vs scalar fallback
 
 SIMD: VAND–VNXOR, VMRG, VABS, VLT/VEQ/VNE/VGE, VADD/VSUB/VADDC/VSUBC, VMULF/U, VMACF/U, VMUD*/VMAD*.
