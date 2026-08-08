@@ -1,4 +1,5 @@
-﻿#include "mmio/pi.h"
+#include "mmio/pi.h"
+#include "cpu/jit/invalidate_hook.h"
 #include "memory/memory.h"
 #include "memory/memory_map.h"
 #include "mmio/mi.h"
@@ -168,6 +169,8 @@ void PI::dma_write() {
         Utils::unimplemented("DMA Transfer by PI");
         return;
     }
+
+    maybe_invalidate_code(dram_addr & RDRAM_SIZE_MASK, length);
 
     reg_status |= PiStatusFlags::DMA_BUSY;
     reg_dram_addr = dram_addr + length;

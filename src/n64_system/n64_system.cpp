@@ -1,5 +1,8 @@
-﻿#include "n64_system/n64_system.h"
+#include "n64_system/n64_system.h"
 #include "app/parallel_rdp_wrapper.h"
+#if defined(N64_JIT_X64)
+#include "cpu/jit/jit.h"
+#endif
 #include "debugger/debugger.h"
 #include "memory/bus.h"
 #include "memory/memory.h"
@@ -28,6 +31,9 @@ static void reset_all(Config &config) {
     N64::g_memory().load_rom(config.rom_filepath);
     N64::g_tlb().reset();
     N64::g_cpu().reset();
+#if defined(N64_JIT_X64)
+    N64::Cpu::Jit::g_dynarec().reset();
+#endif
     N64::g_rsp().reset();
     N64::g_dpc().reset();
     N64::g_pi().reset();
@@ -109,7 +115,7 @@ static void cpu_step_callback(Config &config) {
 }
 
 // https://github.com/Dillonb/n64/blob/6502f7d2f163c3f14da5bff8cd6d5ccc47143156/src/system/n64system.c#L313
-void step(Config &config, Vulkan::WSI &wsi) {
+void step(Config &config, Vulkan::WSI *wsi) {
     static int consumed_cpu_cycles = 0;
 
     for (int field = 0; field < g_vi().get_num_fields(); field++) {
@@ -122,13 +128,28 @@ void step(Config &config, Vulkan::WSI &wsi) {
             }
 
             // FIXME: what if a CPU step take more than one cycle?
-            for (int i = 0; i < g_vi().get_cycles_per_half_line(); i++) {
-                g_debugger().on_step();
+            int remaining = g_vi().get_cycles_per_half_line();
+            const bool use_jit =
+#if defined(N64_JIT_X64)
+                config.cpu_backend == CpuBackend::Jit && !config.debug;
+#else
+                false;
+#endif
+            while (remaining > 0) {
+                int taken = 1;
+                if (use_jit) {
+#if defined(N64_JIT_X64)
+                    taken = Cpu::Jit::g_dynarec().run(remaining);
+                    if (taken < 1)
+                        taken = 1;
+#endif
+                } else {
+                    g_debugger().on_step();
+                    g_cpu().step();
+                    taken = static_cast<int>(Cpu::CPU_CYCLES_PER_INST);
+                }
 
-                // CPU step
-                g_cpu().step();
-                consumed_cpu_cycles += Cpu::CPU_CYCLES_PER_INST;
-
+                consumed_cpu_cycles += taken;
                 cpu_step_callback(config);
 
                 // RSP step. RSP ticks 2/3x faster than CPU
@@ -138,14 +159,16 @@ void step(Config &config, Vulkan::WSI &wsi) {
                     g_rsp().step();
                 }
 
-                g_scheduler().tick(Cpu::CPU_CYCLES_PER_INST);
+                g_scheduler().tick(static_cast<uint64_t>(taken));
+                remaining -= taken;
             }
         }
         if ((g_vi().get_reg_current() & 0x3FE) == g_vi().get_reg_intr()) {
             g_mi().get_reg_intr().vi = 1;
             N64System::check_interrupt();
         }
-        PRDPWrapper::update_screen(wsi, g_vi());
+        if (wsi)
+            PRDPWrapper::update_screen(*wsi, g_vi());
 
         // TODO: AI step
     }

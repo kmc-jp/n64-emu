@@ -1,4 +1,5 @@
 ﻿#include "rcp/rsp.h"
+#include "cpu/jit/invalidate_hook.h"
 #include "memory/memory.h"
 #include "memory/memory_map.h"
 #include "debugger/debugger.h"
@@ -670,6 +671,8 @@ void Rsp::dma_write() {
         dram_address = (dram_address + length + skip) & RSP_DRAM_ADDR_MASK;
         mem_address = (mem_address + length) & RSP_MEM_ADDR_MASK;
     }
+    maybe_invalidate_code(shadow_dram_addr.address & RSP_DRAM_ADDR_MASK,
+                          (dma.count + 1) * (length + dma.skip));
     dram_addr.address = dram_address;
     mem_addr.address = mem_address;
     mem_addr.imem = from_imem;

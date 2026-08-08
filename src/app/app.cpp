@@ -1,4 +1,4 @@
-﻿#include "app/app.h"
+#include "app/app.h"
 #include "app/parallel_rdp_wrapper.h"
 #include "memory/memory.h"
 #include "n64_system/n64_system.h"
@@ -54,7 +54,10 @@ void SDL2Platform::poll_input() {
     }
 }
 
-App::App(N64System::Config &config) : config(config) {
+App::App(N64System::Config &config) : config(config), window(nullptr) {
+    if (config.headless)
+        return;
+
     if (SDL_Init(SDL_INIT_EVERYTHING) != 0) {
         Utils::critical("Failed to initialize SDL: %s", SDL_GetError());
         exit(-1);
@@ -93,14 +96,30 @@ App::App(N64System::Config &config) : config(config) {
         Utils::critical("Failed to load Vulkan");
         exit(-1);
     }
-    // TODO: vulkan, wsi, etc.
 }
 App::~App() {
-    SDL_DestroyWindow(window);
-    SDL_Vulkan_UnloadLibrary();
-    SDL_Quit();
+    if (window) {
+        SDL_DestroyWindow(window);
+        SDL_Vulkan_UnloadLibrary();
+        SDL_Quit();
+    }
 }
+
+void App::run_headless() {
+    Utils::info("Running headless (no window / no Vulkan)");
+    N64System::set_up(config);
+    // Tests call exit() when finished; otherwise this loops until aborted.
+    while (true) {
+        N64System::step(config, nullptr);
+    }
+}
+
 void App::run() {
+    if (config.headless) {
+        run_headless();
+        return;
+    }
+
     SDL2Platform platform(window);
     Vulkan::WSI wsi;
     wsi.set_platform(&platform);
@@ -113,13 +132,14 @@ void App::run() {
         exit(-1);
     }
     Vulkan::Device &device = wsi.get_device();
+    (void)device;
 
     PRDPWrapper::init_prdp(wsi, g_memory().get_rdram().data());
 
     N64System::set_up(config);
 
     while (platform.is_alive) {
-        N64System::step(config, wsi);
+        N64System::step(config, &wsi);
 
         // Abort when Tab is pressed
         SDL_PumpEvents();

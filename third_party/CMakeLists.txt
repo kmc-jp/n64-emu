@@ -1,6 +1,7 @@
 #add_library(imgui STATIC)
 add_subdirectory(parallel-rdp-standalone)
 add_subdirectory(spdlog)
+add_subdirectory(xbyak)
 
 #file(GLOB IMGUI_SOURCES CONFIGURE_DEPENDS imgui/*.cpp)
 #target_sources(imgui PRIVATE

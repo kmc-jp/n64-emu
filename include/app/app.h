@@ -1,4 +1,4 @@
-﻿#pragma once
+#pragma once
 
 #include "n64_system/config.h"
 #include "wsi.hpp"
@@ -26,6 +26,8 @@ class App {
   private:
     N64System::Config config;
     SDL_Window *window;
+
+    void run_headless();
 
   public:
     App(N64System::Config &config);

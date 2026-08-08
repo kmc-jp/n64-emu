@@ -19,11 +19,12 @@ bool read_config_from_command_line(Config &config, int argc, char *argv[]) {
     config.break_pcs.clear();
     config.watch_paddrs.clear();
     config.break_after_cycles = 0;
+    config.cpu_backend = CpuBackend::Interpreter;
+    config.headless = false;
 
     for (int i = 1; i < argc; ++i) {
         const std::string_view current = argv[i];
         if (current == "--log") {
-            // ログファイル指定
             if (config.log_filepath.empty() == false) {
                 std::cerr << "Error: log file already specified" << std::endl;
                 return false;
@@ -31,7 +32,6 @@ bool read_config_from_command_line(Config &config, int argc, char *argv[]) {
             config.log_filepath = argv[i + 1];
             i++;
         } else if (current.starts_with("--log-level=")) {
-            // ログレベル指定
             std::string_view level_str =
                 current.substr(std::string("--log-level=").size());
             if (level_str == "debug")
@@ -53,8 +53,16 @@ bool read_config_from_command_line(Config &config, int argc, char *argv[]) {
             }
         } else if (current == "--test") {
             config.test_mode = true;
+            // Tests only need the CPU; avoid popping a window.
+            config.headless = true;
+        } else if (current == "--headless") {
+            config.headless = true;
         } else if (current == "--debug") {
             config.debug = true;
+        } else if (current == "--jit") {
+            config.cpu_backend = CpuBackend::Jit;
+        } else if (current == "--interpreter") {
+            config.cpu_backend = CpuBackend::Interpreter;
         } else if (current.starts_with("--break=")) {
             std::string_view pc_str =
                 current.substr(std::string("--break=").size());
@@ -95,7 +103,6 @@ bool read_config_from_command_line(Config &config, int argc, char *argv[]) {
             config.debug = true;
             config.watch_paddrs.push_back(static_cast<uint32_t>(p));
         } else if (current.empty() == false && !current.starts_with('-')) {
-            // ROMパス指定
             if (config.rom_filepath.empty() == false) {
                 std::cerr << "Error: ROM file already specified" << std::endl;
                 return false;
@@ -107,6 +114,13 @@ bool read_config_from_command_line(Config &config, int argc, char *argv[]) {
             return false;
         }
     }
+
+#if !defined(__x86_64__) && !defined(_M_X64)
+    if (config.cpu_backend == CpuBackend::Jit) {
+        std::cerr << "Error: --jit is only supported on x86-64" << std::endl;
+        return false;
+    }
+#endif
 
     return true;
 }
