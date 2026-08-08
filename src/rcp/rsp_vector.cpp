@@ -61,10 +61,7 @@ bool vce_bit(Rsp &rsp, int i) {
 }
 
 void set_acc_l(Rsp &rsp, int lane, uint16_t v) {
-    // Keep high 32 bits of the 48-bit accumulator; replace low 16.
-    const int64_t cur = rsp.acc_get(lane);
-    const int64_t hi = cur & ~0xFFFFLL;
-    rsp.acc_set(lane, hi | v);
+    rsp.acc_l().set_lane(lane, v);
 }
 
 uint32_t rsp_rcp(int32_t sinput) {
@@ -448,7 +445,7 @@ void vu_store(Rsp &rsp, uint32_t inst) {
     }
 }
 
-void vu_execute_compute(Rsp &rsp, uint32_t inst) {
+void vu_execute_compute_scalar(Rsp &rsp, uint32_t inst) {
     const int vd = (inst >> 6) & 0x1F;
     const int vs = (inst >> 11) & 0x1F;
     const int vt = (inst >> 16) & 0x1F;
@@ -456,8 +453,10 @@ void vu_execute_compute(Rsp &rsp, uint32_t inst) {
     const int funct = inst & 0x3F;
 
     auto &dest = rsp.vreg(vd);
-    auto &src_s = rsp.vreg(vs);
-    auto &src_t = rsp.vreg(vt);
+    // Snapshot VS/VT so vd aliasing either source cannot change later lanes
+    // mid-instruction (hardware reads operands before writing vd).
+    const VuReg src_s = rsp.vreg(vs);
+    const VuReg src_t = rsp.vreg(vt);
 
     auto vt_lane = [&](int lane) -> uint16_t {
         return src_t.lane(broadcast_lane(element, lane));
@@ -967,6 +966,14 @@ void vu_execute_compute(Rsp &rsp, uint32_t inst) {
         Utils::warn("RSP VU funct={:#04x}", funct);
         break;
     }
+}
+
+void vu_execute_compute(Rsp &rsp, uint32_t inst) {
+#if N64_RSP_SIMD
+    vu_execute_compute_simd(rsp, inst);
+#else
+    vu_execute_compute_scalar(rsp, inst);
+#endif
 }
 
 } // namespace Rsp

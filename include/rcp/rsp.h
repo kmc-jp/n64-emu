@@ -112,11 +112,14 @@ union sp_dma_t {
 
 // 128-bit VU register: 8 lanes of 16-bit, lane 0 = MSB (big-endian layout).
 // https://n64brew.dev/wiki/Reality_Signal_Processor/CPU_Core
-struct VuReg {
+struct alignas(16) VuReg {
     std::array<uint16_t, 8> e{};
 
     uint16_t lane(int i) const { return e[static_cast<size_t>(i)]; }
     void set_lane(int i, uint16_t v) { e[static_cast<size_t>(i)] = v; }
+
+    uint16_t *data() { return e.data(); }
+    const uint16_t *data() const { return e.data(); }
 
     uint8_t byte(int i) const {
         const int lane_i = i / 2;
@@ -138,8 +141,11 @@ struct VuReg {
     }
 };
 
-struct AccumLane {
-    int64_t value{}; // signed 48-bit logical
+struct AccRegs {
+    // 48-bit accumulator as three 128-bit slices (CEN64 / parallel-rsp layout).
+    VuReg h{};
+    VuReg m{};
+    VuReg l{};
 };
 
 class Rsp {
@@ -160,7 +166,7 @@ class Rsp {
 
     std::array<uint32_t, 32> gpr_{};
     std::array<VuReg, 32> vpr_{};
-    std::array<AccumLane, 8> acc_{};
+    AccRegs acc_{};
     uint16_t vcc_{};
     uint16_t vco_{};
     uint8_t vce_{};
@@ -188,23 +194,43 @@ class Rsp {
             gpr_[static_cast<size_t>(i)] = v;
     }
 
+    VuReg &acc_h() { return acc_.h; }
+    VuReg &acc_m() { return acc_.m; }
+    VuReg &acc_l() { return acc_.l; }
+    const VuReg &acc_h() const { return acc_.h; }
+    const VuReg &acc_m() const { return acc_.m; }
+    const VuReg &acc_l() const { return acc_.l; }
+
     int64_t acc_get(int lane) const {
-        return acc_[static_cast<size_t>(lane)].value;
+        const size_t i = static_cast<size_t>(lane);
+        int64_t val = (static_cast<int64_t>(acc_.h.lane(static_cast<int>(i))) << 32) |
+                      (static_cast<int64_t>(acc_.m.lane(static_cast<int>(i))) << 16) |
+                      static_cast<int64_t>(acc_.l.lane(static_cast<int>(i)));
+        if (val & 0x800000000000LL)
+            val |= ~0xFFFFFFFFFFFFLL;
+        return val;
     }
     void acc_set(int lane, int64_t v) {
-        v &= 0xFFFFFFFFFFFFLL;
-        if (v & 0x800000000000LL)
-            v |= ~0xFFFFFFFFFFFFLL;
-        acc_[static_cast<size_t>(lane)].value = v;
+        const int i = lane;
+        acc_.h.set_lane(i, static_cast<uint16_t>((v >> 32) & 0xFFFF));
+        acc_.m.set_lane(i, static_cast<uint16_t>((v >> 16) & 0xFFFF));
+        acc_.l.set_lane(i, static_cast<uint16_t>(v & 0xFFFF));
     }
 
     VuReg &vreg(int i) { return vpr_[static_cast<size_t>(i)]; }
+    const VuReg &vreg(int i) const { return vpr_[static_cast<size_t>(i)]; }
     uint16_t &vcc_ref() { return vcc_; }
+    uint16_t vcc_ref() const { return vcc_; }
     uint16_t &vco_ref() { return vco_; }
+    uint16_t vco_ref() const { return vco_; }
     uint8_t &vce_ref() { return vce_; }
+    uint8_t vce_ref() const { return vce_; }
     int16_t &divin_ref() { return divin_; }
+    int16_t divin_ref() const { return divin_; }
     int16_t &divout_ref() { return divout_; }
+    int16_t divout_ref() const { return divout_; }
     bool &divin_loaded_ref() { return divin_loaded_; }
+    bool divin_loaded_ref() const { return divin_loaded_; }
 
     uint8_t dmem_load8(uint32_t addr) const;
     uint16_t dmem_load16(uint32_t addr) const;
@@ -238,6 +264,10 @@ class Rsp {
 };
 
 void vu_execute_compute(Rsp &rsp, uint32_t inst);
+void vu_execute_compute_scalar(Rsp &rsp, uint32_t inst);
+#if N64_RSP_SIMD
+void vu_execute_compute_simd(Rsp &rsp, uint32_t inst);
+#endif
 void vu_load(Rsp &rsp, uint32_t inst);
 void vu_store(Rsp &rsp, uint32_t inst);
 

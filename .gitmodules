@@ -7,3 +7,6 @@
 [submodule "third_party/xbyak"]
 	path = third_party/xbyak
 	url = https://github.com/herumi/xbyak.git
+[submodule "third_party/eve"]
+	path = third_party/eve
+	url = https://github.com/jfalcou/eve.git

@@ -72,8 +72,9 @@ void Rsp::reset() {
     gpr_.fill(0);
     for (auto &v : vpr_)
         v.e.fill(0);
-    for (auto &a : acc_)
-        a.value = 0;
+    acc_.h.e.fill(0);
+    acc_.m.e.fill(0);
+    acc_.l.e.fill(0);
     vcc_ = 0;
     vco_ = 0;
     vce_ = 0;
@@ -97,8 +98,11 @@ void Rsp::take_break() {
     status_reg.halt = 1;
     status_reg.broke = 1;
     const uint32_t type = dmem_load32(0xFC0);
-    if (type != 2) {
+    // type 1 = gfx, type 2 = audio — routine; only log unusual tasks at info.
+    if (type != 1 && type != 2) {
         Utils::info("RSP BREAK pc={:#x} OSTask type={}", pc, type);
+    } else {
+        Utils::debug("RSP BREAK pc={:#x} OSTask type={}", pc, type);
     }
     if (status_reg.intr_on_break) {
         g_mi().get_reg_intr().sp = 1;
@@ -688,8 +692,10 @@ void Rsp::status_reg_write(uint32_t value) {
         status_reg.halt = 0;
         if (was_halted) {
             const uint32_t type = dmem_load32(0xFC0);
-            if (type != 2) {
+            if (type != 1 && type != 2) {
                 Utils::info("RSP unhalt OSTask type={}", type);
+            } else {
+                Utils::debug("RSP unhalt OSTask type={}", type);
             }
             g_debugger().on_rsp_unhalt();
         }
