@@ -13,11 +13,13 @@ namespace {
 constexpr int NTSC_DAC_CLOCK = 48681812;
 constexpr int HOST_FREQUENCY = 48000;
 constexpr int DEFAULT_GUEST_FREQUENCY = 44100;
-// Soft pacing: wait briefly if the queue is ahead; drop if still too full.
-constexpr double SYNC_LATENCY_SEC = 0.080;
-constexpr double MAX_LATENCY_SEC = 0.200;
-constexpr double MIN_LATENCY_SEC = 0.020;
-constexpr int MAX_SYNC_WAIT_MS = 8;
+
+// Keep roughly this much audio queued for smooth playback.
+constexpr double TARGET_LATENCY_SEC = 0.080;
+// Hard ceiling; only drop if we cannot drain below this.
+constexpr double MAX_LATENCY_SEC = 0.250;
+// Bound wait so a stuck SDL backend cannot freeze the emu forever.
+constexpr int MAX_SYNC_WAIT_MS = 100;
 
 bool g_enabled = false;
 SDL_AudioDeviceID g_device = 0;
@@ -25,7 +27,6 @@ int g_host_frequency = 0;
 int g_guest_frequency = DEFAULT_GUEST_FREQUENCY;
 double g_resample_pos = 0.0;
 std::vector<int16_t> g_resampled;
-std::vector<uint8_t> g_silence;
 
 int bytes_for_seconds(double seconds) {
     return static_cast<int>(g_host_frequency * seconds * 4.0);
@@ -47,10 +48,10 @@ bool open_device() {
     want.freq = HOST_FREQUENCY;
     want.format = AUDIO_S16SYS;
     want.channels = 2;
-    want.samples = 1024;
+    // Larger device buffer reduces callback/underrun chatter on WSL.
+    want.samples = 2048;
     want.callback = nullptr;
 
-    // Allow the backend to pick a nearby rate; we resample to whatever we get.
     g_device = SDL_OpenAudioDevice(nullptr, 0, &want, &have,
                                    SDL_AUDIO_ALLOW_FREQUENCY_CHANGE);
     if (g_device == 0) {
@@ -122,11 +123,21 @@ void push_samples(std::span<const int16_t> interleaved_stereo) {
         return;
     }
 
-    const double ratio =
-        static_cast<double>(g_host_frequency) /
-        static_cast<double>(g_guest_frequency);
+    const int target_latency = bytes_for_seconds(TARGET_LATENCY_SEC);
+    const int max_latency = bytes_for_seconds(MAX_LATENCY_SEC);
+    const int queued_before =
+        static_cast<int>(SDL_GetQueuedAudioSize(g_device));
 
-    // Worst-case output frames for this chunk (+2 for fractional phase).
+    // Mild dynamic rate: stretch a little when the queue is thin to cover
+    // frame-time spikes without inserting silence.
+    double ratio = static_cast<double>(g_host_frequency) /
+                   static_cast<double>(g_guest_frequency);
+    if (queued_before < target_latency / 2) {
+        ratio *= 1.03;
+    } else if (queued_before > target_latency) {
+        ratio *= 0.99;
+    }
+
     const size_t out_cap =
         static_cast<size_t>(std::ceil(static_cast<double>(in_frames) * ratio)) +
         2;
@@ -134,8 +145,8 @@ void push_samples(std::span<const int16_t> interleaved_stereo) {
 
     size_t out_frames = 0;
     while (g_resample_pos < static_cast<double>(in_frames)) {
-        const size_t i0 = std::min(static_cast<size_t>(g_resample_pos),
-                                   in_frames - 1);
+        const size_t i0 =
+            std::min(static_cast<size_t>(g_resample_pos), in_frames - 1);
         const size_t i1 = std::min(i0 + 1, in_frames - 1);
         const double frac = g_resample_pos - static_cast<double>(i0);
 
@@ -158,30 +169,21 @@ void push_samples(std::span<const int16_t> interleaved_stereo) {
     }
 
     const int nbytes = static_cast<int>(out_frames * 2 * sizeof(int16_t));
-    const int max_latency = bytes_for_seconds(MAX_LATENCY_SEC);
-    const int sync_latency = bytes_for_seconds(SYNC_LATENCY_SEC);
-    const int min_latency = bytes_for_seconds(MIN_LATENCY_SEC);
 
-    // Soft sync: never spin forever (WSL / broken backends may not drain).
-    for (int waited = 0;
-         waited < MAX_SYNC_WAIT_MS &&
-         static_cast<int>(SDL_GetQueuedAudioSize(g_device)) > sync_latency;
-         ++waited) {
+    // Pace to audio when the emu runs ahead. Do not insert silence padding —
+    // that was causing regular gaps ("ぷつぷつ").
+    for (int waited = 0; waited < MAX_SYNC_WAIT_MS; ++waited) {
+        const int queued = static_cast<int>(SDL_GetQueuedAudioSize(g_device));
+        if (queued <= target_latency) {
+            break;
+        }
         SDL_Delay(1);
     }
 
-    int queued = static_cast<int>(SDL_GetQueuedAudioSize(g_device));
+    const int queued = static_cast<int>(SDL_GetQueuedAudioSize(g_device));
     if (queued > max_latency) {
+        // Still flooded after waiting — skip this chunk rather than grow forever.
         return;
-    }
-
-    // Avoid startup underrun crackle on some hosts.
-    if (queued < min_latency) {
-        const int pad = (min_latency - queued) & ~3;
-        if (pad > 0) {
-            g_silence.assign(static_cast<size_t>(pad), 0);
-            SDL_QueueAudio(g_device, g_silence.data(), pad);
-        }
     }
 
     if (SDL_QueueAudio(g_device, g_resampled.data(), nbytes) != 0) {

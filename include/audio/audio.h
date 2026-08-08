@@ -17,7 +17,7 @@ void set_frequency_from_dacrate(uint32_t dacrate);
 void set_frequency(int hz);
 
 // Interleaved stereo s16 guest samples (L,R,L,R,...).
-// Resampled to a fixed host rate. Soft-paces via a short wait; never hangs.
+// Resampled to a fixed host rate; paces to the SDL queue when ahead.
 void push_samples(std::span<const int16_t> interleaved_stereo);
 
 } // namespace Audio

@@ -7,8 +7,6 @@
 #include "n64_system/scheduler.h"
 #include "utils/byte_array.h"
 #include "utils/log.h"
-#include <algorithm>
-#include <cmath>
 #include <vector>
 
 namespace N64 {
@@ -210,9 +208,6 @@ void AIScheduler::on_dma_complete() {
         return;
     }
 
-    static uint64_t completes = 0;
-    ++completes;
-
     // Delayed-carry: last sample ends exactly on an 8 KiB page boundary.
     const uint32_t end_addr = ai.dma_addr[0] + ai.dma_length[0];
     ai.delayed_carry = ((end_addr & 0x1FFF) == 0);
@@ -230,11 +225,6 @@ void AIScheduler::on_dma_complete() {
         ai.start_next_dma();
     } else {
         ai.dma_duration_cycles = 0;
-    }
-
-    if ((completes % 64) == 1) {
-        Utils::info("AI complete #{} fifo={} dur={}", completes, ai.fifo_count,
-                    ai.dma_duration_cycles);
     }
 }
 
