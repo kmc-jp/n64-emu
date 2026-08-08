@@ -333,7 +333,6 @@ template <typename Wire> void write_paddr(uint32_t paddr, Wire value) {
         } else {
             static_assert(always_false<Wire>);
         }
-        g_rsp().invalidate_imem_code();
     } else if (PHYS_RSP_REG_BASE <= paddr && paddr <= PHYS_RSP_REG_END) {
         if constexpr (wire8) {
             abort_unimplemented_write<uint8_t>(paddr);

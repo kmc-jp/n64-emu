@@ -1,11 +1,6 @@
 #include "rcp/rsp_thread.h"
 #include "n64_system/interrupt.h"
 #include "rcp/rsp.h"
-#include "utils/log.h"
-#if defined(N64_RSP_JIT)
-#include "rcp/jit/jit.h"
-#endif
-#include <algorithm>
 
 namespace N64 {
 namespace Rsp {
@@ -15,10 +10,9 @@ RspThread &RspThread::get_instance() {
     return inst;
 }
 
-void RspThread::configure(bool enabled, bool use_rsp_jit) {
+void RspThread::configure(bool enabled) {
     shutdown();
     enabled_ = enabled;
-    use_jit_ = use_rsp_jit;
 }
 
 void RspThread::start() {
@@ -41,7 +35,6 @@ void RspThread::shutdown() {
     if (thr_.joinable())
         thr_.join();
     enabled_ = false;
-    use_jit_ = false;
     running_ = false;
     irq_pending_ = false;
     worker_id_ = {};
@@ -119,20 +112,6 @@ void RspThread::run_quantum() {
             if (stop_)
                 return;
         }
-#if defined(N64_RSP_JIT)
-        if (use_jit_) {
-            const int budget =
-                static_cast<int>(std::min<uint32_t>(kQuantumInsns - ran, 4096));
-            const int got = Jit::g_dynarec().run(budget);
-            if (got < 1) {
-                rsp.step();
-                ++ran;
-            } else {
-                ran += static_cast<uint32_t>(got);
-            }
-            continue;
-        }
-#endif
         rsp.step();
         ++ran;
     }

@@ -10,10 +10,6 @@
 #error "rsp_vu_diff_test requires N64_RSP_SIMD=ON"
 #endif
 
-#if defined(N64_RSP_JIT)
-#include "rcp/jit/vu_sse.h"
-#endif
-
 namespace {
 
 using N64::Rsp::Rsp;
@@ -195,44 +191,6 @@ int main() {
             }
         }
     }
-
-#if defined(N64_RSP_JIT)
-    {
-        static const int kSseFuncts[] = {0x00, 0x04, 0x05, 0x06, 0x07, 0x08,
-                                         0x0C, 0x0D, 0x0E, 0x0F};
-        Rsp sse;
-        for (int funct : kSseFuncts) {
-            for (int c = 0; c < kCasesPerOp; c++) {
-                randomize_vu_state(scalar, rng);
-                copy_vu_state(sse, scalar);
-                const int vd = static_cast<int>(rng() % 32);
-                const int vs = static_cast<int>(rng() % 32);
-                const int vt = static_cast<int>(rng() % 32);
-                const int element = static_cast<int>(rng() % 16);
-                const uint32_t inst = encode_vu(funct, vd, vs, vt, element);
-                N64::Rsp::vu_execute_compute_scalar(scalar, inst);
-                if (!N64::Rsp::Jit::vu_sse_compute(
-                        sse, static_cast<unsigned>(vd),
-                        static_cast<unsigned>(vs), static_cast<unsigned>(vt),
-                        static_cast<unsigned>(element),
-                        static_cast<unsigned>(funct))) {
-                    std::fprintf(stderr, "sse helper rejected funct=%#x\n",
-                                 funct);
-                    return 1;
-                }
-                std::string why;
-                if (!same_vu_state(scalar, sse, vd, why)) {
-                    std::fprintf(stderr,
-                                 "sse mismatch funct=%#x case=%d (%s)\n", funct,
-                                 c, why.c_str());
-                    failures++;
-                    if (failures >= 20)
-                        return 1;
-                }
-            }
-        }
-    }
-#endif
 
     if (failures) {
         std::fprintf(stderr, "%d failures\n", failures);

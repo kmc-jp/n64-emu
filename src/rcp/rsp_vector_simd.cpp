@@ -4,10 +4,6 @@
 #include "rcp/vu_profile.h"
 #include "utils/log.h"
 
-#if defined(N64_RSP_JIT)
-#include "rcp/jit/vu_sse.h"
-#endif
-
 #if N64_RSP_SIMD
 
 namespace N64 {
@@ -509,20 +505,6 @@ bool try_execute_simd(Rsp &rsp, uint32_t inst) {
 } // namespace
 
 void vu_execute_compute_simd(Rsp &rsp, uint32_t inst) {
-#if defined(N64_RSP_JIT)
-    // Prefer tight SSE2 MAC helpers over eve for the hottest functs.
-    {
-        const unsigned vd = (inst >> 6) & 0x1F;
-        const unsigned vs = (inst >> 11) & 0x1F;
-        const unsigned vt = (inst >> 16) & 0x1F;
-        const unsigned e = (inst >> 21) & 0xF;
-        const unsigned funct = inst & 0x3F;
-        if (N64::Rsp::Jit::vu_sse_compute(rsp, vd, vs, vt, e, funct)) {
-            vu_profile_compute(inst, true);
-            return;
-        }
-    }
-#endif
     const bool hit = try_execute_simd(rsp, inst);
     vu_profile_compute(inst, hit);
     if (!hit)

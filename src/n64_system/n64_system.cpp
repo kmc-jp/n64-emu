@@ -3,9 +3,6 @@
 #if defined(N64_JIT_X64)
 #include "cpu/jit/jit.h"
 #endif
-#if defined(N64_RSP_JIT)
-#include "rcp/jit/jit.h"
-#endif
 #include "debugger/debugger.h"
 #include "memory/bus.h"
 #include "memory/memory.h"
@@ -42,9 +39,6 @@ static void reset_all(Config &config) {
     N64::Cpu::Jit::g_dynarec().reset();
 #endif
     N64::g_rsp().reset();
-#if defined(N64_RSP_JIT)
-    N64::Rsp::Jit::g_dynarec().reset();
-#endif
     N64::g_dpc().reset();
     N64::g_pi().reset();
     N64::g_si().reset();
@@ -58,7 +52,7 @@ void set_up(Config &config) {
     N64System::reset_all(config);
     g_debugger().configure(config);
 
-    Rsp::g_rsp_thread().configure(config.rsp_thread, config.rsp_jit);
+    Rsp::g_rsp_thread().configure(config.rsp_thread);
     Rsp::g_rsp_thread().start();
     if (config.rsp_thread)
         Utils::info("RSP worker thread enabled");
@@ -113,11 +107,6 @@ static void cpu_step_callback(Config &config) {
 // https://github.com/Dillonb/n64/blob/6502f7d2f163c3f14da5bff8cd6d5ccc47143156/src/system/n64system.c#L313
 void step(Config &config, Vulkan::WSI *wsi) {
     static int consumed_cpu_cycles = 0;
-#if defined(N64_RSP_JIT)
-    // Positive: RSP instructions still owed. Negative: overshoot credit from a
-    // long compiled block (paid back by skipping future RSP ticks).
-    static int rsp_balance = 0;
-#endif
     // N64_PROFILE_FRAME=1: wall-clock split of emu vs RDP/present per VI field.
     static const bool profile_frame = [] {
         const char *e = getenv("N64_PROFILE_FRAME");
@@ -197,34 +186,9 @@ void step(Config &config, Vulkan::WSI *wsi) {
                 } else {
                     while (consumed_cpu_cycles >= 3) {
                         consumed_cpu_cycles -= 3;
-#if defined(N64_RSP_JIT)
-                        if (config.rsp_jit) {
-                            rsp_balance += 2;
-                        } else {
-                            rsp.step();
-                            rsp.step();
-                        }
-#else
                         rsp.step();
                         rsp.step();
-#endif
                     }
-#if defined(N64_RSP_JIT)
-                    if (config.rsp_jit) {
-                        while (rsp_balance > 0 && !rsp.halted()) {
-                            const int got =
-                                Rsp::Jit::g_dynarec().run(rsp_balance);
-                            if (got < 1) {
-                                rsp.step();
-                                --rsp_balance;
-                            } else {
-                                rsp_balance -= got;
-                            }
-                        }
-                        if (rsp.halted() && rsp_balance > 0)
-                            rsp_balance = 0;
-                    }
-#endif
                 }
                 if (profile_frame) {
                     rsp_ms += std::chrono::duration<double, std::milli>(

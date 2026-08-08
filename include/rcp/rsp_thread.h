@@ -16,7 +16,7 @@ class RspThread {
   public:
     static RspThread &get_instance();
 
-    void configure(bool enabled, bool use_rsp_jit);
+    void configure(bool enabled);
     void start();
     void shutdown();
 
@@ -34,7 +34,6 @@ class RspThread {
     void run_quantum();
 
     bool enabled_{false};
-    bool use_jit_{false};
     bool stop_{false};
     bool running_{false};
     bool kick_pending_{false};

@@ -179,17 +179,11 @@ class Rsp {
 
     void reset();
     void step();
-    // One instruction for RSP JIT (baked opcode, same PC update as step).
-    void jit_step(uint32_t inst);
     void set_pc(uint16_t value);
 
     bool halted() const { return status_reg.halt != 0; }
     uint16_t get_pc() const { return pc; }
 
-    // Drop compiled RSP code after IMEM overlays / CPU writes into IMEM.
-    void invalidate_imem_code();
-
-    // Used by RSP JIT for BREAK.
     void take_break();
 
     std::array<uint8_t, SP_DMEM_SIZE> &get_sp_dmem() { return sp_dmem; }
@@ -204,14 +198,6 @@ class Rsp {
         if (i)
             gpr_[static_cast<size_t>(i)] = v;
     }
-
-    // Raw pointers for RSP JIT (host codegen).
-    uint32_t *gpr_data() { return gpr_.data(); }
-    uint8_t *dmem_data() { return sp_dmem.data(); }
-    uint16_t *pc_ptr() { return &pc; }
-    uint16_t *next_pc_ptr() { return &next_pc; }
-    bool *delay_slot_ptr() { return &delay_slot_; }
-    uint32_t *status_raw_ptr() { return &status_reg.raw; }
 
     VuReg &acc_h() { return acc_.h; }
     VuReg &acc_m() { return acc_.m; }

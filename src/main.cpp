@@ -11,8 +11,6 @@ constexpr std::string_view USAGE =
     "info)\n"
     "--jit\tuse CPU dynarec (x86-64, default)\n"
     "--no-jit\tdisable CPU dynarec (use interpreter)\n"
-    "--rsp-jit\tuse RSP dynarec (x86-64, experimental)\n"
-    "--no-rsp-jit\tdisable RSP dynarec (default)\n"
     "--rsp-thread\trun RSP on a worker thread (experimental)\n"
     "--no-rsp-thread\tdisable RSP worker thread (default)\n"
     "--headless\tno window / no Vulkan present\n"
