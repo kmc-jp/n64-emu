@@ -79,6 +79,10 @@ inline constexpr uint16_t kRsqRom[512] = {
 
 };
 
+uint32_t rsp_rcp(int32_t sinput);
+uint32_t rsp_rsq(uint32_t input);
+int vmov_src_elem(int element, int vs_field);
+
 } // namespace Rsp
 } // namespace N64
 

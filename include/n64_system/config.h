@@ -29,6 +29,9 @@ struct Config {
 #else
     CpuBackend cpu_backend{CpuBackend::Interpreter};
 #endif
+    // RSP dynarec (x86-64). Off by default — still slower than interpreter for
+    // VU-heavy titles until more of the hot path is emitted inline.
+    bool rsp_jit{false};
     // No SDL window / Vulkan present (for CPU tests and CI).
     bool headless{false};
 };

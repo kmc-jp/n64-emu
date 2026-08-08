@@ -25,6 +25,7 @@ bool read_config_from_command_line(Config &config, int argc, char *argv[]) {
     config.cpu_backend = CpuBackend::Interpreter;
 #endif
     config.headless = false;
+    config.rsp_jit = false;
 
     for (int i = 1; i < argc; ++i) {
         const std::string_view current = argv[i];
@@ -67,6 +68,10 @@ bool read_config_from_command_line(Config &config, int argc, char *argv[]) {
             config.cpu_backend = CpuBackend::Jit;
         } else if (current == "--no-jit") {
             config.cpu_backend = CpuBackend::Interpreter;
+        } else if (current == "--rsp-jit") {
+            config.rsp_jit = true;
+        } else if (current == "--no-rsp-jit") {
+            config.rsp_jit = false;
         } else if (current.starts_with("--break=")) {
             std::string_view pc_str =
                 current.substr(std::string("--break=").size());
@@ -122,6 +127,10 @@ bool read_config_from_command_line(Config &config, int argc, char *argv[]) {
 #if !defined(__x86_64__) && !defined(_M_X64)
     if (config.cpu_backend == CpuBackend::Jit) {
         std::cerr << "Error: --jit is only supported on x86-64" << std::endl;
+        return false;
+    }
+    if (config.rsp_jit) {
+        std::cerr << "Error: --rsp-jit is only supported on x86-64" << std::endl;
         return false;
     }
 #endif

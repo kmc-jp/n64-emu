@@ -6,8 +6,12 @@
 #include "mmio/mi.h"
 #include "n64_system/interrupt.h"
 #include "rcp/dpc.h"
+#include "rcp/vu_profile.h"
 #include "utils/byte_array.h"
 #include "utils/log.h"
+#if defined(N64_RSP_JIT)
+#include "rcp/jit/jit.h"
+#endif
 
 namespace N64 {
 namespace Rsp {
@@ -79,6 +83,7 @@ void Rsp::reset() {
     divin_ = 0;
     divout_ = 0;
     divin_loaded_ = false;
+    invalidate_imem_code();
 }
 
 void Rsp::set_pc(uint16_t value) {
@@ -141,6 +146,10 @@ void Rsp::step() {
         return;
 
     const uint32_t inst = fetch_instruction();
+    jit_step(inst);
+}
+
+void Rsp::jit_step(uint32_t inst) {
     const uint16_t cur = pc;
     pc = next_pc;
     next_pc = (pc + 4) & 0xffc;
@@ -151,6 +160,12 @@ void Rsp::step() {
     if (status_reg.single_step) {
         status_reg.halt = 1;
     }
+}
+
+void Rsp::invalidate_imem_code() {
+#if defined(N64_RSP_JIT)
+    Jit::g_dynarec().invalidate_all();
+#endif
 }
 
 void Rsp::execute(uint32_t inst, uint16_t inst_pc) {
@@ -469,6 +484,7 @@ void Rsp::execute_cop2(uint32_t inst) {
         return;
     }
     const uint8_t sub = rs(inst);
+    vu_profile_cop2_move(sub);
     const uint8_t vd = rd(inst);
     const uint8_t vt = rt(inst);
     const uint8_t element = sa(inst) >> 1; // rough; MFC2/MTC2 use element
@@ -635,6 +651,9 @@ void Rsp::dma_read() {
     mem_addr.address = mem_address;
     mem_addr.imem = to_imem;
     dma.raw = 0xFF8 | (dma.skip << 20);
+
+    if (to_imem)
+        invalidate_imem_code();
 }
 
 void Rsp::dma_write() {

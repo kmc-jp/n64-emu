@@ -1,5 +1,6 @@
 #include "rcp/rsp.h"
 #include "rcp/rsp_rom.h"
+#include "rcp/vu_profile.h"
 #include "utils/log.h"
 #include <algorithm>
 #include <array>
@@ -57,59 +58,10 @@ bool vco_bit(Rsp &rsp, int i, bool lo) {
     return (rsp.vco_ref() >> bit) & 1;
 }
 
-bool vce_bit(Rsp &rsp, int i) {
-    return (rsp.vce_ref() >> i) & 1;
-}
+bool vce_bit(Rsp &rsp, int i) { return (rsp.vce_ref() >> i) & 1; }
 
 void set_acc_l(Rsp &rsp, int lane, uint16_t v) {
     rsp.acc_l().set_lane(lane, v);
-}
-
-uint32_t rsp_rcp(int32_t sinput) {
-    const int32_t mask = sinput >> 31;
-    int32_t input = sinput ^ mask;
-    if (sinput > INT16_MIN)
-        input -= mask;
-    if (input == 0)
-        return 0x7FFFFFFF;
-    if (sinput == INT16_MIN)
-        return 0xFFFF0000;
-    const uint32_t shift = std::countl_zero(static_cast<uint32_t>(input));
-    const uint32_t index =
-        static_cast<uint32_t>((((static_cast<uint64_t>(input) << shift) & 0x7FC00000ULL) >> 22));
-    int32_t result = kRcpRom[index];
-    result = (0x10000 | result) << 14;
-    result = (result >> (31 - static_cast<int>(shift))) ^ mask;
-    return static_cast<uint32_t>(result);
-}
-
-uint32_t rsp_rsq(uint32_t input) {
-    if (input == 0)
-        return 0x7FFFFFFF;
-    if (input == 0xFFFF8000)
-        return 0xFFFF0000;
-    if (input > 0xFFFF8000)
-        input--;
-    int32_t sinput = static_cast<int32_t>(input);
-    const int32_t mask = sinput >> 31;
-    input ^= static_cast<uint32_t>(mask);
-    const int shift = static_cast<int>(std::countl_zero(input)) + 1;
-    const int index =
-        static_cast<int>(((input << shift) >> 24) | ((shift & 1) << 8));
-    const uint32_t rom = (static_cast<uint32_t>(kRsqRom[index]) << 14);
-    const int r_shift = (32 - shift) >> 1;
-    uint32_t result = (0x40000000u | rom) >> r_shift;
-    return result ^ static_cast<uint32_t>(mask);
-}
-
-int vmov_src_elem(int element, int vs_field) {
-    if (element <= 1)
-        return (element & 0b000) | (vs_field & 0b111);
-    if (element <= 3)
-        return (element & 0b001) | (vs_field & 0b110);
-    if (element <= 7)
-        return (element & 0b011) | (vs_field & 0b100);
-    return (element & 0b111);
 }
 
 int16_t clamp_signed(int64_t accum) {
@@ -151,24 +103,116 @@ int64_t sext48(int64_t v) {
     return v;
 }
 
-void set_acc(Rsp &rsp, int lane, int64_t v) {
-    rsp.acc_set(lane, v);
+void set_acc(Rsp &rsp, int lane, int64_t v) { rsp.acc_set(lane, v); }
+
+int64_t get_acc(Rsp &rsp, int lane) { return rsp.acc_get(lane); }
+
+} // namespace
+
+uint32_t rsp_rcp(int32_t sinput) {
+    const int32_t mask = sinput >> 31;
+    int32_t input = sinput ^ mask;
+    if (sinput > INT16_MIN)
+        input -= mask;
+    if (input == 0)
+        return 0x7FFFFFFF;
+    if (sinput == INT16_MIN)
+        return 0xFFFF0000;
+    const uint32_t shift = std::countl_zero(static_cast<uint32_t>(input));
+    const uint32_t index = static_cast<uint32_t>(
+        (((static_cast<uint64_t>(input) << shift) & 0x7FC00000ULL) >> 22));
+    int32_t result = kRcpRom[index];
+    result = (0x10000 | result) << 14;
+    result = (result >> (31 - static_cast<int>(shift))) ^ mask;
+    return static_cast<uint32_t>(result);
 }
 
-int64_t get_acc(Rsp &rsp, int lane) {
-    return rsp.acc_get(lane);
+uint32_t rsp_rsq(uint32_t input) {
+    if (input == 0)
+        return 0x7FFFFFFF;
+    if (input == 0xFFFF8000)
+        return 0xFFFF0000;
+    if (input > 0xFFFF8000)
+        input--;
+    int32_t sinput = static_cast<int32_t>(input);
+    const int32_t mask = sinput >> 31;
+    input ^= static_cast<uint32_t>(mask);
+    const int shift = static_cast<int>(std::countl_zero(input)) + 1;
+    const int index =
+        static_cast<int>(((input << shift) >> 24) | ((shift & 1) << 8));
+    const uint32_t rom = (static_cast<uint32_t>(kRsqRom[index]) << 14);
+    const int r_shift = (32 - shift) >> 1;
+    uint32_t result = (0x40000000u | rom) >> r_shift;
+    return result ^ static_cast<uint32_t>(mask);
+}
+
+int vmov_src_elem(int element, int vs_field) {
+    if (element <= 1)
+        return (element & 0b000) | (vs_field & 0b111);
+    if (element <= 3)
+        return (element & 0b001) | (vs_field & 0b110);
+    if (element <= 7)
+        return (element & 0b011) | (vs_field & 0b100);
+    return (element & 0b111);
+}
+
+namespace {
+
+// Pack DMEM bytes into VU register halfwords (big-endian lanes).
+void write_bytes_to_vreg(VuReg &v, int element, const uint8_t *src, int n) {
+    int i = 0;
+    if ((element & 1) != 0 && n > 0 && element < 16) {
+        v.set_byte(element, src[0]);
+        ++i;
+    }
+    while (i + 1 < n && element + i + 1 < 16) {
+        const int bi = element + i;
+        if ((bi & 1) == 0) {
+            v.set_lane(bi / 2,
+                       static_cast<uint16_t>(
+                           (static_cast<uint16_t>(src[i]) << 8) | src[i + 1]));
+            i += 2;
+        } else {
+            v.set_byte(bi, src[i]);
+            ++i;
+        }
+    }
+    if (i < n && element + i < 16)
+        v.set_byte(element + i, src[i]);
+}
+
+void read_bytes_from_vreg(const VuReg &v, int element, uint8_t *dst, int n,
+                          bool wrap_element) {
+    for (int i = 0; i < n; i++) {
+        const int bi = wrap_element ? ((element + i) & 15) : (element + i);
+        dst[i] = v.byte(bi);
+    }
+}
+
+void dmem_bulk_load(Rsp &rsp, uint32_t addr, uint8_t *dst, int n) {
+    auto &dmem = rsp.get_sp_dmem();
+    for (int i = 0; i < n; i++)
+        dst[i] = dmem[(addr + static_cast<uint32_t>(i)) & 0xFFFu];
+}
+
+void dmem_bulk_store(Rsp &rsp, uint32_t addr, const uint8_t *src, int n) {
+    auto &dmem = rsp.get_sp_dmem();
+    for (int i = 0; i < n; i++)
+        dmem[(addr + static_cast<uint32_t>(i)) & 0xFFFu] = src[i];
 }
 
 } // namespace
 
 void vu_load(Rsp &rsp, uint32_t inst) {
+    vu_profile_lwc2(inst);
     // LWC2 encoding: base, vt, opcode, element, offset
     // https://n64brew.dev/wiki/Reality_Signal_Processor/CPU_Core
     const int base = (inst >> 21) & 0x1F;
     const int vt = (inst >> 16) & 0x1F;
     const int opcode = (inst >> 11) & 0x1F;
     const int element = (inst >> 7) & 0xF;
-    const int offset7 = static_cast<int>(static_cast<int8_t>((inst & 0x7F) << 1) >> 1);
+    const int offset7 =
+        static_cast<int>(static_cast<int8_t>((inst & 0x7F) << 1) >> 1);
 
     auto &v = rsp.vreg(vt);
     const uint32_t addr = rsp.gpr(base);
@@ -180,58 +224,76 @@ void vu_load(Rsp &rsp, uint32_t inst) {
     } break;
     case 0x01: { // LSV
         const uint32_t a = addr + (offset7 << 1);
-        v.set_byte(element & 15, rsp.dmem_load8(a));
-        // Second byte is dropped (not wrapped) when element == 15.
-        if (element < 15)
-            v.set_byte(element + 1, rsp.dmem_load8(a + 1));
+        if (element <= 14) {
+            const uint16_t hw = rsp.dmem_load16(a);
+            v.set_byte(element, static_cast<uint8_t>(hw >> 8));
+            v.set_byte(element + 1, static_cast<uint8_t>(hw));
+        } else {
+            v.set_byte(element & 15, rsp.dmem_load8(a));
+        }
     } break;
     case 0x02: { // LLV
         const uint32_t a = addr + (offset7 << 2);
-        for (int i = 0; i < 4; i++) {
-            if (element + i > 15)
-                break;
-            v.set_byte(element + i, rsp.dmem_load8(a + i));
-        }
+        const int n = std::min(4, 16 - element);
+        if (n <= 0)
+            break;
+        uint8_t tmp[4];
+        dmem_bulk_load(rsp, a, tmp, n);
+        write_bytes_to_vreg(v, element, tmp, n);
     } break;
     case 0x03: { // LDV
         const uint32_t a = addr + (offset7 << 3);
-        const int end = std::min(element + 8, 16);
-        for (int i = element; i < end; i++)
-            v.set_byte(i, rsp.dmem_load8(a + (i - element)));
+        const int n = std::min(8, 16 - element);
+        if (n <= 0)
+            break;
+        uint8_t tmp[8];
+        dmem_bulk_load(rsp, a, tmp, n);
+        write_bytes_to_vreg(v, element, tmp, n);
     } break;
     case 0x04: { // LQV
         const uint32_t a = addr + (offset7 << 4);
         const uint32_t end_a = (a & ~15u) + 15u;
-        for (int i = 0; a + static_cast<uint32_t>(i) <= end_a &&
-                        i + element < 16;
-             i++)
-            v.set_byte(element + i, rsp.dmem_load8(a + i));
+        const int max_n = static_cast<int>(end_a - a) + 1;
+        const int n = std::min(max_n, 16 - element);
+        if (n <= 0)
+            break;
+        uint8_t tmp[16];
+        dmem_bulk_load(rsp, a, tmp, n);
+        write_bytes_to_vreg(v, element, tmp, n);
     } break;
     case 0x05: { // LRV
         uint32_t a = addr + (offset7 << 4);
         int start = 16 - ((static_cast<int>(a) & 0xF) - element);
         a &= ~15u;
-        for (int i = start; i < 16; i++)
-            v.set_byte(i & 15, rsp.dmem_load8(a++));
+        if (start < 0)
+            start = 0;
+        if (start >= 16)
+            break;
+        const int n = 16 - start;
+        uint8_t tmp[16];
+        dmem_bulk_load(rsp, a, tmp, n);
+        write_bytes_to_vreg(v, start, tmp, n);
     } break;
     case 0x06: { // LPV
         uint32_t a = addr + (offset7 << 3);
         const int addr_ofs = static_cast<int>(a & 7);
         a &= ~7u;
+        uint8_t buf[16];
+        dmem_bulk_load(rsp, a, buf, 16);
         for (int i = 0; i < 8; i++) {
             const int eo = (16 - element + (i + addr_ofs)) & 0xF;
-            const uint8_t b = rsp.dmem_load8(a + eo);
-            v.set_lane(i, static_cast<uint16_t>(b << 8));
+            v.set_lane(i, static_cast<uint16_t>(buf[eo] << 8));
         }
     } break;
     case 0x07: { // LUV
         uint32_t a = addr + (offset7 << 3);
         const int addr_ofs = static_cast<int>(a & 7);
         a &= ~7u;
+        uint8_t buf[16];
+        dmem_bulk_load(rsp, a, buf, 16);
         for (int i = 0; i < 8; i++) {
             const int eo = (16 - element + (i + addr_ofs)) & 0xF;
-            const uint8_t b = rsp.dmem_load8(a + eo);
-            v.set_lane(i, static_cast<uint16_t>(b << 7));
+            v.set_lane(i, static_cast<uint16_t>(buf[eo] << 7));
         }
     } break;
     case 0x08: { // LHV
@@ -270,7 +332,8 @@ void vu_load(Rsp &rsp, uint32_t inst) {
             const uint16_t hi = rsp.dmem_load8(base + ((offset + 0) & 0xF));
             const uint16_t lo = rsp.dmem_load8(base + ((offset + 1) & 0xF));
             const int reg = (vt & 0x18) | ((i + (element >> 1)) & 0x7);
-            rsp.vreg(reg).set_lane(i & 7, static_cast<uint16_t>((hi << 8) | lo));
+            rsp.vreg(reg).set_lane(i & 7,
+                                   static_cast<uint16_t>((hi << 8) | lo));
         }
     } break;
     default:
@@ -280,11 +343,13 @@ void vu_load(Rsp &rsp, uint32_t inst) {
 }
 
 void vu_store(Rsp &rsp, uint32_t inst) {
+    vu_profile_swc2(inst);
     const int base = (inst >> 21) & 0x1F;
     const int vt = (inst >> 16) & 0x1F;
     const int opcode = (inst >> 11) & 0x1F;
     const int element = (inst >> 7) & 0xF;
-    const int offset7 = static_cast<int>(static_cast<int8_t>((inst & 0x7F) << 1) >> 1);
+    const int offset7 =
+        static_cast<int>(static_cast<int8_t>((inst & 0x7F) << 1) >> 1);
 
     auto &v = rsp.vreg(vt);
     const uint32_t addr = rsp.gpr(base);
@@ -295,24 +360,31 @@ void vu_store(Rsp &rsp, uint32_t inst) {
     } break;
     case 0x01: { // SSV
         const uint32_t a = addr + (offset7 << 1);
-        rsp.dmem_store8(a, v.byte(element & 15));
-        rsp.dmem_store8(a + 1, v.byte((element + 1) & 15));
+        const int e = element & 15;
+        const uint16_t hw = static_cast<uint16_t>(
+            (static_cast<uint16_t>(v.byte(e)) << 8) |
+            v.byte((e + 1) & 15));
+        rsp.dmem_store16(a, hw);
     } break;
     case 0x02: { // SLV
         const uint32_t a = addr + (offset7 << 2);
-        for (int i = 0; i < 4; i++)
-            rsp.dmem_store8(a + i, v.byte((element + i) & 15));
+        uint8_t tmp[4];
+        read_bytes_from_vreg(v, element, tmp, 4, true);
+        dmem_bulk_store(rsp, a, tmp, 4);
     } break;
     case 0x03: { // SDV
         const uint32_t a = addr + (offset7 << 3);
-        for (int i = 0; i < 8; i++)
-            rsp.dmem_store8(a + i, v.byte((element + i) & 15));
+        uint8_t tmp[8];
+        read_bytes_from_vreg(v, element, tmp, 8, true);
+        dmem_bulk_store(rsp, a, tmp, 8);
     } break;
     case 0x04: { // SQV
         const uint32_t a = addr + (offset7 << 4);
         const uint32_t end_a = (a & ~15u) + 15u;
-        for (int i = 0; a + static_cast<uint32_t>(i) <= end_a; i++)
-            rsp.dmem_store8(a + i, v.byte((element + i) & 15));
+        const int n = static_cast<int>(end_a - a) + 1;
+        uint8_t tmp[16];
+        read_bytes_from_vreg(v, element, tmp, n, true);
+        dmem_bulk_store(rsp, a, tmp, n);
     } break;
     case 0x05: { // SRV
         uint32_t a = addr + (offset7 << 4);
@@ -320,8 +392,13 @@ void vu_store(Rsp &rsp, uint32_t inst) {
         const int end = start + static_cast<int>(a & 15);
         const int base_ofs = 16 - static_cast<int>(a & 15);
         a &= ~15u;
-        for (int i = start; i < end; i++)
-            rsp.dmem_store8(a++, v.byte((i + base_ofs) & 15));
+        const int n = end - start;
+        if (n <= 0)
+            break;
+        uint8_t tmp[16];
+        for (int i = 0; i < n; i++)
+            tmp[i] = v.byte((start + i + base_ofs) & 15);
+        dmem_bulk_store(rsp, a, tmp, n);
     } break;
     case 0x06: { // SPV
         uint32_t a = addr + (offset7 << 3);
@@ -330,9 +407,8 @@ void vu_store(Rsp &rsp, uint32_t inst) {
             if ((offset & 15) < 8) {
                 rsp.dmem_store8(a++, v.byte((offset & 7) << 1));
             } else {
-                rsp.dmem_store8(
-                    a++,
-                    static_cast<uint8_t>((v.lane(offset & 7) >> 7) & 0xFF));
+                rsp.dmem_store8(a++, static_cast<uint8_t>(
+                                         (v.lane(offset & 7) >> 7) & 0xFF));
             }
         }
     } break;
@@ -341,9 +417,8 @@ void vu_store(Rsp &rsp, uint32_t inst) {
         const int start = element;
         for (int offset = start; offset < start + 8; offset++) {
             if ((offset & 15) < 8) {
-                rsp.dmem_store8(
-                    a++,
-                    static_cast<uint8_t>((v.lane(offset & 7) >> 7) & 0xFF));
+                rsp.dmem_store8(a++, static_cast<uint8_t>(
+                                         (v.lane(offset & 7) >> 7) & 0xFF));
             } else {
                 rsp.dmem_store8(a++, v.byte((offset & 7) << 1));
             }
@@ -482,9 +557,9 @@ void vu_execute_compute_scalar(Rsp &rsp, uint32_t inst) {
                 set_acc(rsp, i, prod + 0x8000);
             }
             const int64_t out = get_acc(rsp, i);
-            dest.set_lane(i, unsigned_clamp
-                                 ? clamp_unsigned(out >> 16)
-                                 : static_cast<uint16_t>(clamp_signed(out >> 16)));
+            dest.set_lane(i, unsigned_clamp ? clamp_unsigned(out >> 16)
+                                            : static_cast<uint16_t>(
+                                                  clamp_signed(out >> 16)));
         }
     } break;
 
@@ -497,23 +572,23 @@ void vu_execute_compute_scalar(Rsp &rsp, uint32_t inst) {
             if (acc >= 0)
                 acc += product;
             set_acc(rsp, i, acc);
-            dest.set_lane(i, static_cast<uint16_t>(
-                                 clamp_signed(get_acc(rsp, i) >> 16)));
+            dest.set_lane(
+                i, static_cast<uint16_t>(clamp_signed(get_acc(rsp, i) >> 16)));
         }
         break;
 
     case 0x03: // VMULQ
         for (int i = 0; i < 8; i++) {
             int32_t product = static_cast<int16_t>(src_s.lane(i)) *
-                             static_cast<int16_t>(vt_lane(i));
+                              static_cast<int16_t>(vt_lane(i));
             if (product < 0)
                 product += 31;
             // ACC = product in H:M, L=0; result = clamp(product>>1) & ~15
-            const int64_t acc = (static_cast<int64_t>(product) << 16) &
-                                ~0xFFFFLL;
+            const int64_t acc =
+                (static_cast<int64_t>(product) << 16) & ~0xFFFFLL;
             set_acc(rsp, i, acc);
-            dest.set_lane(i, static_cast<uint16_t>(
-                                 clamp_signed(product >> 1) & ~15));
+            dest.set_lane(
+                i, static_cast<uint16_t>(clamp_signed(product >> 1) & ~15));
         }
         break;
 
@@ -526,23 +601,22 @@ void vu_execute_compute_scalar(Rsp &rsp, uint32_t inst) {
             if (acc < 0)
                 acc += product;
             set_acc(rsp, i, acc);
-            dest.set_lane(i, static_cast<uint16_t>(
-                                 clamp_signed(get_acc(rsp, i) >> 16)));
+            dest.set_lane(
+                i, static_cast<uint16_t>(clamp_signed(get_acc(rsp, i) >> 16)));
         }
         break;
 
     case 0x0B: // VMACQ
         for (int i = 0; i < 8; i++) {
-            int32_t product =
-                static_cast<int32_t>(get_acc(rsp, i) >> 16);
+            int32_t product = static_cast<int32_t>(get_acc(rsp, i) >> 16);
             if (product < 0 && !(product & (1 << 5)))
                 product += 32;
             else if (product >= 32 && !(product & (1 << 5)))
                 product -= 32;
             const int64_t lo = get_acc(rsp, i) & 0xFFFF;
             set_acc(rsp, i, (static_cast<int64_t>(product) << 16) | lo);
-            dest.set_lane(i, static_cast<uint16_t>(
-                                 clamp_signed(product >> 1) & ~15));
+            dest.set_lane(
+                i, static_cast<uint16_t>(clamp_signed(product >> 1) & ~15));
         }
         break;
 
@@ -568,8 +642,8 @@ void vu_execute_compute_scalar(Rsp &rsp, uint32_t inst) {
             if (funct == 0x0D)
                 prod += get_acc(rsp, i);
             set_acc(rsp, i, prod);
-            dest.set_lane(i, static_cast<uint16_t>(
-                                 clamp_signed(get_acc(rsp, i) >> 16)));
+            dest.set_lane(
+                i, static_cast<uint16_t>(clamp_signed(get_acc(rsp, i) >> 16)));
         }
         break;
 
@@ -595,8 +669,8 @@ void vu_execute_compute_scalar(Rsp &rsp, uint32_t inst) {
             if (funct == 0x0F)
                 prod += get_acc(rsp, i);
             set_acc(rsp, i, prod);
-            dest.set_lane(i, static_cast<uint16_t>(
-                                 clamp_signed(get_acc(rsp, i) >> 16)));
+            dest.set_lane(
+                i, static_cast<uint16_t>(clamp_signed(get_acc(rsp, i) >> 16)));
         }
         break;
 
@@ -631,7 +705,8 @@ void vu_execute_compute_scalar(Rsp &rsp, uint32_t inst) {
                     dest.set_lane(i, 0x7FFF);
                     set_acc_l(rsp, i, 0x8000);
                 } else {
-                    const uint16_t r = static_cast<uint16_t>(-static_cast<int16_t>(t));
+                    const uint16_t r =
+                        static_cast<uint16_t>(-static_cast<int16_t>(t));
                     dest.set_lane(i, r);
                     set_acc_l(rsp, i, r);
                 }
@@ -735,11 +810,9 @@ void vu_execute_compute_scalar(Rsp &rsp, uint32_t inst) {
             const int16_t s = static_cast<int16_t>(src_s.lane(i));
             const int16_t t = static_cast<int16_t>(vt_lane(i));
             if ((s ^ t) < 0) {
-                const int16_t result =
-                    static_cast<int16_t>(s + t);
-                const uint16_t acc =
-                    (result <= 0) ? static_cast<uint16_t>(-t)
-                                  : static_cast<uint16_t>(s);
+                const int16_t result = static_cast<int16_t>(s + t);
+                const uint16_t acc = (result <= 0) ? static_cast<uint16_t>(-t)
+                                                   : static_cast<uint16_t>(s);
                 set_acc_l(rsp, i, acc);
                 set_vcc_bit(rsp, i, true, result <= 0);
                 set_vcc_bit(rsp, i, false, t < 0);
@@ -750,11 +823,9 @@ void vu_execute_compute_scalar(Rsp &rsp, uint32_t inst) {
                                     (static_cast<uint16_t>(t) ^ 0xFFFF));
                 set_vce_bit(rsp, i, result == -1);
             } else {
-                const int16_t result =
-                    static_cast<int16_t>(s - t);
-                const uint16_t acc =
-                    (result >= 0) ? static_cast<uint16_t>(t)
-                                  : static_cast<uint16_t>(s);
+                const int16_t result = static_cast<int16_t>(s - t);
+                const uint16_t acc = (result >= 0) ? static_cast<uint16_t>(t)
+                                                   : static_cast<uint16_t>(s);
                 set_acc_l(rsp, i, acc);
                 set_vcc_bit(rsp, i, true, t < 0);
                 set_vcc_bit(rsp, i, false, result >= 0);
@@ -799,15 +870,12 @@ void vu_execute_compute_scalar(Rsp &rsp, uint32_t inst) {
                 }
             } else {
                 if (vco_bit(rsp, i, false)) {
-                    set_acc_l(rsp, i,
-                              vcc_bit(rsp, i, false) ? t : s);
+                    set_acc_l(rsp, i, vcc_bit(rsp, i, false) ? t : s);
                 } else {
-                    set_vcc_bit(rsp, i, false,
-                                static_cast<int32_t>(s) -
-                                        static_cast<int32_t>(t) >=
-                                    0);
-                    set_acc_l(rsp, i,
-                              vcc_bit(rsp, i, false) ? t : s);
+                    set_vcc_bit(
+                        rsp, i, false,
+                        static_cast<int32_t>(s) - static_cast<int32_t>(t) >= 0);
+                    set_acc_l(rsp, i, vcc_bit(rsp, i, false) ? t : s);
                 }
             }
             dest.set_lane(i, static_cast<uint16_t>(rsp.acc_get(i) & 0xFFFF));
@@ -821,13 +889,11 @@ void vu_execute_compute_scalar(Rsp &rsp, uint32_t inst) {
         for (int i = 0; i < 8; i++) {
             const uint16_t s = src_s.lane(i);
             const uint16_t t = vt_lane(i);
-            const bool sign_different =
-                ((0x8000 & (s ^ t)) == 0x8000);
+            const bool sign_different = ((0x8000 & (s ^ t)) == 0x8000);
             const uint16_t vt_abs =
                 sign_different ? static_cast<uint16_t>(~t) : t;
-            const bool gte =
-                static_cast<int16_t>(t) <=
-                static_cast<int16_t>(sign_different ? 0xFFFF : s);
+            const bool gte = static_cast<int16_t>(t) <=
+                             static_cast<int16_t>(sign_different ? 0xFFFF : s);
             const bool lte =
                 ((((sign_different ? s : 0) + t) & 0x8000) == 0x8000);
             const bool check = sign_different ? lte : gte;
@@ -909,12 +975,10 @@ void vu_execute_compute_scalar(Rsp &rsp, uint32_t inst) {
             } else {
                 input = static_cast<int16_t>(src_t.lane(e));
             }
-            const uint32_t result =
-                (funct == 0x34 || funct == 0x35)
-                    ? rsp_rsq(static_cast<uint32_t>(input))
-                    : rsp_rcp(input);
-            rsp.divout_ref() =
-                static_cast<int16_t>((result >> 16) & 0xFFFF);
+            const uint32_t result = (funct == 0x34 || funct == 0x35)
+                                        ? rsp_rsq(static_cast<uint32_t>(input))
+                                        : rsp_rcp(input);
+            rsp.divout_ref() = static_cast<int16_t>((result >> 16) & 0xFFFF);
             rsp.divin_ref() = 0;
             rsp.divin_loaded_ref() = false;
             dest.set_lane(de, static_cast<uint16_t>(result & 0xFFFF));
@@ -973,6 +1037,7 @@ void vu_execute_compute(Rsp &rsp, uint32_t inst) {
 #if N64_RSP_SIMD
     vu_execute_compute_simd(rsp, inst);
 #else
+    vu_profile_compute(inst, false);
     vu_execute_compute_scalar(rsp, inst);
 #endif
 }

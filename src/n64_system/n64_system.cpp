@@ -3,6 +3,9 @@
 #if defined(N64_JIT_X64)
 #include "cpu/jit/jit.h"
 #endif
+#if defined(N64_RSP_JIT)
+#include "rcp/jit/jit.h"
+#endif
 #include "debugger/debugger.h"
 #include "memory/bus.h"
 #include "memory/memory.h"
@@ -17,7 +20,10 @@
 #include "n64_system/scheduler.h"
 #include "rcp/dpc.h"
 #include "rcp/rsp.h"
+#include "rcp/vu_profile.h"
 #include "utils/log.h"
+#include <chrono>
+#include <cstdlib>
 
 namespace N64 {
 namespace N64System {
@@ -35,6 +41,9 @@ static void reset_all(Config &config) {
     N64::Cpu::Jit::g_dynarec().reset();
 #endif
     N64::g_rsp().reset();
+#if defined(N64_RSP_JIT)
+    N64::Rsp::Jit::g_dynarec().reset();
+#endif
     N64::g_dpc().reset();
     N64::g_pi().reset();
     N64::g_si().reset();
@@ -98,8 +107,26 @@ static void cpu_step_callback(Config &config) {
 // https://github.com/Dillonb/n64/blob/6502f7d2f163c3f14da5bff8cd6d5ccc47143156/src/system/n64system.c#L313
 void step(Config &config, Vulkan::WSI *wsi) {
     static int consumed_cpu_cycles = 0;
+#if defined(N64_RSP_JIT)
+    // Positive: RSP instructions still owed. Negative: overshoot credit from a
+    // long compiled block (paid back by skipping future RSP ticks).
+    static int rsp_balance = 0;
+#endif
+    // N64_PROFILE_FRAME=1: wall-clock split of emu vs RDP/present per VI field.
+    static const bool profile_frame = [] {
+        const char *e = getenv("N64_PROFILE_FRAME");
+        return e && e[0] != '\0' && e[0] != '0';
+    }();
+    static uint64_t prof_fields = 0;
+    static double prof_emu_ms = 0.0;
+    static double prof_cpu_ms = 0.0;
+    static double prof_rsp_ms = 0.0;
+    static double prof_rdp_ms = 0.0;
+    static auto prof_last_log = std::chrono::steady_clock::now();
 
     for (int field = 0; field < g_vi().get_num_fields(); field++) {
+        const auto field_t0 = profile_frame ? std::chrono::steady_clock::now()
+                                            : std::chrono::steady_clock::time_point{};
         for (int line = 0; line < g_vi().get_num_half_lines(); line++) {
             // TODO: why this value?
             g_vi().set_reg_current(line * 2 + field);
@@ -123,10 +150,15 @@ void step(Config &config, Vulkan::WSI *wsi) {
             const bool need_step_cb =
                 config.test_mode || Utils::LOG_INSTRUCTION;
 
+            double cpu_ms = 0.0;
+            double rsp_ms = 0.0;
             while (remaining > 0) {
                 int taken = 1;
                 if (dbg_on)
                     dbg.on_step();
+                const auto cpu_t0 = profile_frame
+                                       ? std::chrono::steady_clock::now()
+                                       : std::chrono::steady_clock::time_point{};
                 if (use_jit) {
 #if defined(N64_JIT_X64)
                     taken = Cpu::Jit::g_dynarec().run(remaining);
@@ -137,28 +169,104 @@ void step(Config &config, Vulkan::WSI *wsi) {
                     g_cpu().step();
                     taken = static_cast<int>(Cpu::CPU_CYCLES_PER_INST);
                 }
+                if (profile_frame) {
+                    cpu_ms += std::chrono::duration<double, std::milli>(
+                                  std::chrono::steady_clock::now() - cpu_t0)
+                                  .count();
+                }
 
                 consumed_cpu_cycles += taken;
                 if (need_step_cb)
                     cpu_step_callback(config);
 
                 // RSP step. RSP ticks 2/3x faster than CPU
+                const auto rsp_t0 = profile_frame
+                                       ? std::chrono::steady_clock::now()
+                                       : std::chrono::steady_clock::time_point{};
                 while (consumed_cpu_cycles >= 3) {
                     consumed_cpu_cycles -= 3;
+#if defined(N64_RSP_JIT)
+                    if (config.rsp_jit) {
+                        rsp_balance += 2;
+                    } else {
+                        rsp.step();
+                        rsp.step();
+                    }
+#else
                     rsp.step();
                     rsp.step();
+#endif
+                }
+#if defined(N64_RSP_JIT)
+                if (config.rsp_jit) {
+                    while (rsp_balance > 0 && !rsp.halted()) {
+                        const int got = Rsp::Jit::g_dynarec().run(rsp_balance);
+                        if (got < 1) {
+                            rsp.step();
+                            --rsp_balance;
+                        } else {
+                            rsp_balance -= got;
+                        }
+                    }
+                    if (rsp.halted() && rsp_balance > 0)
+                        rsp_balance = 0;
+                }
+#endif
+                if (profile_frame) {
+                    rsp_ms += std::chrono::duration<double, std::milli>(
+                                  std::chrono::steady_clock::now() - rsp_t0)
+                                  .count();
                 }
 
                 sched.tick(static_cast<uint64_t>(taken));
                 remaining -= taken;
+            }
+            if (profile_frame) {
+                prof_cpu_ms += cpu_ms;
+                prof_rsp_ms += rsp_ms;
             }
         }
         if ((g_vi().get_reg_current() & 0x3FE) == g_vi().get_reg_intr()) {
             g_mi().get_reg_intr().vi = 1;
             N64System::check_interrupt();
         }
+        const auto rdp_t0 = profile_frame ? std::chrono::steady_clock::now()
+                                          : std::chrono::steady_clock::time_point{};
         if (wsi)
             PRDPWrapper::update_screen(*wsi, g_vi());
+        if (profile_frame) {
+            const auto t1 = std::chrono::steady_clock::now();
+            prof_emu_ms +=
+                std::chrono::duration<double, std::milli>(rdp_t0 - field_t0)
+                    .count();
+            prof_rdp_ms +=
+                std::chrono::duration<double, std::milli>(t1 - rdp_t0).count();
+            ++prof_fields;
+            if (std::chrono::duration<double>(t1 - prof_last_log).count() >=
+                1.0) {
+                const double inv = prof_fields ? 1.0 / prof_fields : 0.0;
+                const double emu = prof_emu_ms * inv;
+                const double cpu = prof_cpu_ms * inv;
+                const double rsp = prof_rsp_ms * inv;
+                const double rdp = prof_rdp_ms * inv;
+                Utils::info(
+                    "frame profile: fields/s≈{} avg cpu={:.2f}ms rsp={:.2f}ms "
+                    "rdp={:.2f}ms total={:.2f}ms (cpu {:.0f}% / rsp {:.0f}% / "
+                    "rdp {:.0f}%) budget60={:.2f}ms",
+                    prof_fields, cpu, rsp, rdp, emu + rdp,
+                    (emu + rdp) > 0 ? 100.0 * cpu / (emu + rdp) : 0.0,
+                    (emu + rdp) > 0 ? 100.0 * rsp / (emu + rdp) : 0.0,
+                    (emu + rdp) > 0 ? 100.0 * rdp / (emu + rdp) : 0.0,
+                    1000.0 / 60.0);
+                Rsp::vu_profile_dump();
+                prof_fields = 0;
+                prof_emu_ms = 0.0;
+                prof_cpu_ms = 0.0;
+                prof_rsp_ms = 0.0;
+                prof_rdp_ms = 0.0;
+                prof_last_log = t1;
+            }
+        }
     }
 }
 

@@ -5,10 +5,10 @@
 
 #if N64_RSP_SIMD
 
-#include <eve/module/core.hpp>
-#include <eve/wide.hpp>
 #include <array>
 #include <cstdint>
+#include <eve/module/core.hpp>
+#include <eve/wide.hpp>
 
 namespace N64 {
 namespace Rsp {
@@ -41,8 +41,7 @@ inline Vu16 as_u16(Vi16 v) { return eve::bit_cast(v, eve::as<Vu16>{}); }
 inline Vu16 broadcast_vt(const VuReg &vt, int element) {
     alignas(16) std::array<uint16_t, 8> tmp{};
     for (int i = 0; i < 8; i++)
-        tmp[static_cast<size_t>(i)] =
-            vt.lane(broadcast_lane(element, i));
+        tmp[static_cast<size_t>(i)] = vt.lane(broadcast_lane(element, i));
     return Vu16(tmp.data());
 }
 
@@ -59,8 +58,7 @@ inline void set_acc_low(Rsp &rsp, Vu16 lo) { store_acc_l(rsp, lo); }
 inline void mullo_mulhi_i16(Vi16 a, Vi16 b, Vu16 &lo, Vi16 &hi) {
     Vi32 p = eve::convert(a, eve::as<std::int32_t>{}) *
              eve::convert(b, eve::as<std::int32_t>{});
-    lo = eve::convert(eve::bit_and(p, Vi32(0xFFFF)),
-                      eve::as<std::uint16_t>{});
+    lo = eve::convert(eve::bit_and(p, Vi32(0xFFFF)), eve::as<std::uint16_t>{});
     hi = eve::convert(p >> 16, eve::as<std::int16_t>{});
 }
 
@@ -108,15 +106,21 @@ inline Vi16 vco_lo_as_i16(uint16_t vco) {
     return Vi16(tmp.data());
 }
 
-inline Vu16 vco_lo_as_u16(uint16_t vco) {
-    return as_u16(vco_lo_as_i16(vco));
-}
+inline Vu16 vco_lo_as_u16(uint16_t vco) { return as_u16(vco_lo_as_i16(vco)); }
 
 inline Vu16 vcc_lo_as_u16(uint16_t vcc) {
     alignas(16) std::array<std::uint16_t, 8> tmp{};
     for (int i = 0; i < 8; i++)
         tmp[static_cast<size_t>(i)] =
             static_cast<std::uint16_t>((vcc >> i) & 1);
+    return Vu16(tmp.data());
+}
+
+inline Vu16 vcc_hi_as_u16(uint16_t vcc) {
+    alignas(16) std::array<std::uint16_t, 8> tmp{};
+    for (int i = 0; i < 8; i++)
+        tmp[static_cast<size_t>(i)] =
+            static_cast<std::uint16_t>((vcc >> (i + 8)) & 1);
     return Vu16(tmp.data());
 }
 

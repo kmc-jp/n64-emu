@@ -1,6 +1,12 @@
 #include "rcp/rsp.h"
+#include "rcp/rsp_rom.h"
 #include "rcp/rsp_simd.h"
+#include "rcp/vu_profile.h"
 #include "utils/log.h"
+
+#if defined(N64_RSP_JIT)
+#include "rcp/jit/vu_sse.h"
+#endif
 
 #if N64_RSP_SIMD
 
@@ -189,7 +195,7 @@ bool try_execute_simd(Rsp &rsp, uint32_t inst) {
     const Vi16 vt_i = as_i16(vt_u);
 
     switch (funct) {
-    case 0x00: // VMULF
+    case 0x00:   // VMULF
     case 0x01: { // VMULU
         Vu16 al, am, ah;
         Vu16 out = simd_vmulf_vmulu(vs_i, vt_i, funct == 0x01, al, am, ah);
@@ -200,7 +206,7 @@ bool try_execute_simd(Rsp &rsp, uint32_t inst) {
         return true;
     }
 
-    case 0x08: // VMACF
+    case 0x08:   // VMACF
     case 0x09: { // VMACU
         Vu16 al = load_acc_l(rsp);
         Vu16 am = load_acc_m(rsp);
@@ -213,7 +219,7 @@ bool try_execute_simd(Rsp &rsp, uint32_t inst) {
         return true;
     }
 
-    case 0x04: // VMUDL
+    case 0x04:   // VMUDL
     case 0x0C: { // VMADL
         Vu16 al = load_acc_l(rsp);
         Vu16 am = load_acc_m(rsp);
@@ -226,7 +232,7 @@ bool try_execute_simd(Rsp &rsp, uint32_t inst) {
         return true;
     }
 
-    case 0x05: // VMUDM
+    case 0x05:   // VMUDM
     case 0x0D: { // VMADM
         Vu16 al = load_acc_l(rsp);
         Vu16 am = load_acc_m(rsp);
@@ -239,7 +245,7 @@ bool try_execute_simd(Rsp &rsp, uint32_t inst) {
         return true;
     }
 
-    case 0x06: // VMUDN
+    case 0x06:   // VMUDN
     case 0x0E: { // VMADN
         Vu16 al = load_acc_l(rsp);
         Vu16 am = load_acc_m(rsp);
@@ -252,7 +258,7 @@ bool try_execute_simd(Rsp &rsp, uint32_t inst) {
         return true;
     }
 
-    case 0x07: // VMUDH
+    case 0x07:   // VMUDH
     case 0x0F: { // VMADH
         Vu16 al = load_acc_l(rsp);
         Vu16 am = load_acc_m(rsp);
@@ -266,10 +272,10 @@ bool try_execute_simd(Rsp &rsp, uint32_t inst) {
     }
 
     case 0x10: { // VADD
-        Vi32 sum = eve::convert(vs_i, eve::as<std::int32_t>{}) +
-                   eve::convert(vt_i, eve::as<std::int32_t>{}) +
-                   eve::convert(vco_lo_as_i16(rsp.vco_ref()),
-                                eve::as<std::int32_t>{});
+        Vi32 sum =
+            eve::convert(vs_i, eve::as<std::int32_t>{}) +
+            eve::convert(vt_i, eve::as<std::int32_t>{}) +
+            eve::convert(vco_lo_as_i16(rsp.vco_ref()), eve::as<std::int32_t>{});
         Vu16 raw = eve::convert(sum, eve::as<std::uint16_t>{});
         set_acc_low(rsp, raw);
         store_vu(dest, clamp_signed_to_u16(
@@ -279,10 +285,10 @@ bool try_execute_simd(Rsp &rsp, uint32_t inst) {
     }
 
     case 0x11: { // VSUB
-        Vi32 diff = eve::convert(vs_i, eve::as<std::int32_t>{}) -
-                    eve::convert(vt_i, eve::as<std::int32_t>{}) -
-                    eve::convert(vco_lo_as_i16(rsp.vco_ref()),
-                                 eve::as<std::int32_t>{});
+        Vi32 diff =
+            eve::convert(vs_i, eve::as<std::int32_t>{}) -
+            eve::convert(vt_i, eve::as<std::int32_t>{}) -
+            eve::convert(vco_lo_as_i16(rsp.vco_ref()), eve::as<std::int32_t>{});
         Vu16 raw = eve::convert(diff, eve::as<std::uint16_t>{});
         set_acc_low(rsp, raw);
         store_vu(dest, clamp_signed_to_u16(
@@ -298,10 +304,10 @@ bool try_execute_simd(Rsp &rsp, uint32_t inst) {
         Vu16 neg_t = as_u16(-vt_i);
         Vu16 dest_neg = eve::if_else(t_min, Vu16(0x7FFF), neg_t);
         Vu16 acc_neg = eve::if_else(t_min, Vu16(0x8000), neg_t);
-        Vu16 out = eve::if_else(s_neg, dest_neg,
-                                eve::if_else(s_zero, Vu16(0), vt_u));
-        Vu16 acc = eve::if_else(s_neg, acc_neg,
-                                eve::if_else(s_zero, Vu16(0), vt_u));
+        Vu16 out =
+            eve::if_else(s_neg, dest_neg, eve::if_else(s_zero, Vu16(0), vt_u));
+        Vu16 acc =
+            eve::if_else(s_neg, acc_neg, eve::if_else(s_zero, Vu16(0), vt_u));
         store_vu(dest, out);
         set_acc_low(rsp, acc);
         return true;
@@ -355,7 +361,8 @@ bool try_execute_simd(Rsp &rsp, uint32_t inst) {
             cond = (vs_i != vt_i) || vco_hi_nz;
             break;
         default:
-            cond = (vs_i > vt_i) || ((vs_i == vt_i) && (!vco_lo_nz || !vco_hi_nz));
+            cond =
+                (vs_i > vt_i) || ((vs_i == vt_i) && (!vco_lo_nz || !vco_hi_nz));
             break;
         }
         Vu16 out = eve::if_else(cond, vs_u, vt_u);
@@ -372,6 +379,92 @@ bool try_execute_simd(Rsp &rsp, uint32_t inst) {
         store_vu(dest, out);
         set_acc_low(rsp, out);
         rsp.vco_ref() = 0;
+        return true;
+    }
+
+    case 0x25: { // VCH — CEN64 / parallel-rsp SSE algorithm
+        const Vi16 zero(0);
+        const auto sign = eve::is_ltz(eve::bit_xor(vs_i, vt_i));
+        const Vi16 sign_m = eve::if_else(sign, Vi16(-1), Vi16(0));
+        // Conditional negate of vt when signs differ.
+        const Vi16 sign_negvt = eve::bit_xor(vt_i, sign_m) - sign_m;
+        const Vi16 diff = vs_i - sign_negvt;
+        const auto diff_zero = diff == zero;
+        const auto vt_neg = vt_i < zero;
+        const auto diff_gtz = diff > zero;
+        const auto diff_gez = diff_gtz || diff_zero;
+        const auto diff_lez = !diff_gtz;
+        const auto ge = eve::if_else(sign, vt_neg, diff_gez);
+        const auto le = eve::if_else(sign, diff_lez, vt_neg);
+        const auto vce = sign && (diff == Vi16(-1));
+        const auto neq = !(diff_zero || vce);
+        const auto sel = eve::if_else(sign, le, ge);
+        const Vi16 result = eve::if_else(sel, sign_negvt, vs_i);
+        const Vu16 out = as_u16(result);
+        store_vu(dest, out);
+        set_acc_low(rsp, out);
+        rsp.vcc_ref() = static_cast<uint16_t>(logical_to_bits(le) |
+                                              (logical_to_bits(ge) << 8));
+        rsp.vco_ref() = static_cast<uint16_t>(logical_to_bits(sign) |
+                                              (logical_to_bits(neq) << 8));
+        rsp.vce_ref() = static_cast<uint8_t>(logical_to_bits(vce));
+        return true;
+    }
+
+        // VCL/VCR: keep scalar for now (flag mixing is awkward with eve logical
+        // types).
+
+    case 0x1D: { // VSAR — select ACC H/M/L slice into vd
+        Vu16 out(0);
+        if (element == 8)
+            out = load_acc_h(rsp);
+        else if (element == 9)
+            out = load_acc_m(rsp);
+        else if (element == 10)
+            out = load_acc_l(rsp);
+        store_vu(dest, out);
+        return true;
+    }
+
+    case 0x33: { // VMOV
+        const int de = vs & 7;
+        const int se = vmov_src_elem(element, vs);
+        dest.set_lane(de, src_t.lane(se));
+        set_acc_low(rsp, vt_u);
+        return true;
+    }
+
+    case 0x30: // VRCP
+    case 0x31: // VRCPL
+    case 0x32: // VRCPH
+    case 0x34: // VRSQ
+    case 0x35: // VRSQL
+    case 0x36: // VRSQH
+    {
+        // Single-lane reciprocal with SIMD ACC.L = vt broadcast.
+        const int e = element & 7;
+        const int de = vs & 7;
+        if (funct == 0x32 || funct == 0x36) {
+            rsp.divin_ref() = static_cast<int16_t>(src_t.lane(e));
+            rsp.divin_loaded_ref() = true;
+            dest.set_lane(de, static_cast<uint16_t>(rsp.divout_ref()));
+        } else {
+            int32_t input;
+            if (rsp.divin_loaded_ref() && (funct == 0x31 || funct == 0x35)) {
+                input = (static_cast<int32_t>(rsp.divin_ref()) << 16) |
+                        src_t.lane(e);
+            } else {
+                input = static_cast<int16_t>(src_t.lane(e));
+            }
+            const uint32_t result = (funct == 0x34 || funct == 0x35)
+                                        ? rsp_rsq(static_cast<uint32_t>(input))
+                                        : rsp_rcp(input);
+            rsp.divout_ref() = static_cast<int16_t>((result >> 16) & 0xFFFF);
+            rsp.divin_ref() = 0;
+            rsp.divin_loaded_ref() = false;
+            dest.set_lane(de, static_cast<uint16_t>(result & 0xFFFF));
+        }
+        set_acc_low(rsp, vt_u);
         return true;
     }
 
@@ -416,7 +509,23 @@ bool try_execute_simd(Rsp &rsp, uint32_t inst) {
 } // namespace
 
 void vu_execute_compute_simd(Rsp &rsp, uint32_t inst) {
-    if (!try_execute_simd(rsp, inst))
+#if defined(N64_RSP_JIT)
+    // Prefer tight SSE2 MAC helpers over eve for the hottest functs.
+    {
+        const unsigned vd = (inst >> 6) & 0x1F;
+        const unsigned vs = (inst >> 11) & 0x1F;
+        const unsigned vt = (inst >> 16) & 0x1F;
+        const unsigned e = (inst >> 21) & 0xF;
+        const unsigned funct = inst & 0x3F;
+        if (N64::Rsp::Jit::vu_sse_compute(rsp, vd, vs, vt, e, funct)) {
+            vu_profile_compute(inst, true);
+            return;
+        }
+    }
+#endif
+    const bool hit = try_execute_simd(rsp, inst);
+    vu_profile_compute(inst, hit);
+    if (!hit)
         vu_execute_compute_scalar(rsp, inst);
 }
 
