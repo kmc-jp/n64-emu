@@ -1,11 +1,30 @@
 #include "mmio/vi.h"
 #include "mmio/mi.h"
 #include "n64_system/interrupt.h"
+#include "n64_system/scheduler.h"
 #include "utils/log.h"
 
 namespace N64 {
 namespace Mmio {
 namespace VI {
+
+namespace {
+// NTSC VR4300 clock / 60 fps. Matches Dillonb n64system.h CPU_HERTZ/target_fps.
+// https://github.com/Dillonb/n64/blob/6502f7d2f163c3f14da5bff8cd6d5ccc47143156/src/system/n64system.h#L15-L16
+constexpr uint64_t CPU_CYCLES_PER_FRAME_NTSC = 93750000ull / 60ull;
+
+void update_halfline_timing(VI &vi) {
+    // https://github.com/Dillonb/n64/blob/6502f7d2f163c3f14da5bff8cd6d5ccc47143156/src/interface/vi.c#L53-L57
+    if (vi.num_half_lines <= 0) {
+        vi.num_half_lines = 1;
+    }
+    vi.cycles_per_half_line = static_cast<int>(CPU_CYCLES_PER_FRAME_NTSC /
+                                               static_cast<uint64_t>(vi.num_half_lines));
+    if (vi.cycles_per_half_line <= 0) {
+        vi.cycles_per_half_line = 1;
+    }
+}
+} // namespace
 
 void VI::reset() {
     Utils::debug("Resetting VI");
@@ -27,7 +46,7 @@ void VI::reset() {
 
     // https://n64brew.dev/wiki/Video_Interface#0x0440_0018_-_VI_V_SYNC
     num_half_lines = reg_vsync / 2; // 262
-    cycles_per_half_line = 1000;
+    update_halfline_timing(*this);
 }
 
 uint32_t VI::read_paddr32(uint32_t paddr) const {
@@ -106,8 +125,9 @@ void VI::write_paddr32(uint32_t paddr, uint32_t value) {
             if (masked > 0x280) {
                 swap_count++;
                 if ((swap_count % 120) == 0) {
-                    Utils::info("VI_ORIGIN swaps={} latest={:#x}", swap_count,
-                                masked);
+                    Utils::info("VI_ORIGIN swaps={} latest={:#x} time={:#x}",
+                                swap_count, masked,
+                                g_scheduler().get_current_time());
                 }
             }
         }
@@ -136,7 +156,9 @@ void VI::write_paddr32(uint32_t paddr, uint32_t value) {
     case PADDR_VI_V_SYNC: {
         reg_vsync = value & 0x3FF;
         num_half_lines = reg_vsync / 2;
-        Utils::debug("VI: V_Sync set to {:#x}", reg_vsync);
+        update_halfline_timing(*this);
+        Utils::debug("VI: V_Sync set to {:#x} ({} cycles/halfline)", reg_vsync,
+                     cycles_per_half_line);
     } break;
     case PADDR_VI_H_SYNC: {
         // TODO: support PAL. ignore leap for now

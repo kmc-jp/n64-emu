@@ -103,10 +103,37 @@ static void cpu_step_callback(Config &config) {
 
     if (config.stop_after_cycles != 0 &&
         N64::g_scheduler().get_current_time() >= config.stop_after_cycles) {
-        Utils::info("Reached --stop-after={:#x} (pc={:#010x})",
+        Utils::info("Reached --stop-after={:#x} (pc={:#010x} vi_origin={:#x})",
                     config.stop_after_cycles,
-                    static_cast<uint32_t>(N64::g_cpu().get_pc64()));
+                    static_cast<uint32_t>(N64::g_cpu().get_pc64()),
+                    g_vi().reg_origin);
         std::exit(0);
+    }
+
+    // After the first real framebuffer, warn if swaps stall for a long time.
+    {
+        static uint64_t last_origin = 0;
+        static uint64_t last_change_time = 0;
+        static bool armed = false;
+        static bool warned = false;
+        const uint32_t origin = g_vi().reg_origin;
+        const uint64_t t = N64::g_scheduler().get_current_time();
+        if (!armed && origin > 0x280) {
+            armed = true;
+            last_origin = origin;
+            last_change_time = t;
+        } else if (armed && origin != last_origin) {
+            last_origin = origin;
+            last_change_time = t;
+            warned = false;
+        } else if (armed && !warned && t - last_change_time > 0x80'0000) {
+            warned = true;
+            Utils::warn(
+                "VI_ORIGIN stalled for {:#x} cycles at time={:#x} "
+                "(origin={:#x} pc={:#010x})",
+                t - last_change_time, t, origin,
+                static_cast<uint32_t>(N64::g_cpu().get_pc64()));
+        }
     }
 
     // For debugging
