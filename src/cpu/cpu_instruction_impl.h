@@ -76,6 +76,10 @@ class CpuImpl {
 
     static void op_jalr(Cpu &cpu, instruction_t inst);
 
+    static void op_syscall(Cpu &cpu, instruction_t inst);
+
+    static void op_break(Cpu &cpu, instruction_t inst);
+
     static void op_mfhi(Cpu &cpu, instruction_t inst);
 
     static void op_mflo(Cpu &cpu, instruction_t inst);

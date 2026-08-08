@@ -447,6 +447,16 @@ void CpuImpl::op_mtlo(Cpu &cpu, instruction_t inst) {
     cpu.lo = cpu.gpr.read(inst.r_type.rs);
 }
 
+void CpuImpl::op_syscall(Cpu &cpu, instruction_t inst) {
+    Utils::instruction_trace("SYSCALL");
+    cpu.handle_exception(ExceptionCode::SYSCALL, 0, true);
+}
+
+void CpuImpl::op_break(Cpu &cpu, instruction_t inst) {
+    Utils::instruction_trace("BREAK");
+    cpu.handle_exception(ExceptionCode::BREAKPOINT, 0, true);
+}
+
 void CpuImpl::op_eret(Cpu &cpu, instruction_t inst) {
     // https://github.com/Dillonb/n64/blob/6502f7d2f163c3f14da5bff8cd6d5ccc47143156/src/cpu/mips_instructions.c#L1151
     Utils::instruction_trace("ERET");

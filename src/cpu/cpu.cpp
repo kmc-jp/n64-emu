@@ -207,6 +207,10 @@ void Cpu::execute_instruction(instruction_t inst) {
             return CpuImpl::op_jr(*this, inst);
         case SPECIAL_FUNCT_JALR: // JALR
             return CpuImpl::op_jalr(*this, inst);
+        case SPECIAL_FUNCT_SYSCALL: // SYSCALL
+            return CpuImpl::op_syscall(*this, inst);
+        case SPECIAL_FUNCT_BREAK: // BREAK
+            return CpuImpl::op_break(*this, inst);
         case SPECIAL_FUNCT_MFHI: // MFHI
             return CpuImpl::op_mfhi(*this, inst);
         case SPECIAL_FUNCT_MFLO: // MFLO
@@ -507,7 +511,16 @@ void Cpu::handle_exception(ExceptionCode exception_code,
     case ExceptionCode::TLB_MODIFICATION:     // fallthrough
     case ExceptionCode::ADDRESS_ERROR_LOAD:   // fallthrough
     case ExceptionCode::ADDRESS_ERROR_STORE:  // fallthrough
-    case ExceptionCode::COPROCESSOR_UNUSABLE: {
+    case ExceptionCode::BUS_ERROR_INS_FETCH:  // fallthrough
+    case ExceptionCode::BUS_ERROR_LOAD_STORE: // fallthrough
+    case ExceptionCode::SYSCALL:              // fallthrough
+    case ExceptionCode::BREAKPOINT:           // fallthrough
+    case ExceptionCode::RESERVED_INSTR:       // fallthrough
+    case ExceptionCode::COPROCESSOR_UNUSABLE: // fallthrough
+    case ExceptionCode::ARITHMETIC_OVERFLOW:  // fallthrough
+    case ExceptionCode::TRAP:                 // fallthrough
+    case ExceptionCode::FLOATING_POINT:       // fallthrough
+    case ExceptionCode::WATCH: {
         vector = 0x80000180;
     } break;
     case ExceptionCode::TLB_MISS_LOAD: // fallthrough
