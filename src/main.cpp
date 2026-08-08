@@ -1,4 +1,4 @@
-﻿#include "app/app.h"
+#include "app/app.h"
 #include "n64_system/config.h"
 #include "utils/log.h"
 #include <iostream>

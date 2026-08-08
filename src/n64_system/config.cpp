@@ -1,4 +1,4 @@
-﻿#include "n64_system/config.h"
+#include "n64_system/config.h"
 #include "utils/log.h"
 #include <cstdlib>
 #include <iostream>

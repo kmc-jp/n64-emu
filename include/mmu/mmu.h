@@ -1,4 +1,4 @@
-﻿#ifndef MMU_H
+#ifndef MMU_H
 #define MMU_H
 
 #include "mmu/tlb.h"

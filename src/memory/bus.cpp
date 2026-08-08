@@ -1,4 +1,4 @@
-﻿#include "memory/bus.h"
+#include "memory/bus.h"
 #include "cpu/cpu.h"
 #include "cpu/jit/invalidate_hook.h"
 #include "debugger/debugger.h"
