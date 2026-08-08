@@ -2,7 +2,11 @@
 #include "utils/log.h"
 #include <SDL.h>
 #include <algorithm>
+#include <chrono>
 #include <cmath>
+#include <condition_variable>
+#include <cstring>
+#include <mutex>
 #include <vector>
 
 namespace N64 {
@@ -13,44 +17,127 @@ namespace {
 constexpr int NTSC_DAC_CLOCK = 48681812;
 constexpr int HOST_FREQUENCY = 48000;
 constexpr int DEFAULT_GUEST_FREQUENCY = 44100;
+constexpr int CHANNELS = 2;
+constexpr size_t RING_FRAMES = 48000;
 
-// Keep roughly this much audio queued for smooth playback.
-constexpr double TARGET_LATENCY_SEC = 0.080;
-// Hard ceiling; only drop if we cannot drain below this.
-constexpr double MAX_LATENCY_SEC = 0.250;
-// Bound wait so a stuck SDL backend cannot freeze the emu forever.
-constexpr int MAX_SYNC_WAIT_MS = 100;
+// Ring fullness target (~200 ms). Above this, slow the emu thread.
+constexpr double TARGET_SEC = 0.200;
+// Below this, pause output until the emu refills (avoids silence pops).
+constexpr double LOW_WATER_SEC = 0.050;
+// Resume once we have rebuilt some cushion.
+constexpr double RESUME_SEC = 0.100;
+constexpr int MAX_HIGH_WATER_WAIT_MS = 200;
+constexpr int MAX_FULL_RING_WAIT_MS = 250;
 
 bool g_enabled = false;
 SDL_AudioDeviceID g_device = 0;
 int g_host_frequency = 0;
 int g_guest_frequency = DEFAULT_GUEST_FREQUENCY;
 double g_resample_pos = 0.0;
-std::vector<int16_t> g_resampled;
+bool g_output_paused = false;
+size_t g_callback_frames = 1024;
 
-int bytes_for_seconds(double seconds) {
-    return static_cast<int>(g_host_frequency * seconds * 4.0);
+std::mutex g_mutex;
+std::condition_variable g_space_cv;
+std::vector<int16_t> g_ring;
+size_t g_ring_cap_frames = 0;
+size_t g_read_frame = 0;
+size_t g_write_frame = 0;
+size_t g_frames_avail = 0;
+
+size_t frames_for_seconds(double seconds) {
+    if (g_host_frequency <= 0) {
+        return 0;
+    }
+    return static_cast<size_t>(g_host_frequency * seconds);
+}
+
+size_t frames_free_locked() { return g_ring_cap_frames - g_frames_avail; }
+
+void ring_clear_locked() {
+    g_read_frame = 0;
+    g_write_frame = 0;
+    g_frames_avail = 0;
+    g_resample_pos = 0.0;
+}
+
+void ring_write_locked(const int16_t *frames, size_t count) {
+    for (size_t i = 0; i < count; ++i) {
+        const size_t idx = g_write_frame * CHANNELS;
+        g_ring[idx] = frames[i * CHANNELS];
+        g_ring[idx + 1] = frames[i * CHANNELS + 1];
+        g_write_frame = (g_write_frame + 1) % g_ring_cap_frames;
+    }
+    g_frames_avail += count;
+}
+
+size_t ring_read_locked(int16_t *out, size_t count) {
+    const size_t n = std::min(count, g_frames_avail);
+    for (size_t i = 0; i < n; ++i) {
+        const size_t idx = g_read_frame * CHANNELS;
+        out[i * CHANNELS] = g_ring[idx];
+        out[i * CHANNELS + 1] = g_ring[idx + 1];
+        g_read_frame = (g_read_frame + 1) % g_ring_cap_frames;
+    }
+    g_frames_avail -= n;
+    return n;
+}
+
+void set_output_paused(bool pause) {
+    if (g_device == 0 || pause == g_output_paused) {
+        return;
+    }
+    SDL_PauseAudioDevice(g_device, pause ? 1 : 0);
+    g_output_paused = pause;
+}
+
+void SDLCALL audio_callback(void * /*userdata*/, Uint8 *stream, int len) {
+    const size_t want_frames =
+        static_cast<size_t>(len) / (sizeof(int16_t) * CHANNELS);
+    auto *out = reinterpret_cast<int16_t *>(stream);
+
+    size_t got = 0;
+    {
+        std::lock_guard<std::mutex> lock(g_mutex);
+        got = ring_read_locked(out, want_frames);
+    }
+    g_space_cv.notify_all();
+
+    if (got < want_frames) {
+        std::memset(out + got * CHANNELS, 0,
+                    (want_frames - got) * CHANNELS * sizeof(int16_t));
+    }
 }
 
 void close_device() {
     if (g_device != 0) {
-        SDL_ClearQueuedAudio(g_device);
+        SDL_PauseAudioDevice(g_device, 1);
         SDL_CloseAudioDevice(g_device);
         g_device = 0;
     }
+    g_output_paused = false;
+    std::lock_guard<std::mutex> lock(g_mutex);
+    ring_clear_locked();
 }
 
 bool open_device() {
     close_device();
 
+    {
+        std::lock_guard<std::mutex> lock(g_mutex);
+        g_ring_cap_frames = RING_FRAMES;
+        g_ring.assign(g_ring_cap_frames * CHANNELS, 0);
+        ring_clear_locked();
+    }
+
     SDL_AudioSpec want{};
     SDL_AudioSpec have{};
     want.freq = HOST_FREQUENCY;
     want.format = AUDIO_S16SYS;
-    want.channels = 2;
-    // Larger device buffer reduces callback/underrun chatter on WSL.
-    want.samples = 2048;
-    want.callback = nullptr;
+    want.channels = CHANNELS;
+    want.samples = 1024;
+    want.callback = audio_callback;
+    want.userdata = nullptr;
 
     g_device = SDL_OpenAudioDevice(nullptr, 0, &want, &have,
                                    SDL_AUDIO_ALLOW_FREQUENCY_CHANGE);
@@ -58,18 +145,57 @@ bool open_device() {
         Utils::critical("Audio: Failed to open device: {}", SDL_GetError());
         return false;
     }
-    if (have.format != AUDIO_S16SYS || have.channels != 2) {
+    if (have.format != AUDIO_S16SYS || have.channels != CHANNELS) {
         Utils::critical("Audio: Unexpected device format");
         close_device();
         return false;
     }
 
     g_host_frequency = have.freq;
-    g_resample_pos = 0.0;
-    SDL_PauseAudioDevice(g_device, 0);
-    Utils::info("Audio: Opened SDL device at {} Hz (guest {} Hz)",
-                g_host_frequency, g_guest_frequency);
+    g_callback_frames = have.samples > 0 ? static_cast<size_t>(have.samples)
+                                         : size_t{1024};
+    // Start paused until the ring has a cushion.
+    g_output_paused = true;
+    SDL_PauseAudioDevice(g_device, 1);
+    Utils::info("Audio: Callback device {} Hz (guest {} Hz)", g_host_frequency,
+                g_guest_frequency);
     return true;
+}
+
+void apply_sync_policy() {
+    const size_t target = frames_for_seconds(TARGET_SEC);
+    const size_t low = std::max(frames_for_seconds(LOW_WATER_SEC),
+                                g_callback_frames * 2);
+    const size_t resume = std::max(frames_for_seconds(RESUME_SEC), low);
+
+    bool pause = false;
+    bool resume_out = false;
+    {
+        std::unique_lock<std::mutex> lock(g_mutex);
+        if (g_frames_avail < low) {
+            if (!g_output_paused) {
+                pause = true;
+            }
+        } else if (g_output_paused && g_frames_avail >= resume) {
+            resume_out = true;
+        }
+
+        const auto deadline = std::chrono::steady_clock::now() +
+                              std::chrono::milliseconds(MAX_HIGH_WATER_WAIT_MS);
+        while (g_enabled && g_frames_avail > target) {
+            if (g_space_cv.wait_until(lock, deadline) ==
+                std::cv_status::timeout) {
+                break;
+            }
+        }
+    }
+
+    // Never call Pause/Unpause while holding g_mutex (callback can block).
+    if (pause) {
+        set_output_paused(true);
+    } else if (resume_out) {
+        set_output_paused(false);
+    }
 }
 
 } // namespace
@@ -84,9 +210,10 @@ void init() {
 }
 
 void shutdown() {
+    g_enabled = false;
+    g_space_cv.notify_all();
     close_device();
     g_host_frequency = 0;
-    g_enabled = false;
 }
 
 bool enabled() { return g_enabled && g_device != 0; }
@@ -102,7 +229,10 @@ void set_frequency(int hz) {
         return;
     }
     g_guest_frequency = hz;
-    g_resample_pos = 0.0;
+    {
+        std::lock_guard<std::mutex> lock(g_mutex);
+        g_resample_pos = 0.0;
+    }
     Utils::info("Audio: Guest sample rate -> {} Hz", g_guest_frequency);
 }
 
@@ -123,25 +253,14 @@ void push_samples(std::span<const int16_t> interleaved_stereo) {
         return;
     }
 
-    const int target_latency = bytes_for_seconds(TARGET_LATENCY_SEC);
-    const int max_latency = bytes_for_seconds(MAX_LATENCY_SEC);
-    const int queued_before =
-        static_cast<int>(SDL_GetQueuedAudioSize(g_device));
-
-    // Mild dynamic rate: stretch a little when the queue is thin to cover
-    // frame-time spikes without inserting silence.
-    double ratio = static_cast<double>(g_host_frequency) /
-                   static_cast<double>(g_guest_frequency);
-    if (queued_before < target_latency / 2) {
-        ratio *= 1.03;
-    } else if (queued_before > target_latency) {
-        ratio *= 0.99;
-    }
-
+    const double ratio = static_cast<double>(g_host_frequency) /
+                         static_cast<double>(g_guest_frequency);
     const size_t out_cap =
         static_cast<size_t>(std::ceil(static_cast<double>(in_frames) * ratio)) +
         2;
-    g_resampled.resize(out_cap * 2);
+
+    thread_local std::vector<int16_t> host;
+    host.resize(out_cap * CHANNELS);
 
     size_t out_frames = 0;
     while (g_resample_pos < static_cast<double>(in_frames)) {
@@ -155,40 +274,40 @@ void push_samples(std::span<const int16_t> interleaved_stereo) {
         const double l1 = interleaved_stereo[i1 * 2 + 0];
         const double r1 = interleaved_stereo[i1 * 2 + 1];
 
-        g_resampled[out_frames * 2 + 0] =
+        host[out_frames * 2 + 0] =
             static_cast<int16_t>(std::lround(l0 + (l1 - l0) * frac));
-        g_resampled[out_frames * 2 + 1] =
+        host[out_frames * 2 + 1] =
             static_cast<int16_t>(std::lround(r0 + (r1 - r0) * frac));
         ++out_frames;
         g_resample_pos += 1.0 / ratio;
     }
     g_resample_pos -= static_cast<double>(in_frames);
 
-    if (out_frames == 0) {
-        return;
-    }
+    size_t written = 0;
+    const auto full_deadline =
+        std::chrono::steady_clock::now() +
+        std::chrono::milliseconds(MAX_FULL_RING_WAIT_MS);
 
-    const int nbytes = static_cast<int>(out_frames * 2 * sizeof(int16_t));
-
-    // Pace to audio when the emu runs ahead. Do not insert silence padding —
-    // that was causing regular gaps ("ぷつぷつ").
-    for (int waited = 0; waited < MAX_SYNC_WAIT_MS; ++waited) {
-        const int queued = static_cast<int>(SDL_GetQueuedAudioSize(g_device));
-        if (queued <= target_latency) {
-            break;
+    while (written < out_frames && g_enabled) {
+        std::unique_lock<std::mutex> lock(g_mutex);
+        while (frames_free_locked() == 0 && g_enabled) {
+            if (g_space_cv.wait_until(lock, full_deadline) ==
+                std::cv_status::timeout) {
+                lock.unlock();
+                apply_sync_policy();
+                return;
+            }
         }
-        SDL_Delay(1);
+        if (!g_enabled) {
+            return;
+        }
+        const size_t n =
+            std::min(out_frames - written, frames_free_locked());
+        ring_write_locked(host.data() + written * CHANNELS, n);
+        written += n;
     }
 
-    const int queued = static_cast<int>(SDL_GetQueuedAudioSize(g_device));
-    if (queued > max_latency) {
-        // Still flooded after waiting — skip this chunk rather than grow forever.
-        return;
-    }
-
-    if (SDL_QueueAudio(g_device, g_resampled.data(), nbytes) != 0) {
-        Utils::debug("Audio: QueueAudio failed: {}", SDL_GetError());
-    }
+    apply_sync_policy();
 }
 
 } // namespace Audio
