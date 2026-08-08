@@ -1,11 +1,47 @@
 #include "cpu/jit/code_cache.h"
 #include "utils/log.h"
+#ifdef _WIN32
+#include <windows.h>
+#else
 #include <sys/mman.h>
 #include <unistd.h>
+#endif
 
 namespace N64 {
 namespace Cpu {
 namespace Jit {
+
+namespace {
+size_t host_page_size() {
+#ifdef _WIN32
+    SYSTEM_INFO info;
+    GetSystemInfo(&info);
+    return static_cast<size_t>(info.dwPageSize);
+#else
+    return static_cast<size_t>(sysconf(_SC_PAGESIZE));
+#endif
+}
+
+void *alloc_rwx(size_t bytes) {
+#ifdef _WIN32
+    return VirtualAlloc(nullptr, bytes, MEM_COMMIT | MEM_RESERVE,
+                        PAGE_EXECUTE_READWRITE);
+#else
+    void *mem = mmap(nullptr, bytes, PROT_READ | PROT_WRITE | PROT_EXEC,
+                     MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
+    return mem == MAP_FAILED ? nullptr : mem;
+#endif
+}
+
+void free_rwx(void *ptr, size_t bytes) {
+#ifdef _WIN32
+    (void)bytes;
+    VirtualFree(ptr, 0, MEM_RELEASE);
+#else
+    munmap(ptr, bytes);
+#endif
+}
+} // namespace
 
 CodeCache::CodeCache() { rdram_pages_.fill(nullptr); }
 
@@ -63,15 +99,14 @@ uint8_t *CodeCache::alloc_exec(size_t size) {
         }
     }
 
-    const size_t page = static_cast<size_t>(sysconf(_SC_PAGESIZE));
+    const size_t page = host_page_size();
     size_t total = SLAB_SIZE;
     if (size + align > total)
         total = ((size + align + page - 1) / page) * page;
 
-    void *mem = mmap(nullptr, total, PROT_READ | PROT_WRITE | PROT_EXEC,
-                     MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
-    if (mem == MAP_FAILED) {
-        Utils::critical("JIT: mmap executable memory failed");
+    void *mem = alloc_rwx(total);
+    if (!mem) {
+        Utils::critical("JIT: executable memory allocation failed");
         Utils::abort("Aborted");
     }
     auto *p = static_cast<uint8_t *>(mem);
@@ -155,7 +190,7 @@ void CodeCache::clear() {
     blocks_.clear();
     for (auto &s : slabs_) {
         if (s.ptr)
-            munmap(s.ptr, s.bytes);
+            free_rwx(s.ptr, s.bytes);
     }
     slabs_.clear();
     total_slab_bytes_ = 0;

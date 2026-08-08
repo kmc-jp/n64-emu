@@ -16,6 +16,25 @@ namespace {
 using namespace Xbyak;
 using namespace Xbyak::util;
 
+// Host C++ calling convention for helper calls from emitted code.
+#ifdef _WIN32
+// Microsoft x64: RCX, RDX, R8, R9 + 32-byte shadow space.
+static constexpr size_t kAbiStackAdjust = 0x28; // 8-byte align + 32 shadow
+#define JIT_ARG1d ecx
+#define JIT_ARG1q rcx
+#define JIT_ARG2d edx
+#define JIT_ARG2q rdx
+#define JIT_ARG3d r8d
+#else
+// System V: RDI, RSI, RDX, RCX, … (no shadow space).
+static constexpr size_t kAbiStackAdjust = 8;
+#define JIT_ARG1d edi
+#define JIT_ARG1q rdi
+#define JIT_ARG2d esi
+#define JIT_ARG2q rsi
+#define JIT_ARG3d edx
+#endif
+
 bool is_branch_likely(IrOpKind k) {
     switch (k) {
     case IrOpKind::Beql:
@@ -75,10 +94,10 @@ class BlockEmitter : public CodeGenerator {
 
         // prologue: keep cycles in ebx (callee-saved).
         // On entry RSP is 8-mod-16; after two pushes still 8-mod-16.
-        // ABI requires 16-byte alignment before CALL.
+        // ABI requires 16-byte alignment before CALL (Win64 also needs shadow).
         push(rbx);
         push(r12);
-        sub(rsp, 8);
+        sub(rsp, kAbiStackAdjust);
         xor_(ebx, ebx); // cycles_done
 
         for (size_t i = 0; i < n; i++) {
@@ -106,12 +125,12 @@ class BlockEmitter : public CodeGenerator {
 
         L(exit_label);
         // add_count(cycles) — compare-edge logic stays in C++.
-        mov(edi, ebx);
+        mov(JIT_ARG1d, ebx);
         mov(rax, reinterpret_cast<uintptr_t>(&add_count));
         call(rax);
 
         mov(eax, ebx); // return cycles
-        add(rsp, 8);
+        add(rsp, kAbiStackAdjust);
         pop(r12);
         pop(rbx);
         ret();
@@ -359,13 +378,13 @@ class BlockEmitter : public CodeGenerator {
     }
 
     // Inline Cpu::branch_addr64 for a PC-relative offset (non-likely).
-    // Condition is already in edi (0/1). Uses pc/next_pc/delay_slot ptrs.
+    // Condition is already in JIT_ARG1d (0/1). Uses pc/next_pc/delay_slot ptrs.
     void emit_branch_offset_inline(int16_t off) {
         Xbyak::Label not_taken, done;
         // delay_slot = true
         mov(rax, delay_slot_ptr_);
         mov(byte[rax], 1);
-        test(edi, edi);
+        test(JIT_ARG1d, JIT_ARG1d);
         jz(not_taken, T_NEAR);
         // next_pc = pc + (int64_t)off * 4
         mov(rax, pc_ptr_);
@@ -384,17 +403,17 @@ class BlockEmitter : public CodeGenerator {
         switch (op.kind) {
         case IrOpKind::Jr:
             gpr_to_rax(op.rs);
-            mov(rsi, rax);
-            mov(edi, 1);
+            mov(JIT_ARG2q, rax);
+            mov(JIT_ARG1d, 1);
             call_fn(reinterpret_cast<const void *>(&do_branch_addr));
             break;
         case IrOpKind::Jalr:
             gpr_to_rax(op.rs);
             mov(r12, rax);
-            mov(edi, 1);
-            mov(rsi, r12);
+            mov(JIT_ARG1d, 1);
+            mov(JIT_ARG2q, r12);
             call_fn(reinterpret_cast<const void *>(&do_branch_addr));
-            mov(edi, op.rd);
+            mov(JIT_ARG1d, op.rd);
             call_fn(reinterpret_cast<const void *>(&do_link));
             break;
         case IrOpKind::J: {
@@ -405,8 +424,8 @@ class BlockEmitter : public CodeGenerator {
             and_(rax, rcx);
             mov(rcx, static_cast<uint64_t>(op.target) << 2);
             or_(rax, rcx);
-            mov(rsi, rax);
-            mov(edi, 1);
+            mov(JIT_ARG2q, rax);
+            mov(JIT_ARG1d, 1);
             call_fn(reinterpret_cast<const void *>(&do_branch_addr));
             break;
         }
@@ -418,10 +437,10 @@ class BlockEmitter : public CodeGenerator {
             and_(rax, rcx);
             mov(rcx, static_cast<uint64_t>(op.target) << 2);
             or_(rax, rcx);
-            mov(rsi, rax);
-            mov(edi, 1);
+            mov(JIT_ARG2q, rax);
+            mov(JIT_ARG1d, 1);
             call_fn(reinterpret_cast<const void *>(&do_branch_addr));
-            mov(edi, 31);
+            mov(JIT_ARG1d, 31);
             call_fn(reinterpret_cast<const void *>(&do_link));
             break;
         }
@@ -434,11 +453,11 @@ class BlockEmitter : public CodeGenerator {
             gpr_to_rax(op.rt);
             cmp(r12, rax);
             setz(al);
-            movzx(edi, al);
+            movzx(JIT_ARG1d, al);
             if (op.kind == IrOpKind::Bne || op.kind == IrOpKind::Bnel)
-                xor_(edi, 1);
+                xor_(JIT_ARG1d, 1);
             if (op.kind == IrOpKind::Beql || op.kind == IrOpKind::Bnel) {
-                mov(esi, off);
+                mov(JIT_ARG2d, off);
                 call_fn(reinterpret_cast<const void *>(&do_branch_likely_offset));
             } else {
                 emit_branch_offset_inline(off);
@@ -455,9 +474,9 @@ class BlockEmitter : public CodeGenerator {
                 setle(al);
             else
                 setg(al);
-            movzx(edi, al);
+            movzx(JIT_ARG1d, al);
             if (op.kind == IrOpKind::Blezl || op.kind == IrOpKind::Bgtzl) {
-                mov(esi, off);
+                mov(JIT_ARG2d, off);
                 call_fn(reinterpret_cast<const void *>(&do_branch_likely_offset));
             } else {
                 emit_branch_offset_inline(off);
@@ -477,17 +496,17 @@ class BlockEmitter : public CodeGenerator {
                 setl(al);
             else
                 setge(al);
-            movzx(edi, al);
+            movzx(JIT_ARG1d, al);
             const bool likely = op.kind == IrOpKind::Bltzl ||
                                 op.kind == IrOpKind::Bgezl;
             if (likely) {
-                mov(esi, off);
+                mov(JIT_ARG2d, off);
                 call_fn(reinterpret_cast<const void *>(&do_branch_likely_offset));
             } else {
                 emit_branch_offset_inline(off);
             }
             if (op.kind == IrOpKind::Bltzal || op.kind == IrOpKind::Bgezal) {
-                mov(edi, 31);
+                mov(JIT_ARG1d, 31);
                 call_fn(reinterpret_cast<const void *>(&do_link));
             }
             break;
@@ -498,9 +517,9 @@ class BlockEmitter : public CodeGenerator {
     }
 
     void emit_mem(const IrOp &op) {
-        mov(edi, op.rt);
-        mov(esi, op.rs);
-        mov(edx, static_cast<int16_t>(op.imm));
+        mov(JIT_ARG1d, op.rt);
+        mov(JIT_ARG2d, op.rs);
+        mov(JIT_ARG3d, static_cast<int16_t>(op.imm));
         const void *fn = nullptr;
         switch (op.kind) {
         case IrOpKind::Lb:
@@ -661,43 +680,43 @@ class BlockEmitter : public CodeGenerator {
             mov(qword[rdx], rax);
             break;
         case IrOpKind::Mult:
-            mov(edi, op.rs);
-            mov(esi, op.rt);
+            mov(JIT_ARG1d, op.rs);
+            mov(JIT_ARG2d, op.rt);
             call_fn(reinterpret_cast<const void *>(&do_mult));
             break;
         case IrOpKind::Multu:
-            mov(edi, op.rs);
-            mov(esi, op.rt);
+            mov(JIT_ARG1d, op.rs);
+            mov(JIT_ARG2d, op.rt);
             call_fn(reinterpret_cast<const void *>(&do_multu));
             break;
         case IrOpKind::Div:
-            mov(edi, op.rs);
-            mov(esi, op.rt);
+            mov(JIT_ARG1d, op.rs);
+            mov(JIT_ARG2d, op.rt);
             call_fn(reinterpret_cast<const void *>(&do_div));
             break;
         case IrOpKind::Divu:
-            mov(edi, op.rs);
-            mov(esi, op.rt);
+            mov(JIT_ARG1d, op.rs);
+            mov(JIT_ARG2d, op.rt);
             call_fn(reinterpret_cast<const void *>(&do_divu));
             break;
         case IrOpKind::Mfc0:
-            mov(edi, op.rt);
-            mov(esi, op.rd);
+            mov(JIT_ARG1d, op.rt);
+            mov(JIT_ARG2d, op.rd);
             call_fn(reinterpret_cast<const void *>(&do_mfc0));
             break;
         case IrOpKind::Mtc0:
-            mov(edi, op.rt);
-            mov(esi, op.rd);
+            mov(JIT_ARG1d, op.rt);
+            mov(JIT_ARG2d, op.rd);
             call_fn(reinterpret_cast<const void *>(&do_mtc0));
             break;
         case IrOpKind::Dmfc0:
-            mov(edi, op.rt);
-            mov(esi, op.rd);
+            mov(JIT_ARG1d, op.rt);
+            mov(JIT_ARG2d, op.rd);
             call_fn(reinterpret_cast<const void *>(&do_dmfc0));
             break;
         case IrOpKind::Dmtc0:
-            mov(edi, op.rt);
-            mov(esi, op.rd);
+            mov(JIT_ARG1d, op.rt);
+            mov(JIT_ARG2d, op.rd);
             call_fn(reinterpret_cast<const void *>(&do_dmtc0));
             break;
         }

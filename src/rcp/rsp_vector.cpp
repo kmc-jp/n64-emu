@@ -3,6 +3,7 @@
 #include "utils/log.h"
 #include <algorithm>
 #include <array>
+#include <bit>
 #include <climits>
 #include <cmath>
 #include <cstring>
@@ -73,7 +74,7 @@ uint32_t rsp_rcp(int32_t sinput) {
         return 0x7FFFFFFF;
     if (sinput == INT16_MIN)
         return 0xFFFF0000;
-    const uint32_t shift = static_cast<uint32_t>(__builtin_clz(static_cast<uint32_t>(input)));
+    const uint32_t shift = std::countl_zero(static_cast<uint32_t>(input));
     const uint32_t index =
         static_cast<uint32_t>((((static_cast<uint64_t>(input) << shift) & 0x7FC00000ULL) >> 22));
     int32_t result = kRcpRom[index];
@@ -92,7 +93,7 @@ uint32_t rsp_rsq(uint32_t input) {
     int32_t sinput = static_cast<int32_t>(input);
     const int32_t mask = sinput >> 31;
     input ^= static_cast<uint32_t>(mask);
-    const int shift = __builtin_clz(input) + 1;
+    const int shift = static_cast<int>(std::countl_zero(input)) + 1;
     const int index =
         static_cast<int>(((input << shift) >> 24) | ((shift & 1) << 8));
     const uint32_t rom = (static_cast<uint32_t>(kRsqRom[index]) << 14);

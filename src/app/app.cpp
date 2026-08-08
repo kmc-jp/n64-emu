@@ -33,8 +33,13 @@ static void ensure_prdp_vulkan_icd() {
     if (!pins_dzn && !(is_wsl && (!cur || !*cur)))
         return;
 
+#ifdef _WIN32
+    _putenv_s("VK_DRIVER_FILES", kLvp);
+    _putenv_s("VK_ICD_FILENAMES", kLvp);
+#else
     setenv("VK_DRIVER_FILES", kLvp, 1);
     setenv("VK_ICD_FILENAMES", kLvp, 1);
+#endif
     Utils::warn(
         "Using lavapipe for paraLLEl-RDP (Mesa dzn lacks SSBO 8-bit storage; "
         "native NVIDIA Vulkan is unavailable on WSL)");
