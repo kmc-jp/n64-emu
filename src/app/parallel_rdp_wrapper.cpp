@@ -4,6 +4,7 @@
 #include "rdp_device.hpp"
 #include "utils/log.h"
 #include "wsi.hpp"
+#include <cstdlib>
 
 namespace N64 {
 namespace PRDPWrapper {
@@ -179,6 +180,15 @@ void update_screen(Vulkan::WSI &wsi, N64::Mmio::VI::VI &vi) {
     if (vi.reg_origin == 0 || vi.reg_origin == 0x280) {
         return;
     }
+
+    // Optional: N64_SKIP_PRESENT=1 skips Vulkan present (faster CPU/RDP QA).
+    static int skip_present = -1;
+    if (skip_present < 0) {
+        const char *e = std::getenv("N64_SKIP_PRESENT");
+        skip_present = (e && e[0] == '1') ? 1 : 0;
+    }
+    if (skip_present)
+        return;
 
     //  FIXME: quarks?
     // https://github.com/simple64/simple64/blob/1e4ab555054a659c6e6a91db16ce46714be7ac00/parallel-rdp-standalone/parallel_imp.cpp#L257C7-L257C7
