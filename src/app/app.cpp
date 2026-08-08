@@ -59,9 +59,25 @@ App::App(N64System::Config &config) : config(config) {
         Utils::critical("Failed to initialize SDL: %s", SDL_GetError());
         exit(-1);
     }
+    // Prefer the display under the mouse; plain CENTERED uses display 0.
+    int display_index = 0;
+    int mouse_x = 0, mouse_y = 0;
+    SDL_GetGlobalMouseState(&mouse_x, &mouse_y);
+    const int num_displays = SDL_GetNumVideoDisplays();
+    for (int i = 0; i < num_displays; ++i) {
+        SDL_Rect bounds;
+        if (SDL_GetDisplayBounds(i, &bounds) == 0 && mouse_x >= bounds.x &&
+            mouse_x < bounds.x + bounds.w && mouse_y >= bounds.y &&
+            mouse_y < bounds.y + bounds.h) {
+            display_index = i;
+            break;
+        }
+    }
+
     window = SDL_CreateWindow(
-        WINDOW_TITLE, SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED,
-        WINDOW_WIDTH, WINDOW_HEIGHT, SDL_WINDOW_VULKAN | SDL_WINDOW_RESIZABLE);
+        WINDOW_TITLE, SDL_WINDOWPOS_CENTERED_DISPLAY(display_index),
+        SDL_WINDOWPOS_CENTERED_DISPLAY(display_index), WINDOW_WIDTH,
+        WINDOW_HEIGHT, SDL_WINDOW_VULKAN | SDL_WINDOW_RESIZABLE);
     if (window == nullptr) {
         Utils::critical("Failed to open Window");
         exit(-1);
