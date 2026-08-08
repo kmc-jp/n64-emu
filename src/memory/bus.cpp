@@ -14,7 +14,6 @@
 #include "utils/byte_array.h"
 #include "utils/log.h"
 #include <cstdint>
-#include <cstdio>
 #include <utility>
 
 namespace N64 {
@@ -273,14 +272,6 @@ template <typename Wire> void write_paddr(uint32_t paddr, Wire value) {
 
     if (PHYS_RDRAM_MEM_BASE <= paddr && paddr <= PHYS_RDRAM_MEM_END) {
         uint32_t offs = paddr - PHYS_RDRAM_MEM_BASE;
-        // TEMP TRACE — writes that touch Kirby uObjBg @ 0x20eab0
-        if (offs >= 0x20eab0 && offs < 0x20eaf0) {
-            std::fprintf(stderr,
-                         "RDRAM_WR sz=%zu offs=%06x val=%llx pc=%llx\n",
-                         sizeof(Wire), offs, (unsigned long long)value,
-                         (unsigned long long)g_cpu().get_prev_pc64());
-            std::fflush(stderr);
-        }
         if constexpr (wire8) {
             Utils::write_to_byte_array8(g_memory().get_rdram(), offs, value);
             maybe_invalidate_code(paddr, 1);
