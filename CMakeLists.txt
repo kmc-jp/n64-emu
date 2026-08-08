@@ -51,6 +51,7 @@ if("${CMAKE_CXX_COMPILER_ID}" STREQUAL "MSVC")
 endif()
 
 target_compile_options(common INTERFACE
+    $<$<CXX_COMPILER_ID:MSVC>:/utf-8>
     $<$<AND:$<CXX_COMPILER_ID:MSVC>,$<CONFIG:Debug>>:/Z7 /O2>
 )
 
