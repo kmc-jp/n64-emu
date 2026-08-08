@@ -221,6 +221,15 @@ void Dpc::process_list() {
 
         // Don't need to process commands under 8
         if (command >= 8) {
+            // Kirby S2DEX previously emitted TexRect XL≈705 from half-swapped
+            // uObjBg fields; keep a debug breadcrumb if that regresses.
+            if (command == 0x24 && command_length >= 2) {
+                const int xl = (cmd_buf[buf_index] >> 12) & 0xFFF;
+                if ((xl >> 2) >= 680 && (xl >> 2) <= 720) {
+                    Utils::debug("Suspicious TexRect XL={} w0={:#010x}",
+                                 xl >> 2, cmd_buf[buf_index]);
+                }
+            }
             PRDPWrapper::enqueue_command(command_length,
                                          &cmd_buf[buf_index]);
         }
