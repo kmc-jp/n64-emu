@@ -219,7 +219,8 @@ class Cop0 {
         uint32_t wired;
         // 7th register is unknown
         uint64_t bad_vaddr;
-        uint32_t count;
+        // Internal PClock counter (33-bit). Software Count is this >> 1.
+        uint64_t count;
         entry_hi_t entry_hi;
         uint32_t compare;
         cop0_status_t status;

@@ -88,10 +88,7 @@ class Cpu {
         next_pc += 4;
     }
 
-    void add_count(uint32_t n) {
-        cop0.reg.count += n;
-        cop0.reg.count &= 0x1FFFFFFFF;
-    }
+    void add_count(uint32_t n);
 
     void execute_instruction(instruction_t inst);
 

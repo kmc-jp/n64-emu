@@ -70,6 +70,22 @@ void Cpu::set_pc32(uint32_t value) {
     next_pc = pc + 4;
 }
 
+void Cpu::add_count(uint32_t n) {
+    if (n == 0)
+        return;
+    const uint64_t before = cop0.reg.count;
+    cop0.reg.count = (before + n) & 0x1FFFFFFFFULL;
+    // Timer interrupt when the internal (PClock) counter reaches Compare<<1.
+    // Detect crossing so JIT multi-cycle blocks cannot miss the edge.
+    const uint64_t target =
+        (static_cast<uint64_t>(cop0.reg.compare) << 1) & 0x1FFFFFFFFULL;
+    const uint64_t dist = (target - before) & 0x1FFFFFFFFULL;
+    if (dist <= static_cast<uint64_t>(n)) {
+        cop0.reg.cause.ip7 = true;
+        N64System::check_interrupt();
+    }
+}
+
 uint64_t Cpu::get_pc64() const { return pc; }
 
 bool Cpu::should_service_interrupt() const {
@@ -86,12 +102,6 @@ bool Cpu::should_service_interrupt() const {
 void Cpu::step() {
     Utils::trace("");
     Utils::trace("CPU cycle starts PC={:#018x}", pc);
-
-    // Compare interrupt
-    if (cop0.reg.count == (cop0.reg.compare << 1)) {
-        cop0.reg.cause.ip7 = true;
-        N64System::check_interrupt();
-    }
 
     // updates delay slot
     prev_delay_slot = delay_slot;
@@ -122,8 +132,7 @@ void Cpu::step() {
 
     execute_instruction(inst);
 
-    cop0.reg.count += CPU_CYCLES_PER_INST;
-    cop0.reg.count &= 0x1FFFFFFFF;
+    add_count(CPU_CYCLES_PER_INST);
 }
 
 static bool is_xtlb_miss(uint64_t bad_vaddr, cop0_status_t status) {

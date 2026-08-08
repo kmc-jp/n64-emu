@@ -20,10 +20,6 @@ void advance_pc() { g_cpu().advance_pc_no_fetch(); }
 
 bool block_entry_checks() {
     auto &cpu = g_cpu();
-    if (cpu.cop0.reg.count == (cpu.cop0.reg.compare << 1)) {
-        cpu.cop0.reg.cause.ip7 = true;
-        N64System::check_interrupt();
-    }
     if (cpu.should_service_interrupt()) {
         cpu.handle_exception(ExceptionCode::INTERRUPT, 0, false);
         return true;

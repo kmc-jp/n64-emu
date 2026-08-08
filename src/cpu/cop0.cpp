@@ -31,7 +31,8 @@ uint64_t Cop0::Reg::read(uint8_t reg_num) const {
     case Cop0Reg::BAD_VADDR:
         return bad_vaddr;
     case Cop0Reg::COUNT:
-        return count;
+        // Count/Compare use half the PClock; store full-rate internally.
+        return count >> 1;
     case Cop0Reg::ENTRY_HI:
         return entry_hi.raw;
     case Cop0Reg::COMPARE:
@@ -112,7 +113,9 @@ void Cop0::Reg::write(uint8_t reg_num, uint64_t value) {
         // Read-only
     } break;
     case Cop0Reg::COUNT: {
-        count = value;
+        // Software sees half-rate Count; keep the internal timer at PClock.
+        count = (static_cast<uint64_t>(static_cast<uint32_t>(value)) << 1) &
+                0x1FFFFFFFFULL;
     } break;
     case Cop0Reg::ENTRY_HI: {
         if (value <= 0xFFFFFFFFULL) {

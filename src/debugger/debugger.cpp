@@ -596,7 +596,8 @@ void Debugger::cmd_cop0() const {
                 ctx, xctx);
     dbg_out("Random={:#x} Wired={:#x} Index={:#010x} PageMask={:#010x}",
                 r.random, r.wired, r.index, r.page_mask);
-    dbg_out("Compare={:#010x} Count={:#010x}", r.compare, r.count);
+    dbg_out("Compare={:#010x} Count={:#010x} (internal={:#018x})", r.compare,
+                static_cast<uint32_t>(r.count >> 1), r.count);
 }
 
 void Debugger::cmd_tlb() const { g_tlb().dump_entries(); }
