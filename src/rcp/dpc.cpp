@@ -7,6 +7,7 @@
 #include "rcp/rsp.h"
 #include "utils/byte_array.h"
 #include "utils/log.h"
+#include <vector>
 
 namespace N64 {
 namespace Rdp {
@@ -196,9 +197,12 @@ void Dpc::process_list() {
         if ((buf_index + command_length) * 4 >
             display_list_length + leftover * 4) {
             leftover = length_words - buf_index;
-            for (int i = 0; i < leftover; i++) {
-                cmd_buf[i] = cmd_buf[buf_index + i];
-            }
+            // Copy via temp buffer so overlapping regions cannot corrupt
+            // a partial command carried into the next DPC submission.
+            std::vector<uint32_t> temp(
+                cmd_buf + buf_index, cmd_buf + buf_index + leftover);
+            for (int i = 0; i < leftover; i++)
+                cmd_buf[i] = temp[static_cast<size_t>(i)];
             processed_all = false;
             break;
         }

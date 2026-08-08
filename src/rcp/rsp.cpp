@@ -514,7 +514,9 @@ void Rsp::execute_cop2(uint32_t inst) {
         const int elem = (inst >> 7) & 0xF;
         const uint32_t val = gpr(vt);
         vpr_[vd].set_byte(elem, static_cast<uint8_t>(val >> 8));
-        vpr_[vd].set_byte((elem + 1) & 15, static_cast<uint8_t>(val));
+        // Low byte is dropped (not wrapped) when element == 15.
+        if (elem < 15)
+            vpr_[vd].set_byte(elem + 1, static_cast<uint8_t>(val));
     } break;
     case 0x06: { // CTC2
         const uint16_t val = static_cast<uint16_t>(gpr(vt));
