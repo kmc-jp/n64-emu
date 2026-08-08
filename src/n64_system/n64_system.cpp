@@ -18,6 +18,7 @@
 #include "rcp/dpc.h"
 #include "rcp/rsp.h"
 #include "utils/log.h"
+#include <cstdlib>
 
 namespace N64 {
 namespace N64System {
@@ -98,6 +99,14 @@ static void cpu_step_callback(Config &config) {
                 Utils::info("Entered game code region. pc = {:#010x}", pc);
             }
         }
+    }
+
+    if (config.stop_after_cycles != 0 &&
+        N64::g_scheduler().get_current_time() >= config.stop_after_cycles) {
+        Utils::info("Reached --stop-after={:#x} (pc={:#010x})",
+                    config.stop_after_cycles,
+                    static_cast<uint32_t>(N64::g_cpu().get_pc64()));
+        std::exit(0);
     }
 
     // For debugging

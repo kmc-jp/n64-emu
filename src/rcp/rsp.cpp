@@ -692,7 +692,12 @@ void Rsp::status_reg_write(uint32_t value) {
         status_reg.halt = 0;
         if (was_halted) {
             const uint32_t type = dmem_load32(0xFC0);
-            if (type != 1 && type != 2) {
+            // type 1 = gfx, type 2 = audio — log first gfx as a boot milestone.
+            static bool logged_first_gfx = false;
+            if (type == 1 && !logged_first_gfx) {
+                logged_first_gfx = true;
+                Utils::info("First gfx OSTask (RSP unhalt)");
+            } else if (type != 1 && type != 2) {
                 Utils::info("RSP unhalt OSTask type={}", type);
             } else {
                 Utils::debug("RSP unhalt OSTask type={}", type);

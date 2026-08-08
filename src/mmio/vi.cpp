@@ -93,7 +93,23 @@ void VI::write_paddr32(uint32_t paddr, uint32_t value) {
     case PADDR_VI_ORIGIN: {
         uint32_t masked = value & 0xFFFFFF;
         if (reg_origin != masked) {
-            Utils::debug("VI_ORIGIN {:#x} -> {:#x}", reg_origin, masked);
+            // Boot often uses 0 / 0x280; first real framebuffer is a logo/gfx milestone.
+            static bool logged_framebuffer = false;
+            static uint32_t swap_count = 0;
+            if (!logged_framebuffer && masked > 0x280) {
+                logged_framebuffer = true;
+                Utils::info("First framebuffer VI_ORIGIN {:#x} -> {:#x}",
+                            reg_origin, masked);
+            } else {
+                Utils::debug("VI_ORIGIN {:#x} -> {:#x}", reg_origin, masked);
+            }
+            if (masked > 0x280) {
+                swap_count++;
+                if ((swap_count % 120) == 0) {
+                    Utils::info("VI_ORIGIN swaps={} latest={:#x}", swap_count,
+                                masked);
+                }
+            }
         }
         reg_origin = masked;
         Utils::debug("VI: Origin set to {:#x}", reg_origin);
