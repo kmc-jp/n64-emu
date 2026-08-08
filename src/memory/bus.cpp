@@ -282,29 +282,43 @@ template <typename Wire> void write_paddr(uint32_t paddr, Wire value) {
             static_assert(always_false<Wire>);
         }
     } else if (PHYS_SPDMEM_BASE <= paddr && paddr <= PHYS_SPDMEM_END) {
-        uint32_t offs = paddr - PHYS_SPDMEM_BASE;
+        // VR4300 sub-word stores to SP DMEM write a full aligned word and
+        // zero the untouched bytes (same bus edge as PIF RAM / dillonb).
+        uint32_t offs = (paddr - PHYS_SPDMEM_BASE) & 0xFFF;
         auto &dmem = g_rsp().get_sp_dmem();
         if constexpr (wire8) {
-            dmem[offs & 0xFFF] = static_cast<uint8_t>(value);
+            const uint32_t word =
+                static_cast<uint32_t>(value) << (8 * (3 - (offs & 3)));
+            Utils::write_to_byte_array32_be(dmem, offs & ~3u, word);
         } else if constexpr (wire16) {
-            Utils::write_to_byte_array16_be(dmem, offs & 0xFFF, value);
+            uint32_t word = static_cast<uint32_t>(value);
+            if ((offs & 2) == 0)
+                word <<= 16;
+            Utils::write_to_byte_array32_be(dmem, offs & ~3u, word);
         } else if constexpr (wire32) {
-            Utils::write_to_byte_array32_be(dmem, offs & 0xFFF, value);
+            Utils::write_to_byte_array32_be(dmem, offs & ~3u, value);
         } else if constexpr (wire64) {
-            Utils::write_to_byte_array64_be(dmem, offs & 0xFFF, value);
+            Utils::write_to_byte_array64_be(dmem, offs & ~7u, value);
         } else {
             static_assert(always_false<Wire>);
         }
     } else if (PHYS_SPIMEM_BASE <= paddr && paddr <= PHYS_SPIMEM_END) {
+        // Same sub-word bus edge as DMEM; IMEM is host-endian word storage.
+        uint32_t offs = (paddr - PHYS_SPIMEM_BASE) & 0xFFF;
+        auto &imem = g_rsp().get_sp_imem();
         if constexpr (wire8) {
-            abort_unimplemented_write<uint8_t>(paddr);
+            const uint32_t word =
+                static_cast<uint32_t>(value) << (8 * (3 - (offs & 3)));
+            Utils::write_to_byte_array32(imem, offs & ~3u, word);
         } else if constexpr (wire16) {
-            abort_unimplemented_write<uint16_t>(paddr);
+            uint32_t word = static_cast<uint32_t>(value);
+            if ((offs & 2) == 0)
+                word <<= 16;
+            Utils::write_to_byte_array32(imem, offs & ~3u, word);
         } else if constexpr (wire32) {
-            uint32_t offs = paddr - PHYS_SPIMEM_BASE;
-            Utils::write_to_byte_array32(g_rsp().get_sp_imem(), offs, value);
+            Utils::write_to_byte_array32(imem, offs & ~3u, value);
         } else if constexpr (wire64) {
-            abort_unimplemented_write<uint64_t>(paddr);
+            Utils::write_to_byte_array64(imem, offs & ~7u, value);
         } else {
             static_assert(always_false<Wire>);
         }
