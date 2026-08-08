@@ -493,6 +493,7 @@ void Rsp::execute_cop2(uint32_t inst) {
         (void)element;
     } break;
     case 0x02: { // CFC2
+        // rd&3==2 and ==3 both map to VCE (hardware alias).
         uint32_t val = 0;
         switch (vd & 3) {
         case 0:
@@ -502,10 +503,8 @@ void Rsp::execute_cop2(uint32_t inst) {
             val = vcc_;
             break;
         case 2:
+        case 3:
             val = vce_;
-            break;
-        default:
-            val = 0;
             break;
         }
         set_gpr(vt, static_cast<int32_t>(static_cast<int16_t>(val)));
@@ -519,6 +518,7 @@ void Rsp::execute_cop2(uint32_t inst) {
             vpr_[vd].set_byte(elem + 1, static_cast<uint8_t>(val));
     } break;
     case 0x06: { // CTC2
+        // rd&3==2 and ==3 both map to VCE (hardware alias).
         const uint16_t val = static_cast<uint16_t>(gpr(vt));
         switch (vd & 3) {
         case 0:
@@ -528,9 +528,8 @@ void Rsp::execute_cop2(uint32_t inst) {
             vcc_ = val;
             break;
         case 2:
+        case 3:
             vce_ = static_cast<uint8_t>(val);
-            break;
-        default:
             break;
         }
     } break;
@@ -642,6 +641,7 @@ void Rsp::dma_read() {
         dram_address = (dram_address + length + skip) & RSP_DRAM_ADDR_MASK;
         mem_address = (mem_address + length) & RSP_MEM_ADDR_MASK;
     }
+
     dram_addr.address = dram_address;
     mem_addr.address = mem_address;
     mem_addr.imem = to_imem;
