@@ -69,6 +69,11 @@ void do_mtc0(uint8_t rt, uint8_t rd);
 void do_dmfc0(uint8_t rt, uint8_t rd);
 void do_dmtc0(uint8_t rt, uint8_t rd);
 
+// COP1 / LWC1 / SWC1 / … via existing FpuImpl. Sets aborted on exception.
+void do_fpu(uint32_t raw);
+// BC1 with annul flag synced for Bc1l.
+void do_bc1(uint32_t raw);
+
 } // namespace Jit
 } // namespace Cpu
 } // namespace N64

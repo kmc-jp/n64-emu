@@ -303,6 +303,25 @@ bool decode_one(uint32_t raw, IrOp &op) {
     case OPCODE_SWR:
         op.kind = IrOpKind::Swr;
         break;
+    case OPCODE_LWC1:
+    case OPCODE_LDC1:
+    case OPCODE_SWC1:
+    case OPCODE_SDC1:
+        op.kind = IrOpKind::Fpu;
+        op.target = raw;
+        return true;
+    case OPCODE_CP1: {
+        if (inst.r_type.rs == COP_BC) {
+            const uint8_t ndtf = static_cast<uint8_t>(inst.i_type.rt);
+            op.kind = (ndtf == COP1_BC_FL || ndtf == COP1_BC_TL)
+                          ? IrOpKind::Bc1l
+                          : IrOpKind::Bc1;
+        } else {
+            op.kind = IrOpKind::Fpu;
+        }
+        op.target = raw;
+        return true;
+    }
     case OPCODE_CACHE:
         op.kind = IrOpKind::Nop;
         op.rs = static_cast<uint8_t>(inst.i_type.rs);
@@ -338,6 +357,8 @@ bool is_branch(IrOpKind k) {
     case IrOpKind::Bgezl:
     case IrOpKind::Bgezal:
     case IrOpKind::Bltzal:
+    case IrOpKind::Bc1:
+    case IrOpKind::Bc1l:
         return true;
     default:
         return false;

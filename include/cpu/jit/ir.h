@@ -97,6 +97,10 @@ enum class IrOpKind : uint8_t {
     Mtc0,
     Dmfc0,
     Dmtc0,
+    // COP1 / FPU (helper-call; raw instruction in IrOp::target)
+    Fpu,
+    Bc1,
+    Bc1l,
 };
 
 struct IrOp {
@@ -106,7 +110,8 @@ struct IrOp {
     uint8_t rt{0};
     uint8_t sa{0};
     uint16_t imm{0};
-    uint32_t target{0}; // for J/JAL (shifted target field as stored in insn)
+    // J/JAL target field, or raw instruction word for Fpu/Bc1/Bc1l helpers.
+    uint32_t target{0};
 };
 
 struct IrBlock {

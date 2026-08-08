@@ -46,6 +46,7 @@ bool is_branch_likely(IrOpKind k) {
     case IrOpKind::Bgtzl:
     case IrOpKind::Bltzl:
     case IrOpKind::Bgezl:
+    case IrOpKind::Bc1l:
         return true;
     default:
         return false;
@@ -147,8 +148,11 @@ class BlockEmitter : public CodeGenerator {
             // cycles_done++
             inc(ebx);
 
-            // Only memory ops can set aborted today; skip the check elsewhere.
-            if (is_mem_op(block.ops[i].kind)) {
+            // Memory / FPU helpers can set aborted (TLB, CU1, etc.).
+            if (is_mem_op(block.ops[i].kind) ||
+                block.ops[i].kind == IrOpKind::Fpu ||
+                block.ops[i].kind == IrOpKind::Bc1 ||
+                block.ops[i].kind == IrOpKind::Bc1l) {
                 mov(rax, aborted_ptr_);
                 cmp(byte[rax], 0);
                 jne(exit_label, T_NEAR);
@@ -860,6 +864,15 @@ class BlockEmitter : public CodeGenerator {
         case IrOpKind::Bgezal:
         case IrOpKind::Bltzal:
             emit_branch(op);
+            break;
+        case IrOpKind::Bc1:
+        case IrOpKind::Bc1l:
+            mov(JIT_ARG1d, op.target);
+            call_fn(reinterpret_cast<const void *>(&do_bc1));
+            break;
+        case IrOpKind::Fpu:
+            mov(JIT_ARG1d, op.target);
+            call_fn(reinterpret_cast<const void *>(&do_fpu));
             break;
         case IrOpKind::Lb:
         case IrOpKind::Lbu:

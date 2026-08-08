@@ -1,5 +1,6 @@
 #include "cpu/jit/helpers.h"
 #include "cpu/cpu.h"
+#include "cpu/instruction.h"
 #include "cpu/jit/jit.h"
 #include "memory/bus.h"
 #include "memory/memory.h"
@@ -465,6 +466,35 @@ void do_dmfc0(uint8_t rt, uint8_t rd) {
 
 void do_dmtc0(uint8_t rt, uint8_t rd) {
     g_cpu().cop0.reg.write(rd, g_cpu().gpr.read(rt));
+}
+
+void do_fpu(uint32_t raw) {
+    instruction_t inst{};
+    inst.raw = raw;
+    auto &cpu = g_cpu();
+    const bool exl_before = cpu.cop0.reg.status.exl != 0;
+    cpu.execute_instruction(inst);
+    if (!exl_before && cpu.cop0.reg.status.exl != 0)
+        exec_state().aborted = true;
+}
+
+void do_bc1(uint32_t raw) {
+    instruction_t inst{};
+    inst.raw = raw;
+    auto &cpu = g_cpu();
+    // Keep JIT annul in sync with branch_likely_offset16 (Bc1l only).
+    if (inst.r_type.rs == COP_BC) {
+        const uint8_t ndtf = static_cast<uint8_t>(inst.i_type.rt);
+        if (ndtf == COP1_BC_FL || ndtf == COP1_BC_TL) {
+            const bool cmp = cpu.cop1.fcr31.compare != 0;
+            const bool taken = (ndtf == COP1_BC_TL) ? cmp : !cmp;
+            exec_state().annul_delay_slot = !taken;
+        }
+    }
+    const bool exl_before = cpu.cop0.reg.status.exl != 0;
+    cpu.execute_instruction(inst);
+    if (!exl_before && cpu.cop0.reg.status.exl != 0)
+        exec_state().aborted = true;
 }
 
 } // namespace Jit
