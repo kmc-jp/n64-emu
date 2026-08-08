@@ -1,5 +1,6 @@
 #include "app/app.h"
 #include "app/parallel_rdp_wrapper.h"
+#include "audio/audio.h"
 #include "memory/memory.h"
 #include "n64_system/n64_system.h"
 #include <SDL.h>
@@ -62,6 +63,7 @@ App::App(N64System::Config &config) : config(config), window(nullptr) {
         Utils::critical("Failed to initialize SDL: %s", SDL_GetError());
         exit(-1);
     }
+    Audio::init();
     // Prefer the display under the mouse; plain CENTERED uses display 0.
     int display_index = 0;
     int mouse_x = 0, mouse_y = 0;
@@ -98,6 +100,7 @@ App::App(N64System::Config &config) : config(config), window(nullptr) {
     }
 }
 App::~App() {
+    Audio::shutdown();
     if (window) {
         SDL_DestroyWindow(window);
         SDL_Vulkan_UnloadLibrary();

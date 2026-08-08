@@ -40,6 +40,10 @@ class Gpr {
   public:
     uint64_t read(uint32_t reg_num) const;
     void write(uint32_t reg_num, uint64_t value);
+
+    // JIT: absolute base of the register file (r0 is unused / always 0).
+    uint64_t *data() { return reg.data(); }
+    const uint64_t *data() const { return reg.data(); }
 };
 
 class Cpu {
@@ -73,7 +77,12 @@ class Cpu {
 
     uint64_t get_prev_pc64() const { return prev_pc; }
 
-    bool should_service_interrupt() const;
+    bool should_service_interrupt() const {
+        const bool interrupts_pending =
+            (cop0.reg.status.im & cop0.reg.cause.interrupt_pending) != 0;
+        return interrupts_pending && cop0.reg.status.ie == 1 &&
+               cop0.reg.status.exl == 0 && cop0.reg.status.erl == 0;
+    }
 
     // CPUの1ステップを実行する
     // https://github.com/Dillonb/n64/blob/6502f7d2f163c3f14da5bff8cd6d5ccc47143156/src/cpu/r4300i.c#L758
@@ -91,6 +100,16 @@ class Cpu {
     void add_count(uint32_t n);
 
     void execute_instruction(instruction_t inst);
+
+    // Absolute addresses for the dynarec emitter (singleton layout).
+    uint64_t *gpr_data() { return gpr.data(); }
+    uint64_t *lo_ptr() { return &lo; }
+    uint64_t *hi_ptr() { return &hi; }
+    bool *delay_slot_ptr() { return &delay_slot; }
+    bool *prev_delay_slot_ptr() { return &prev_delay_slot; }
+    uint64_t *prev_pc_ptr() { return &prev_pc; }
+    uint64_t *pc_ptr() { return &pc; }
+    uint64_t *next_pc_ptr() { return &next_pc; }
 
     inline static Cpu &get_instance() { return instance; }
 

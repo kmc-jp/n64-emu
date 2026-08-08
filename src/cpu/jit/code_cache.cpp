@@ -7,7 +7,7 @@ namespace N64 {
 namespace Cpu {
 namespace Jit {
 
-CodeCache::CodeCache() = default;
+CodeCache::CodeCache() { rdram_pages_.fill(nullptr); }
 
 CodeCache::~CodeCache() { clear(); }
 
@@ -17,6 +17,34 @@ void CodeCache::maybe_flush() {
                     blocks_.size(), total_slab_bytes_);
         clear();
     }
+}
+
+CodeCache::Page *CodeCache::find_page(uint32_t page_idx) const {
+    if (page_idx < RDRAM_PAGES)
+        return rdram_pages_[page_idx];
+    auto it = other_pages_.find(page_idx);
+    if (it == other_pages_.end())
+        return nullptr;
+    return it->second.get();
+}
+
+CodeCache::Page *CodeCache::get_or_create_page(uint32_t page_idx) {
+    if (page_idx < RDRAM_PAGES) {
+        Page *&slot = rdram_pages_[page_idx];
+        if (!slot) {
+            auto page = std::make_unique<Page>();
+            page->entries.assign(WORDS_PER_PAGE, nullptr);
+            slot = page.get();
+            page_storage_.push_back(std::move(page));
+        }
+        return slot;
+    }
+    auto &page = other_pages_[page_idx];
+    if (!page) {
+        page = std::make_unique<Page>();
+        page->entries.assign(WORDS_PER_PAGE, nullptr);
+    }
+    return page.get();
 }
 
 uint8_t *CodeCache::alloc_exec(size_t size) {
@@ -66,26 +94,25 @@ void CodeCache::shrink_last_alloc(size_t reserved, size_t used) {
 }
 
 CompiledBlock *CodeCache::lookup(uint32_t paddr) {
-    const uint32_t page = paddr >> PAGE_SHIFT;
+    if (last_hit_ && last_hit_->paddr == paddr)
+        return last_hit_;
+
+    const uint32_t page_idx = paddr >> PAGE_SHIFT;
     const uint32_t word = (paddr & (PAGE_SIZE - 1)) >> 2;
-    auto it = pages_.find(page);
-    if (it == pages_.end())
+    Page *page = find_page(page_idx);
+    if (!page)
         return nullptr;
-    auto &entries = it->second->entries;
-    if (word >= entries.size())
-        return nullptr;
-    return entries[word];
+    CompiledBlock *b = page->entries[word];
+    if (b)
+        last_hit_ = b;
+    return b;
 }
 
 void CodeCache::insert(uint32_t paddr, BlockFn fn, uint16_t num_insts) {
     const uint32_t page_idx = paddr >> PAGE_SHIFT;
     const uint32_t word = (paddr & (PAGE_SIZE - 1)) >> 2;
 
-    auto &page = pages_[page_idx];
-    if (!page) {
-        page = std::make_unique<Page>();
-        page->entries.assign(WORDS_PER_PAGE, nullptr);
-    }
+    Page *page = get_or_create_page(page_idx);
     auto block = std::make_unique<CompiledBlock>();
     block->fn = fn;
     block->paddr = paddr;
@@ -94,16 +121,18 @@ void CodeCache::insert(uint32_t paddr, BlockFn fn, uint16_t num_insts) {
     blocks_.push_back(std::move(block));
     page->entries[word] = raw;
     page->has_code = true;
+    last_hit_ = raw;
 }
 
 void CodeCache::invalidate_page(uint32_t paddr) {
+    clear_lookup_hint();
     const uint32_t page_idx = paddr >> PAGE_SHIFT;
-    auto it = pages_.find(page_idx);
-    if (it == pages_.end())
+    Page *page = find_page(page_idx);
+    if (!page)
         return;
-    for (auto *&e : it->second->entries)
+    for (auto *&e : page->entries)
         e = nullptr;
-    it->second->has_code = false;
+    page->has_code = false;
 }
 
 void CodeCache::invalidate_range(uint32_t paddr, uint32_t length) {
@@ -119,7 +148,10 @@ void CodeCache::invalidate_range(uint32_t paddr, uint32_t length) {
 }
 
 void CodeCache::clear() {
-    pages_.clear();
+    clear_lookup_hint();
+    rdram_pages_.fill(nullptr);
+    other_pages_.clear();
+    page_storage_.clear();
     blocks_.clear();
     for (auto &s : slabs_) {
         if (s.ptr)

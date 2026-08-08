@@ -50,6 +50,10 @@ class AI {
     // Delayed-carry bug: last DMA ended exactly on an 8 KiB page boundary
     bool delayed_carry{};
 
+    // Scheduler time when the current DMA buffer started (for AI_LENGTH reads).
+    uint64_t dma_start_time{};
+    uint64_t dma_duration_cycles{};
+
   public:
     AI() {}
 
@@ -59,12 +63,16 @@ class AI {
 
     void write_paddr32(uint32_t paddr, uint32_t value);
 
+    int get_fifo_count() const { return fifo_count; }
+
     static AI &get_instance();
 
   private:
     void enqueue_dma(uint32_t length);
     void start_next_dma();
+    void push_dma_audio(uint32_t dram_addr, uint32_t length) const;
     uint64_t cycles_for_length(uint32_t length) const;
+    uint32_t bytes_remaining() const;
 };
 
 } // namespace AI

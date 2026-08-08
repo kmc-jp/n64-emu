@@ -11,10 +11,12 @@ namespace Cpu {
 namespace Jit {
 
 namespace {
-thread_local ExecState g_exec{};
+// Not thread_local: the JIT embeds absolute addresses of this object.
+ExecState g_exec{};
 }
 
 ExecState &exec_state() { return g_exec; }
+ExecState *exec_state_ptr() { return &g_exec; }
 
 void advance_pc() { g_cpu().advance_pc_no_fetch(); }
 

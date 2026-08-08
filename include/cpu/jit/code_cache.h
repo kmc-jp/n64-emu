@@ -1,6 +1,8 @@
 #ifndef CPU_JIT_CODE_CACHE_H
 #define CPU_JIT_CODE_CACHE_H
 
+#include "memory/memory_map.h"
+#include <array>
 #include <cstdint>
 #include <memory>
 #include <unordered_map>
@@ -42,6 +44,7 @@ class CodeCache {
     static constexpr uint32_t PAGE_SHIFT = 12;
     static constexpr uint32_t PAGE_SIZE = 1u << PAGE_SHIFT;
     static constexpr uint32_t WORDS_PER_PAGE = PAGE_SIZE / 4;
+    static constexpr uint32_t RDRAM_PAGES = RDRAM_SIZE >> PAGE_SHIFT; // 2048
     // Guard against unbounded growth when code is invalidated and recompiled.
     static constexpr size_t MAX_BLOCKS = 8192;
     static constexpr size_t SLAB_SIZE = 2 * 1024 * 1024;
@@ -59,11 +62,19 @@ class CodeCache {
     };
 
     void maybe_flush();
+    void clear_lookup_hint() { last_hit_ = nullptr; }
+    Page *get_or_create_page(uint32_t page_idx);
+    Page *find_page(uint32_t page_idx) const;
 
-    std::unordered_map<uint32_t, std::unique_ptr<Page>> pages_;
+    // Hot path: guest code almost always lives in RDRAM.
+    std::array<Page *, RDRAM_PAGES> rdram_pages_{};
+    std::unordered_map<uint32_t, std::unique_ptr<Page>> other_pages_;
+    std::vector<std::unique_ptr<Page>> page_storage_;
     std::vector<std::unique_ptr<CompiledBlock>> blocks_;
     std::vector<Slab> slabs_;
     size_t total_slab_bytes_{0};
+    // One-entry cache: tight loops re-enter the same block constantly.
+    CompiledBlock *last_hit_{nullptr};
 };
 
 } // namespace Jit

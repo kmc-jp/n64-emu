@@ -8,6 +8,7 @@ target_sources(mmio PRIVATE
     vi.cpp
 )
 target_link_libraries(mmio PUBLIC
+    audio
     common
     cpu
     log

@@ -683,6 +683,7 @@ void Rsp::status_reg_write(uint32_t value) {
         status_reg.halt = 0;
         if (was_halted) {
             const uint32_t type = dmem_load32(0xFC0);
+            // type 1 = gfx, type 2 = audio — routine; only log unusual tasks.
             if (type != 1 && type != 2) {
                 Utils::info("RSP unhalt OSTask type={}", type);
             } else {

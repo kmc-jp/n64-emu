@@ -116,10 +116,17 @@ void step(Config &config, Vulkan::WSI *wsi) {
 #else
                 false;
 #endif
+            auto &rsp = g_rsp();
+            auto &sched = g_scheduler();
+            Debugger::Debugger &dbg = g_debugger();
+            const bool dbg_on = dbg.enabled();
+            const bool need_step_cb =
+                config.test_mode || Utils::LOG_INSTRUCTION;
+
             while (remaining > 0) {
                 int taken = 1;
-                // Debugger hooks before each run unit (insn or JIT block).
-                g_debugger().on_step();
+                if (dbg_on)
+                    dbg.on_step();
                 if (use_jit) {
 #if defined(N64_JIT_X64)
                     taken = Cpu::Jit::g_dynarec().run(remaining);
@@ -132,16 +139,17 @@ void step(Config &config, Vulkan::WSI *wsi) {
                 }
 
                 consumed_cpu_cycles += taken;
-                cpu_step_callback(config);
+                if (need_step_cb)
+                    cpu_step_callback(config);
 
                 // RSP step. RSP ticks 2/3x faster than CPU
                 while (consumed_cpu_cycles >= 3) {
                     consumed_cpu_cycles -= 3;
-                    g_rsp().step();
-                    g_rsp().step();
+                    rsp.step();
+                    rsp.step();
                 }
 
-                g_scheduler().tick(static_cast<uint64_t>(taken));
+                sched.tick(static_cast<uint64_t>(taken));
                 remaining -= taken;
             }
         }
@@ -151,8 +159,6 @@ void step(Config &config, Vulkan::WSI *wsi) {
         }
         if (wsi)
             PRDPWrapper::update_screen(*wsi, g_vi());
-
-        // TODO: AI step
     }
 }
 

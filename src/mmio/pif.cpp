@@ -423,12 +423,16 @@ void Pif::process_controller_command(int channel, uint8_t *cmd) {
         } break;
         }
         switch (joycon_plugin) {
+        case JoyBusControllerPlugin::NONE: {
+            // 0x02 = accessory absent (n64brew Joybus status byte).
+            cmd[5] = 0x02;
+        } break;
         case JoyBusControllerPlugin::TRANSFER_PAK:
         case JoyBusControllerPlugin::RUMBLE_PAK:
         case JoyBusControllerPlugin::MEM_PAK:
         case JoyBusControllerPlugin::RAW: {
-            // FIXME: correct?
-            cmd[5] = 1;
+            // 0x01 = accessory present.
+            cmd[5] = 0x01;
         } break;
         default: {
             Utils::abort("Unsupported controller plugin");
@@ -463,6 +467,12 @@ void Pif::process_controller_command(int channel, uint8_t *cmd) {
         // https://n64brew.dev/wiki/Joybus_Protocol#0x02_-_Read_Controller_Accessory
         uint8_t *res = &cmd[2 + (cmd[0] & 0x3F)];
         switch (joycon_plugin) {
+        case JoyBusControllerPlugin::NONE: {
+            for (int i = 0; i < 32; i++)
+                res[i] = 0;
+            // Error CRC: accessory not present.
+            res[32] = static_cast<uint8_t>(~accessory_data_crc(res));
+        } break;
         case JoyBusControllerPlugin::RUMBLE_PAK: {
             for (int i = 0; i < 32; i++)
                 res[i] = 0x80;
@@ -489,6 +499,9 @@ void Pif::process_controller_command(int channel, uint8_t *cmd) {
         uint8_t *data = &cmd[5];
         uint8_t *res = &cmd[2 + (cmd[0] & 0x3F)];
         switch (joycon_plugin) {
+        case JoyBusControllerPlugin::NONE: {
+            res[0] = static_cast<uint8_t>(~accessory_data_crc(data));
+        } break;
         case JoyBusControllerPlugin::RUMBLE_PAK: {
             // Rumble on/off is a no-op for now; still return a valid CRC.
             res[0] = accessory_data_crc(data);

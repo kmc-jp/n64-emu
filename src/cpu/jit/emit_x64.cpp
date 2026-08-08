@@ -1,4 +1,5 @@
 #include "cpu/jit/code_cache.h"
+#include "cpu/cpu.h"
 #include "cpu/jit/helpers.h"
 #include "cpu/jit/ir.h"
 #include "cpu/jit/jit.h"
@@ -29,10 +30,44 @@ bool is_branch_likely(IrOpKind k) {
     }
 }
 
+bool is_mem_op(IrOpKind k) {
+    switch (k) {
+    case IrOpKind::Lb:
+    case IrOpKind::Lbu:
+    case IrOpKind::Lh:
+    case IrOpKind::Lhu:
+    case IrOpKind::Lw:
+    case IrOpKind::Lwu:
+    case IrOpKind::Ld:
+    case IrOpKind::Sb:
+    case IrOpKind::Sh:
+    case IrOpKind::Sw:
+    case IrOpKind::Sd:
+        return true;
+    default:
+        return false;
+    }
+}
+
 class BlockEmitter : public CodeGenerator {
   public:
     explicit BlockEmitter(uint8_t *buf, size_t size)
-        : CodeGenerator(size, buf) {}
+        : CodeGenerator(size, buf) {
+        auto &cpu = g_cpu();
+        gpr_base_ = reinterpret_cast<uintptr_t>(cpu.gpr_data());
+        lo_ptr_ = reinterpret_cast<uintptr_t>(cpu.lo_ptr());
+        hi_ptr_ = reinterpret_cast<uintptr_t>(cpu.hi_ptr());
+        delay_slot_ptr_ = reinterpret_cast<uintptr_t>(cpu.delay_slot_ptr());
+        prev_delay_slot_ptr_ =
+            reinterpret_cast<uintptr_t>(cpu.prev_delay_slot_ptr());
+        prev_pc_ptr_ = reinterpret_cast<uintptr_t>(cpu.prev_pc_ptr());
+        pc_ptr_ = reinterpret_cast<uintptr_t>(cpu.pc_ptr());
+        next_pc_ptr_ = reinterpret_cast<uintptr_t>(cpu.next_pc_ptr());
+        aborted_ptr_ =
+            reinterpret_cast<uintptr_t>(&exec_state_ptr()->aborted);
+        annul_ptr_ =
+            reinterpret_cast<uintptr_t>(&exec_state_ptr()->annul_delay_slot);
+    }
 
     BlockFn emit(const IrBlock &block) {
         const size_t n = block.ops.size();
@@ -47,31 +82,30 @@ class BlockEmitter : public CodeGenerator {
         xor_(ebx, ebx); // cycles_done
 
         for (size_t i = 0; i < n; i++) {
-            // advance_pc()
-            mov(rax, reinterpret_cast<uintptr_t>(&advance_pc));
-            call(rax);
+            emit_advance_pc();
 
             emit_op(block.ops[i], exit_label);
 
             // cycles_done++
             inc(ebx);
 
-            // if (exec_state().aborted) goto exit
-            mov(rax, reinterpret_cast<uintptr_t>(&exec_state));
-            call(rax);
-            // rax = &ExecState
-            cmp(byte[rax + offsetof(ExecState, aborted)], 0);
-            jne(exit_label, T_NEAR);
+            // Only memory ops can set aborted today; skip the check elsewhere.
+            if (is_mem_op(block.ops[i].kind)) {
+                mov(rax, aborted_ptr_);
+                cmp(byte[rax], 0);
+                jne(exit_label, T_NEAR);
+            }
 
             // Branch-likely may annul the delay slot that follows in this block.
             if (is_branch_likely(block.ops[i].kind) && i + 1 < n) {
-                cmp(byte[rax + offsetof(ExecState, annul_delay_slot)], 0);
+                mov(rax, annul_ptr_);
+                cmp(byte[rax], 0);
                 jne(exit_label, T_NEAR);
             }
         }
 
         L(exit_label);
-        // add_count(cycles)
+        // add_count(cycles) — compare-edge logic stays in C++.
         mov(edi, ebx);
         mov(rax, reinterpret_cast<uintptr_t>(&add_count));
         call(rax);
@@ -87,21 +121,57 @@ class BlockEmitter : public CodeGenerator {
     }
 
   private:
+    uintptr_t gpr_base_{};
+    uintptr_t lo_ptr_{};
+    uintptr_t hi_ptr_{};
+    uintptr_t delay_slot_ptr_{};
+    uintptr_t prev_delay_slot_ptr_{};
+    uintptr_t prev_pc_ptr_{};
+    uintptr_t pc_ptr_{};
+    uintptr_t next_pc_ptr_{};
+    uintptr_t aborted_ptr_{};
+    uintptr_t annul_ptr_{};
+
     void call_fn(const void *fn) {
         mov(rax, reinterpret_cast<uintptr_t>(fn));
         call(rax);
     }
 
+    // Inline Cpu::advance_pc_no_fetch().
+    void emit_advance_pc() {
+        // prev_delay_slot = delay_slot; delay_slot = false;
+        mov(rax, delay_slot_ptr_);
+        movzx(ecx, byte[rax]);
+        mov(rdx, prev_delay_slot_ptr_);
+        mov(byte[rdx], cl);
+        mov(byte[rax], 0);
+
+        // prev_pc = pc; pc = next_pc; next_pc += 4;
+        mov(rax, pc_ptr_);
+        mov(rcx, qword[rax]);
+        mov(rdx, prev_pc_ptr_);
+        mov(qword[rdx], rcx);
+        mov(rdx, next_pc_ptr_);
+        mov(rcx, qword[rdx]);
+        mov(qword[rax], rcx);
+        add(qword[rdx], 4);
+    }
+
     void gpr_to_rax(uint8_t reg) {
-        mov(edi, reg);
-        call_fn(reinterpret_cast<const void *>(&gpr_get));
+        if (reg == 0) {
+            xor_(eax, eax);
+            return;
+        }
+        mov(rax, gpr_base_ + static_cast<uintptr_t>(reg) * 8);
+        mov(rax, qword[rax]);
     }
 
     void rax_to_gpr(uint8_t reg) {
+        if (reg == 0)
+            return;
         // value in rax
-        mov(rsi, rax);
-        mov(edi, reg);
-        call_fn(reinterpret_cast<const void *>(&gpr_set));
+        mov(rdx, gpr_base_ + static_cast<uintptr_t>(reg) * 8);
+        mov(qword[rdx], rax);
     }
 
     void emit_alu_rr_32(IrOpKind kind, const IrOp &op) {
@@ -274,7 +344,6 @@ class BlockEmitter : public CodeGenerator {
             break;
         }
         case IrOpKind::Sltiu: {
-            mov(rcx, static_cast<uint64_t>(static_cast<uint16_t>(simm)));
             // SLTIU uses sign-extended imm compared as unsigned
             mov(rcx, static_cast<int64_t>(simm));
             cmp(rax, rcx);
@@ -287,6 +356,27 @@ class BlockEmitter : public CodeGenerator {
             break;
         }
         rax_to_gpr(op.rt);
+    }
+
+    // Inline Cpu::branch_addr64 for a PC-relative offset (non-likely).
+    // Condition is already in edi (0/1). Uses pc/next_pc/delay_slot ptrs.
+    void emit_branch_offset_inline(int16_t off) {
+        Xbyak::Label not_taken, done;
+        // delay_slot = true
+        mov(rax, delay_slot_ptr_);
+        mov(byte[rax], 1);
+        test(edi, edi);
+        jz(not_taken, T_NEAR);
+        // next_pc = pc + (int64_t)off * 4
+        mov(rax, pc_ptr_);
+        mov(rcx, qword[rax]);
+        add(rcx, static_cast<int64_t>(off) * 4);
+        mov(rax, next_pc_ptr_);
+        mov(qword[rax], rcx);
+        jmp(done, T_NEAR);
+        L(not_taken);
+        // not taken: next_pc already points at fall-through
+        L(done);
     }
 
     void emit_branch(const IrOp &op) {
@@ -308,10 +398,9 @@ class BlockEmitter : public CodeGenerator {
             call_fn(reinterpret_cast<const void *>(&do_link));
             break;
         case IrOpKind::J: {
-            // target = (pc & 0xFFFFFFFF'F0000000) | (target << 2)
             // After advance_pc, cpu.pc is the delay-slot address (= old_pc+4).
-            // Interpreter uses (pc & mask) for J where pc was already updated.
-            call_fn(reinterpret_cast<const void *>(&get_pc));
+            mov(rax, pc_ptr_);
+            mov(rax, qword[rax]);
             mov(rcx, 0xFFFFFFFFF0000000ULL);
             and_(rax, rcx);
             mov(rcx, static_cast<uint64_t>(op.target) << 2);
@@ -322,7 +411,8 @@ class BlockEmitter : public CodeGenerator {
             break;
         }
         case IrOpKind::Jal: {
-            call_fn(reinterpret_cast<const void *>(&get_pc));
+            mov(rax, pc_ptr_);
+            mov(rax, qword[rax]);
             mov(r12, rax);
             mov(rcx, 0xFFFFFFFFF0000000ULL);
             and_(rax, rcx);
@@ -347,11 +437,12 @@ class BlockEmitter : public CodeGenerator {
             movzx(edi, al);
             if (op.kind == IrOpKind::Bne || op.kind == IrOpKind::Bnel)
                 xor_(edi, 1);
-            mov(esi, off);
-            if (op.kind == IrOpKind::Beql || op.kind == IrOpKind::Bnel)
+            if (op.kind == IrOpKind::Beql || op.kind == IrOpKind::Bnel) {
+                mov(esi, off);
                 call_fn(reinterpret_cast<const void *>(&do_branch_likely_offset));
-            else
-                call_fn(reinterpret_cast<const void *>(&do_branch_offset));
+            } else {
+                emit_branch_offset_inline(off);
+            }
             break;
         }
         case IrOpKind::Blez:
@@ -365,11 +456,12 @@ class BlockEmitter : public CodeGenerator {
             else
                 setg(al);
             movzx(edi, al);
-            mov(esi, off);
-            if (op.kind == IrOpKind::Blezl || op.kind == IrOpKind::Bgtzl)
+            if (op.kind == IrOpKind::Blezl || op.kind == IrOpKind::Bgtzl) {
+                mov(esi, off);
                 call_fn(reinterpret_cast<const void *>(&do_branch_likely_offset));
-            else
-                call_fn(reinterpret_cast<const void *>(&do_branch_offset));
+            } else {
+                emit_branch_offset_inline(off);
+            }
             break;
         }
         case IrOpKind::Bltz:
@@ -386,13 +478,14 @@ class BlockEmitter : public CodeGenerator {
             else
                 setge(al);
             movzx(edi, al);
-            mov(esi, off);
             const bool likely = op.kind == IrOpKind::Bltzl ||
                                 op.kind == IrOpKind::Bgezl;
-            if (likely)
+            if (likely) {
+                mov(esi, off);
                 call_fn(reinterpret_cast<const void *>(&do_branch_likely_offset));
-            else
-                call_fn(reinterpret_cast<const void *>(&do_branch_offset));
+            } else {
+                emit_branch_offset_inline(off);
+            }
             if (op.kind == IrOpKind::Bltzal || op.kind == IrOpKind::Bgezal) {
                 mov(edi, 31);
                 call_fn(reinterpret_cast<const void *>(&do_link));
@@ -548,22 +641,24 @@ class BlockEmitter : public CodeGenerator {
             emit_mem(op);
             break;
         case IrOpKind::Mfhi:
-            call_fn(reinterpret_cast<const void *>(&get_hi));
+            mov(rax, hi_ptr_);
+            mov(rax, qword[rax]);
             rax_to_gpr(op.rd);
             break;
         case IrOpKind::Mflo:
-            call_fn(reinterpret_cast<const void *>(&get_lo));
+            mov(rax, lo_ptr_);
+            mov(rax, qword[rax]);
             rax_to_gpr(op.rd);
             break;
         case IrOpKind::Mthi:
             gpr_to_rax(op.rs);
-            mov(rdi, rax);
-            call_fn(reinterpret_cast<const void *>(&set_hi));
+            mov(rdx, hi_ptr_);
+            mov(qword[rdx], rax);
             break;
         case IrOpKind::Mtlo:
             gpr_to_rax(op.rs);
-            mov(rdi, rax);
-            call_fn(reinterpret_cast<const void *>(&set_lo));
+            mov(rdx, lo_ptr_);
+            mov(qword[rdx], rax);
             break;
         case IrOpKind::Mult:
             mov(edi, op.rs);

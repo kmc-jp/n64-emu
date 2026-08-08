@@ -57,51 +57,73 @@ CompiledBlock *Dynarec::compile(uint32_t vaddr, uint32_t paddr) {
 }
 
 int Dynarec::run(int budget) {
-    // Execute a single interpreter step or one compiled block per call so the
-    // outer N64System loop can tick the scheduler (PI/SI DMA, timers, etc.).
-    (void)budget;
+    if (budget < 1)
+        budget = 1;
 
     auto &cpu = g_cpu();
+    ExecState *exec = exec_state_ptr();
+    int total = 0;
 
-    // If the previous instruction was a branch (often COP1 BC* via the
-    // interpreter fallback), PC is the delay slot and next_pc may already be
-    // the taken target. A multi-op JIT block starting here would decode the
-    // fall-through path from memory and execute it anyway (e.g. a BC1TL
-    // not-taken store that flips the logo).
-    if (cpu.delay_slot)
-        return run_interpreter_fallback();
+    // Soft block chaining: execute compiled blocks until the cycle budget is
+    // exhausted. Scheduler / RSP are batched by the outer system loop.
+    while (total < budget) {
+        if (cpu.delay_slot) {
+            total += run_interpreter_fallback();
+            break;
+        }
 
-    const uint32_t pc32 = static_cast<uint32_t>(cpu.get_pc64());
-    std::optional<uint32_t> paddr = Mmu::resolve_vaddr(pc32);
-    if (!paddr.has_value())
-        return run_interpreter_fallback();
+        const uint32_t pc32 = static_cast<uint32_t>(cpu.get_pc64());
+        // Hot path: KSEG0/1 direct map (almost all game code).
+        uint32_t paddr;
+        if (auto direct = Mmu::try_direct_map(pc32)) {
+            paddr = *direct;
+        } else {
+            auto resolved = Mmu::resolve_vaddr_slow(pc32);
+            if (!resolved.has_value()) {
+                total += run_interpreter_fallback();
+                break;
+            }
+            paddr = *resolved;
+        }
 
-    if (should_interpret_paddr(paddr.value()))
-        return run_interpreter_fallback();
+        if (should_interpret_paddr(paddr)) {
+            total += run_interpreter_fallback();
+            break;
+        }
 
-    // Match Cpu::step: retire delay-slot flags before interrupt check / fetch.
-    // After a compiled branch+delay block, prev_delay_slot is left true; if we
-    // service an interrupt without clearing it, EPC is wrongly set to PC-4.
-    cpu.prev_delay_slot = cpu.delay_slot;
-    cpu.delay_slot = false;
+        // Match Cpu::step: retire delay-slot flags before interrupt check.
+        cpu.prev_delay_slot = cpu.delay_slot;
+        cpu.delay_slot = false;
 
-    if (cpu.should_service_interrupt()) {
-        cpu.handle_exception(ExceptionCode::INTERRUPT, 0, false);
-        return static_cast<int>(CPU_CYCLES_PER_INST);
+        if (cpu.should_service_interrupt()) {
+            cpu.handle_exception(ExceptionCode::INTERRUPT, 0, false);
+            total += static_cast<int>(CPU_CYCLES_PER_INST);
+            break;
+        }
+
+        CompiledBlock *block = cache_.lookup(paddr);
+        if (!block) {
+            block = compile(pc32, paddr);
+            if (!block) {
+                total += run_interpreter_fallback();
+                break;
+            }
+        }
+
+        const int remaining = budget - total;
+        if (total > 0 && block->num_insts > remaining)
+            break;
+
+        exec->aborted = false;
+        exec->annul_delay_slot = false;
+        const int taken = block->fn();
+        const int got = taken > 0 ? taken : 1;
+        total += got;
+        if (exec->aborted)
+            break;
     }
 
-    CompiledBlock *block = cache_.lookup(paddr.value());
-    if (!block) {
-        block = compile(pc32, paddr.value());
-        if (!block)
-            return run_interpreter_fallback();
-    }
-
-    exec_state() = {};
-    const int taken = block->fn();
-    if (exec_state().aborted)
-        return taken > 0 ? taken : 1;
-    return taken > 0 ? taken : 1;
+    return total > 0 ? total : 1;
 }
 
 } // namespace Jit

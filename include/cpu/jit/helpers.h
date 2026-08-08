@@ -16,6 +16,8 @@ struct ExecState {
 };
 
 ExecState &exec_state();
+// Fixed address for the dynarec emitter (single-threaded CPU).
+ExecState *exec_state_ptr();
 
 // PC / delay-slot bookkeeping matching Cpu::step (without fetch).
 void advance_pc();

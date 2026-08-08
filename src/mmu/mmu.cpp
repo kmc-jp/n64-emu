@@ -5,21 +5,12 @@
 namespace N64 {
 namespace Mmu {
 
-// Resolve virtual address to phisical address
-// ref: https://n64.readthedocs.io/#virtual-to-physical-address-translation
-// https://github.com/Dillonb/n64/blob/6502f7d2f163c3f14da5bff8cd6d5ccc47143156/src/mem/n64bus.h#L23
-std::optional<uint32_t> resolve_vaddr(uint32_t vaddr, BusAccess bus_access) {
+std::optional<uint32_t> resolve_vaddr_slow(uint32_t vaddr,
+                                           BusAccess bus_access) {
     // FIXME: CPUモードによってアドレスが32bit長から64bit長になる
-    uint32_t paddr;
-    if (KSEG0_BASE <= vaddr && vaddr <= KSEG0_END) {
-        // KSEG0 is direct mapped. substract vaddr with base
-        paddr = vaddr - KSEG0_BASE;
-    } else if (KSEG1_BASE <= vaddr && vaddr <= KSEG1_END) {
-        // KSEG1 is direct mapped. subtract vaddr with base
-        paddr = vaddr - KSEG1_BASE;
-    } else if ((KUSEG_BASE <= vaddr && vaddr <= KUSEG_END) ||
-               (KSSEG_BASE <= vaddr && vaddr <= KSSEG_END) ||
-               (KSEG3_BASE <= vaddr && vaddr <= KSEG3_END)) {
+    if ((KUSEG_BASE <= vaddr && vaddr <= KUSEG_END) ||
+        (KSSEG_BASE <= vaddr && vaddr <= KSSEG_END) ||
+        (KSEG3_BASE <= vaddr && vaddr <= KSEG3_END)) {
         auto result = g_tlb().probe(vaddr, bus_access);
         if (!result.has_value()) {
             // Sign-extend 32-bit VA so EntryHi.R / XContext / is_xtlb_miss work.
@@ -28,13 +19,9 @@ std::optional<uint32_t> resolve_vaddr(uint32_t vaddr, BusAccess bus_access) {
             TLB::on_tlb_exception(va64);
         }
         return result;
-    } else {
-        Utils::critical("address translation {:#010x}", vaddr);
-        Utils::abort("Aborted");
     }
-    Utils::trace("address translation vaddr {:#010x} => paddr {:#010x}", vaddr,
-                 paddr);
-    return {paddr};
+    Utils::critical("address translation {:#010x}", vaddr);
+    Utils::abort("Aborted");
 }
 
 } // namespace Mmu

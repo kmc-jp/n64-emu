@@ -20,7 +20,11 @@ void core_dump() { N64::g_cpu().dump(); }
 
 void init_logger() {
     spdlog::set_pattern("[%^%l%$] %v");
-    spdlog::enable_backtrace(NUM_BACKTRACE_LOG);
+    // NOTE: enable_backtrace forces spdlog to format every log call (including
+    // Utils::trace in MMU hot paths) even when the sink level is off. Leave it
+    // disabled for normal/profile runs; dump_backtrace() still no-ops.
+    (void)NUM_BACKTRACE_LOG;
+    // spdlog::enable_backtrace(NUM_BACKTRACE_LOG);
 }
 
 void set_log_file(std::string filepath) {

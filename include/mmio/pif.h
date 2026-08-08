@@ -19,6 +19,8 @@ enum class JoyBusControllerType {
 };
 
 enum class JoyBusControllerPlugin {
+    // No accessory in the controller slot.
+    NONE,
     TRANSFER_PAK,
     RUMBLE_PAK,
     MEM_PAK,
@@ -26,7 +28,8 @@ enum class JoyBusControllerPlugin {
 };
 
 const JoyBusControllerType joycon_type = JoyBusControllerType::N64_CONTROLLER;
-const JoyBusControllerPlugin joycon_plugin = JoyBusControllerPlugin::RUMBLE_PAK;
+// Absent pak avoids games blocking on mempak/rumble probes during boot.
+const JoyBusControllerPlugin joycon_plugin = JoyBusControllerPlugin::NONE;
 
 // State of Nintendo64 Standard Controller
 // https://n64brew.dev/wiki/Joybus_Protocol#0x01_-_Controller_State

@@ -4,6 +4,7 @@ target_sources(app PRIVATE
     parallel_rdp_wrapper.cpp
 )
 target_link_libraries(app PUBLIC
+    audio
     common
     log
     memory
