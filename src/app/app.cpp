@@ -3,8 +3,11 @@
 #include "audio/audio.h"
 #include "memory/memory.h"
 #include "n64_system/n64_system.h"
+#include "utils/log.h"
 #include <SDL.h>
 #include <SDL_vulkan.h>
+#include <cstdlib>
+#include <cstring>
 
 namespace N64 {
 namespace Frontend {
@@ -12,7 +15,30 @@ const char *WINDOW_TITLE = "n64-emu (dev)";
 constexpr int WINDOW_WIDTH = 1600;
 constexpr int WINDOW_HEIGHT = WINDOW_WIDTH * 3 / 4;
 // 増やすと軽くなる
-constexpr int WSI_NUM_THREADS = 1;
+constexpr int WSI_NUM_THREADS = 4;
+
+// Mesa dzn (Vulkan-on-D3D12) lacks SSBO 8-bit storage required by paraLLEl-RDP.
+// On WSL it is often the default discrete GPU and can stall the loader; prefer
+// lavapipe there. Native Linux NVIDIA Vulkan is left untouched.
+static void ensure_prdp_vulkan_icd() {
+    constexpr const char *kLvp = "/usr/share/vulkan/icd.d/lvp_icd.json";
+    const char *cur = getenv("VK_DRIVER_FILES");
+    if (!cur || !*cur)
+        cur = getenv("VK_ICD_FILENAMES");
+
+    const bool is_wsl =
+        getenv("WSL_DISTRO_NAME") != nullptr || getenv("WSL_INTEROP") != nullptr;
+    const bool pins_dzn = cur && strstr(cur, "dzn_icd") != nullptr;
+
+    if (!pins_dzn && !(is_wsl && (!cur || !*cur)))
+        return;
+
+    setenv("VK_DRIVER_FILES", kLvp, 1);
+    setenv("VK_ICD_FILENAMES", kLvp, 1);
+    Utils::warn(
+        "Using lavapipe for paraLLEl-RDP (Mesa dzn lacks SSBO 8-bit storage; "
+        "native NVIDIA Vulkan is unavailable on WSL)");
+}
 
 SDL2Platform::SDL2Platform(SDL_Window *window_) : window(window_) {}
 VkSurfaceKHR SDL2Platform::create_surface(VkInstance instance,
@@ -123,6 +149,8 @@ void App::run() {
         return;
     }
 
+    ensure_prdp_vulkan_icd();
+
     SDL2Platform platform(window);
     Vulkan::WSI wsi;
     wsi.set_platform(&platform);
@@ -134,8 +162,19 @@ void App::run() {
         Utils::critical("Failed to initialize WSI");
         exit(-1);
     }
-    Vulkan::Device &device = wsi.get_device();
-    (void)device;
+
+    {
+        const VkPhysicalDeviceProperties &gpu =
+            wsi.get_device().get_gpu_properties();
+        Utils::info("Using Vulkan device: {}", gpu.deviceName);
+        if (gpu.deviceType == VK_PHYSICAL_DEVICE_TYPE_CPU) {
+            Utils::warn(
+                "Vulkan device is CPU-based ({}); RDP will be very slow. "
+                "Native NVIDIA Vulkan on WSL is unavailable, and Mesa dzn "
+                "lacks SSBO 8-bit storage required by paraLLEl-RDP",
+                gpu.deviceName);
+        }
+    }
 
     PRDPWrapper::init_prdp(wsi, g_memory().get_rdram().data());
 

@@ -719,12 +719,34 @@ bool Context::create_instance(const char * const *instance_ext, uint32_t instanc
 	return true;
 }
 
+static bool physical_device_has_prdp_storage(VkPhysicalDevice gpu)
+{
+	// paraLLEl-RDP requires SSBO 8/16-bit storage. Drivers like Mesa dzn may
+	// look like a discrete GPU but lack these features.
+	VkPhysicalDevice16BitStorageFeatures storage_16bit =
+		{ VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_16BIT_STORAGE_FEATURES };
+	VkPhysicalDevice8BitStorageFeatures storage_8bit =
+		{ VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_8BIT_STORAGE_FEATURES };
+	storage_8bit.pNext = &storage_16bit;
+
+	VkPhysicalDeviceFeatures2 features2 =
+		{ VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_FEATURES_2 };
+	features2.pNext = &storage_8bit;
+	vkGetPhysicalDeviceFeatures2(gpu, &features2);
+
+	return storage_8bit.storageBuffer8BitAccess &&
+	       storage_16bit.storageBuffer16BitAccess;
+}
+
 static unsigned device_score(VkPhysicalDevice &gpu)
 {
 	VkPhysicalDeviceProperties props = {};
 	vkGetPhysicalDeviceProperties(gpu, &props);
 
 	if (props.apiVersion < VK_API_VERSION_1_1)
+		return 0;
+
+	if (!physical_device_has_prdp_storage(gpu))
 		return 0;
 
 	switch (props.deviceType)
@@ -844,7 +866,8 @@ bool Context::create_device(VkPhysicalDevice gpu_, VkSurfaceKHR surface,
 			for (size_t i = gpus.size(); i; i--)
 			{
 				unsigned score = device_score(gpus[i - 1]);
-				if (score >= max_score && physical_device_supports_surface_and_profile(gpus[i - 1], surface))
+				// score==0 means missing API/PRDP storage features; never select.
+				if (score > max_score && physical_device_supports_surface_and_profile(gpus[i - 1], surface))
 				{
 					max_score = score;
 					gpu = gpus[i - 1];
@@ -854,7 +877,7 @@ bool Context::create_device(VkPhysicalDevice gpu_, VkSurfaceKHR surface,
 
 		if (gpu == VK_NULL_HANDLE)
 		{
-			LOGE("Found not GPU which supports surface.\n");
+			LOGE("Found no GPU which supports surface and required storage features.\n");
 			return false;
 		}
 	}

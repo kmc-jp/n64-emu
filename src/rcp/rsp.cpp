@@ -93,13 +93,6 @@ void Rsp::take_break() {
     // https://n64brew.dev/wiki/Reality_Signal_Processor/CPU_Core
     status_reg.halt = 1;
     status_reg.broke = 1;
-    const uint32_t type = dmem_load32(0xFC0);
-    // type 1 = gfx, type 2 = audio — routine; only log unusual tasks at info.
-    if (type != 1 && type != 2) {
-        Utils::info("RSP BREAK pc={:#x} OSTask type={}", pc, type);
-    } else {
-        Utils::debug("RSP BREAK pc={:#x} OSTask type={}", pc, type);
-    }
     if (status_reg.intr_on_break) {
         g_mi().get_reg_intr().sp = 1;
         N64System::check_interrupt();
@@ -682,13 +675,6 @@ void Rsp::status_reg_write(uint32_t value) {
         const bool was_halted = status_reg.halt != 0;
         status_reg.halt = 0;
         if (was_halted) {
-            const uint32_t type = dmem_load32(0xFC0);
-            // type 1 = gfx, type 2 = audio — routine; only log unusual tasks.
-            if (type != 1 && type != 2) {
-                Utils::info("RSP unhalt OSTask type={}", type);
-            } else {
-                Utils::debug("RSP unhalt OSTask type={}", type);
-            }
             g_debugger().on_rsp_unhalt();
         }
     }

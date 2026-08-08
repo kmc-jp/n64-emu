@@ -13,8 +13,8 @@ CodeCache::~CodeCache() { clear(); }
 
 void CodeCache::maybe_flush() {
     if (blocks_.size() > MAX_BLOCKS || total_slab_bytes_ > MAX_SLAB_BYTES) {
-        Utils::info("JIT: flushing code cache (blocks={} slabs_bytes={:#x})",
-                    blocks_.size(), total_slab_bytes_);
+        Utils::debug("JIT: flushing code cache (blocks={} slabs_bytes={:#x})",
+                     blocks_.size(), total_slab_bytes_);
         clear();
     }
 }

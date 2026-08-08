@@ -233,7 +233,7 @@ void set_frequency(int hz) {
         std::lock_guard<std::mutex> lock(g_mutex);
         g_resample_pos = 0.0;
     }
-    Utils::info("Audio: Guest sample rate -> {} Hz", g_guest_frequency);
+    Utils::debug("Audio: Guest sample rate -> {} Hz", g_guest_frequency);
 }
 
 void set_frequency_from_dacrate(uint32_t dacrate) {
