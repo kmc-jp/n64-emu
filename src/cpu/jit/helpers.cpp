@@ -38,6 +38,9 @@ void do_branch_addr(bool cond, uint64_t target) {
 }
 
 void do_branch_likely_addr(bool cond, uint64_t target) {
+    // Record annul so the emitter can skip the delay-slot op compiled after
+    // this branch in the same block (interpreter skips via set_pc64).
+    exec_state().annul_delay_slot = !cond;
     Cpu::branch_likely_addr64(g_cpu(), cond, target);
 }
 
@@ -50,6 +53,8 @@ void do_branch_offset(bool cond, int16_t offset) {
 void do_branch_likely_offset(bool cond, int16_t offset) {
     instruction_t inst{};
     inst.i_type.imm = static_cast<uint16_t>(offset);
+    // Keep annul in sync with the same condition the interpreter uses.
+    exec_state().annul_delay_slot = !cond;
     Cpu::branch_likely_offset16(g_cpu(), cond, inst);
 }
 
@@ -65,6 +70,46 @@ void set_hi(uint64_t v) { g_cpu().hi = v; }
 void set_lo(uint64_t v) { g_cpu().lo = v; }
 
 uint64_t get_pc() { return g_cpu().get_pc64(); }
+
+void do_mult(uint8_t rs, uint8_t rt) {
+    const int32_t s = static_cast<int32_t>(g_cpu().gpr.read(rs));
+    const int32_t t = static_cast<int32_t>(g_cpu().gpr.read(rt));
+    const int64_t res = static_cast<int64_t>(s) * static_cast<int64_t>(t);
+    g_cpu().lo = static_cast<int64_t>(static_cast<int32_t>(res));
+    g_cpu().hi = static_cast<int64_t>(static_cast<int32_t>(res >> 32));
+}
+
+void do_multu(uint8_t rs, uint8_t rt) {
+    const uint64_t s = g_cpu().gpr.read(rs) & 0xFFFFFFFFu;
+    const uint64_t t = g_cpu().gpr.read(rt) & 0xFFFFFFFFu;
+    const uint64_t res = s * t;
+    g_cpu().lo = static_cast<int64_t>(static_cast<int32_t>(res));
+    g_cpu().hi = static_cast<int64_t>(static_cast<int32_t>(res >> 32));
+}
+
+void do_div(uint8_t rs, uint8_t rt) {
+    const int64_t dividend = static_cast<int32_t>(g_cpu().gpr.read(rs));
+    const int64_t divisor = static_cast<int32_t>(g_cpu().gpr.read(rt));
+    if (divisor == 0) {
+        g_cpu().hi = dividend;
+        g_cpu().lo = dividend >= 0 ? static_cast<int64_t>(-1) : static_cast<int64_t>(1);
+    } else {
+        g_cpu().lo = static_cast<int32_t>(dividend / divisor);
+        g_cpu().hi = static_cast<int32_t>(dividend % divisor);
+    }
+}
+
+void do_divu(uint8_t rs, uint8_t rt) {
+    const uint32_t dividend = static_cast<uint32_t>(g_cpu().gpr.read(rs));
+    const uint32_t divisor = static_cast<uint32_t>(g_cpu().gpr.read(rt));
+    if (divisor == 0) {
+        g_cpu().hi = static_cast<int32_t>(dividend);
+        g_cpu().lo = static_cast<int64_t>(-1);
+    } else {
+        g_cpu().lo = static_cast<int32_t>(dividend / divisor);
+        g_cpu().hi = static_cast<int32_t>(dividend % divisor);
+    }
+}
 
 namespace {
 

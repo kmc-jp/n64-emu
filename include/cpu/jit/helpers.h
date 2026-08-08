@@ -11,6 +11,8 @@ namespace Jit {
 struct ExecState {
     int cycles_done{0};
     bool aborted{false}; // exception / early exit
+    // Set by branch-likely when the delay slot is annulled (not taken).
+    bool annul_delay_slot{false};
 };
 
 ExecState &exec_state();
@@ -37,6 +39,11 @@ uint64_t get_lo();
 void set_hi(uint64_t v);
 void set_lo(uint64_t v);
 uint64_t get_pc();
+
+void do_mult(uint8_t rs, uint8_t rt);
+void do_multu(uint8_t rs, uint8_t rt);
+void do_div(uint8_t rs, uint8_t rt);
+void do_divu(uint8_t rs, uint8_t rt);
 
 // Memory helpers. On TLB miss they take the exception and set aborted.
 void do_lb(uint8_t rt, uint8_t base, int16_t offset);

@@ -106,6 +106,18 @@ bool try_special(instruction_t inst, IrOp &op) {
     case SPECIAL_FUNCT_MTLO:
         op.kind = IrOpKind::Mtlo;
         return true;
+    case SPECIAL_FUNCT_MULT:
+        op.kind = IrOpKind::Mult;
+        return true;
+    case SPECIAL_FUNCT_MULTU:
+        op.kind = IrOpKind::Multu;
+        return true;
+    case SPECIAL_FUNCT_DIV:
+        op.kind = IrOpKind::Div;
+        return true;
+    case SPECIAL_FUNCT_DIVU:
+        op.kind = IrOpKind::Divu;
+        return true;
     case SPECIAL_FUNCT_SYNC:
         op.kind = IrOpKind::Nop;
         return true;

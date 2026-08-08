@@ -84,6 +84,10 @@ enum class IrOpKind : uint8_t {
     Mflo,
     Mthi,
     Mtlo,
+    Mult,
+    Multu,
+    Div,
+    Divu,
     // COP0
     Mfc0,
     Mtc0,

@@ -125,7 +125,7 @@ void App::run() {
     wsi.set_platform(&platform);
     // whats this?
     wsi.set_backbuffer_srgb(false);
-    wsi.set_present_mode(Vulkan::PresentMode::SyncToVBlank);
+    wsi.set_present_mode(Vulkan::PresentMode::UnlockedNoTearing);
     Vulkan::Context::SystemHandles system_handles;
     if (!wsi.init_simple(WSI_NUM_THREADS, system_handles)) {
         Utils::critical("Failed to initialize WSI");

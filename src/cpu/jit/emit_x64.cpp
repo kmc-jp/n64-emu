@@ -15,6 +15,20 @@ namespace {
 using namespace Xbyak;
 using namespace Xbyak::util;
 
+bool is_branch_likely(IrOpKind k) {
+    switch (k) {
+    case IrOpKind::Beql:
+    case IrOpKind::Bnel:
+    case IrOpKind::Blezl:
+    case IrOpKind::Bgtzl:
+    case IrOpKind::Bltzl:
+    case IrOpKind::Bgezl:
+        return true;
+    default:
+        return false;
+    }
+}
+
 class BlockEmitter : public CodeGenerator {
   public:
     explicit BlockEmitter(uint8_t *buf, size_t size)
@@ -48,6 +62,12 @@ class BlockEmitter : public CodeGenerator {
             // rax = &ExecState
             cmp(byte[rax + offsetof(ExecState, aborted)], 0);
             jne(exit_label, T_NEAR);
+
+            // Branch-likely may annul the delay slot that follows in this block.
+            if (is_branch_likely(block.ops[i].kind) && i + 1 < n) {
+                cmp(byte[rax + offsetof(ExecState, annul_delay_slot)], 0);
+                jne(exit_label, T_NEAR);
+            }
         }
 
         L(exit_label);
@@ -544,6 +564,26 @@ class BlockEmitter : public CodeGenerator {
             gpr_to_rax(op.rs);
             mov(rdi, rax);
             call_fn(reinterpret_cast<const void *>(&set_lo));
+            break;
+        case IrOpKind::Mult:
+            mov(edi, op.rs);
+            mov(esi, op.rt);
+            call_fn(reinterpret_cast<const void *>(&do_mult));
+            break;
+        case IrOpKind::Multu:
+            mov(edi, op.rs);
+            mov(esi, op.rt);
+            call_fn(reinterpret_cast<const void *>(&do_multu));
+            break;
+        case IrOpKind::Div:
+            mov(edi, op.rs);
+            mov(esi, op.rt);
+            call_fn(reinterpret_cast<const void *>(&do_div));
+            break;
+        case IrOpKind::Divu:
+            mov(edi, op.rs);
+            mov(esi, op.rt);
+            call_fn(reinterpret_cast<const void *>(&do_divu));
             break;
         case IrOpKind::Mfc0:
             mov(edi, op.rt);
