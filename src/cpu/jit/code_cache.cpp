@@ -11,9 +11,35 @@ CodeCache::CodeCache() = default;
 
 CodeCache::~CodeCache() { clear(); }
 
+void CodeCache::maybe_flush() {
+    if (blocks_.size() > MAX_BLOCKS || total_slab_bytes_ > MAX_SLAB_BYTES) {
+        Utils::info("JIT: flushing code cache (blocks={} slabs_bytes={:#x})",
+                    blocks_.size(), total_slab_bytes_);
+        clear();
+    }
+}
+
 uint8_t *CodeCache::alloc_exec(size_t size) {
+    maybe_flush();
+
+    // Align to 16 for x86 call targets / Xbyak.
+    const size_t align = 16;
+    size = (size + align - 1) & ~(align - 1);
+
+    if (!slabs_.empty()) {
+        Slab &cur = slabs_.back();
+        const size_t aligned_used = (cur.used + align - 1) & ~(align - 1);
+        if (aligned_used + size <= cur.bytes) {
+            cur.used = aligned_used + size;
+            return cur.ptr + aligned_used;
+        }
+    }
+
     const size_t page = static_cast<size_t>(sysconf(_SC_PAGESIZE));
-    const size_t total = ((size + page - 1) / page) * page;
+    size_t total = SLAB_SIZE;
+    if (size + align > total)
+        total = ((size + align + page - 1) / page) * page;
+
     void *mem = mmap(nullptr, total, PROT_READ | PROT_WRITE | PROT_EXEC,
                      MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
     if (mem == MAP_FAILED) {
@@ -21,8 +47,22 @@ uint8_t *CodeCache::alloc_exec(size_t size) {
         Utils::abort("Aborted");
     }
     auto *p = static_cast<uint8_t *>(mem);
-    slabs_.push_back(Slab{p, total});
+    slabs_.push_back(Slab{p, total, size});
+    total_slab_bytes_ += total;
     return p;
+}
+
+void CodeCache::shrink_last_alloc(size_t reserved, size_t used) {
+    if (slabs_.empty())
+        return;
+    Slab &cur = slabs_.back();
+    if (cur.used < reserved)
+        return;
+    const size_t align = 16;
+    const size_t used_aligned = (used + align - 1) & ~(align - 1);
+    if (used_aligned > reserved)
+        return;
+    cur.used = cur.used - reserved + used_aligned;
 }
 
 CompiledBlock *CodeCache::lookup(uint32_t paddr) {
@@ -86,6 +126,7 @@ void CodeCache::clear() {
             munmap(s.ptr, s.bytes);
     }
     slabs_.clear();
+    total_slab_bytes_ = 0;
 }
 
 } // namespace Jit

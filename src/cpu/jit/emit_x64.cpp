@@ -612,10 +612,14 @@ class BlockEmitter : public CodeGenerator {
 } // namespace
 
 BlockFn emit_block(const IrBlock &block, CodeCache &cache) {
-    constexpr size_t kBufSize = 64 * 1024;
+    // Most blocks are small; 16 KiB is plenty for helper-call style emit.
+    constexpr size_t kBufSize = 16 * 1024;
     uint8_t *buf = cache.alloc_exec(kBufSize);
     BlockEmitter emitter(buf, kBufSize);
-    return emitter.emit(block);
+    BlockFn fn = emitter.emit(block);
+    // Reclaim unused tail of this bump allocation for the next block.
+    cache.shrink_last_alloc(kBufSize, emitter.getSize());
+    return fn;
 }
 
 } // namespace Jit
