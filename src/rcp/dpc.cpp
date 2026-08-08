@@ -3,8 +3,9 @@
 #include "memory/memory.h"
 #include "memory/memory_map.h"
 #include "mmio/mi.h"
-#include "n64_system/interrupt.h"
 #include "rcp/rsp.h"
+#include "rcp/rsp_thread.h"
+#include <mutex>
 #include "utils/byte_array.h"
 #include "utils/log.h"
 #include <vector>
@@ -63,6 +64,8 @@ uint32_t Dpc::read_paddr32(uint32_t paddr) const {
 }
 
 void Dpc::write_paddr32(uint32_t paddr, uint32_t value) {
+    // RSP worker may submit DPC while the main thread presents; serialize.
+    std::lock_guard<std::recursive_mutex> lock(PRDPWrapper::rdp_mutex());
     // https://github.com/Dillonb/n64/blob/6502f7d2f163c3f14da5bff8cd6d5ccc47143156/src/rdp/rdp.c#L65
     switch (paddr) {
     case PADDR_DPC_START:
@@ -227,7 +230,8 @@ void Dpc::process_list() {
             status.start_gclk = 0;
             status.cbuf_ready = 0;
             g_mi().get_reg_intr().dp = 1;
-            N64System::check_interrupt();
+            // May run on the RSP worker; defer COP0 IP2 update to wait_idle.
+            Rsp::g_rsp_thread().note_sp_interrupt();
         }
 
         buf_index += command_length;

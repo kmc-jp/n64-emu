@@ -1,6 +1,7 @@
 #pragma once
 
 #include <cstdint>
+#include <mutex>
 
 namespace Vulkan {
 class WSI;
@@ -11,6 +12,10 @@ class VI;
 
 namespace N64 {
 namespace PRDPWrapper {
+
+// Serializes Parallel-RDP / Vulkan use (RSP worker may submit DPC commands
+// while the main thread presents).
+std::recursive_mutex &rdp_mutex();
 
 void init_prdp(Vulkan::WSI &wsi, uint8_t *rdram);
 

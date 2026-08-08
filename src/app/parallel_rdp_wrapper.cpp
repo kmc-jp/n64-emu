@@ -4,6 +4,7 @@
 #include "rdp_device.hpp"
 #include "utils/log.h"
 #include "wsi.hpp"
+#include <mutex>
 
 namespace N64 {
 namespace PRDPWrapper {
@@ -13,7 +14,13 @@ constexpr uint32_t HIDDEN_RDRAM_SIZE = 4 * 1024 * 1024;
 
 RDP::CommandProcessor *command_processor;
 
+std::recursive_mutex &rdp_mutex() {
+    static std::recursive_mutex mu;
+    return mu;
+}
+
 void init_prdp(Vulkan::WSI &wsi, uint8_t *rdram) {
+    std::lock_guard<std::recursive_mutex> lock(rdp_mutex());
     RDP::CommandProcessorFlags flags = 0;
 
     // RDRAM must be host-endian word storage (byte addr^3 / half^2), which is
@@ -41,6 +48,7 @@ void init_prdp(Vulkan::WSI &wsi, uint8_t *rdram) {
 }
 
 void fini_prdp() {
+    std::lock_guard<std::recursive_mutex> lock(rdp_mutex());
     delete command_processor;
     command_processor = nullptr;
 }
@@ -136,6 +144,7 @@ void render_screen(Vulkan::WSI &wsi, Util::IntrusivePtr<Vulkan::Image> image) {
     wsi.get_device().submit(cmd);
 }
 void update_screen(Vulkan::WSI &wsi, N64::Mmio::VI::VI &vi) {
+    std::lock_guard<std::recursive_mutex> lock(rdp_mutex());
     uint32_t h_video = vi.reg_h_video;
     // H_START=H_END=0 blanks the VI (n64brew). Some titles leave it blank
     // until osViSetMode; use NTSC defaults so scanout is not invalid.
@@ -189,12 +198,14 @@ void update_screen(Vulkan::WSI &wsi, N64::Mmio::VI::VI &vi) {
 }
 
 void enqueue_command(int command_length, const uint32_t *buffer) {
+    std::lock_guard<std::recursive_mutex> lock(rdp_mutex());
     if (!command_processor)
         return;
     command_processor->enqueue_command(command_length, buffer);
 }
 
 void on_full_sync() {
+    std::lock_guard<std::recursive_mutex> lock(rdp_mutex());
     if (!command_processor)
         return;
     command_processor->wait_for_timeline(command_processor->signal_timeline());
