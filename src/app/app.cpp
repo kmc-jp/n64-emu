@@ -26,8 +26,8 @@ static void ensure_prdp_vulkan_icd() {
     if (!cur || !*cur)
         cur = getenv("VK_ICD_FILENAMES");
 
-    const bool is_wsl =
-        getenv("WSL_DISTRO_NAME") != nullptr || getenv("WSL_INTEROP") != nullptr;
+    const bool is_wsl = getenv("WSL_DISTRO_NAME") != nullptr ||
+                        getenv("WSL_INTEROP") != nullptr;
     const bool pins_dzn = cur && strstr(cur, "dzn_icd") != nullptr;
 
     if (!pins_dzn && !(is_wsl && (!cur || !*cur)))
@@ -169,9 +169,7 @@ void App::run() {
         Utils::info("Using Vulkan device: {}", gpu.deviceName);
         if (gpu.deviceType == VK_PHYSICAL_DEVICE_TYPE_CPU) {
             Utils::warn(
-                "Vulkan device is CPU-based ({}); RDP will be very slow. "
-                "Native NVIDIA Vulkan on WSL is unavailable, and Mesa dzn "
-                "lacks SSBO 8-bit storage required by paraLLEl-RDP",
+                "Vulkan device is CPU-based ({}); RDP will be very slow",
                 gpu.deviceName);
         }
     }
