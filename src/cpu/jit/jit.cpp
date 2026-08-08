@@ -63,6 +63,14 @@ int Dynarec::run(int budget) {
 
     auto &cpu = g_cpu();
 
+    // If the previous instruction was a branch (often COP1 BC* via the
+    // interpreter fallback), PC is the delay slot and next_pc may already be
+    // the taken target. A multi-op JIT block starting here would decode the
+    // fall-through path from memory and execute it anyway — e.g. Kirby sets
+    // imageFlip=1 in the BC1TL not-taken path and mirrors the N64 logo.
+    if (cpu.delay_slot)
+        return run_interpreter_fallback();
+
     const uint32_t pc32 = static_cast<uint32_t>(cpu.get_pc64());
     std::optional<uint32_t> paddr = Mmu::resolve_vaddr(pc32);
     if (!paddr.has_value())
