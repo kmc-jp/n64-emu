@@ -10,7 +10,7 @@
 #include "ui/recent_roms.h"
 #include "ui/sdl_platform.h"
 #include "ui/vulkan_devices.h"
-#include "ui/win32_file_dialog.h"
+#include "ui/file_dialog.h"
 #include "utils/log.h"
 #include "video/present.h"
 #include <SDL.h>
@@ -109,7 +109,7 @@ bool event_hook(const SDL_Event &e) {
 
     if (e.type == SDL_KEYDOWN && e.key.keysym.sym == SDLK_o &&
         (e.key.keysym.mod & KMOD_CTRL)) {
-        win32_open_rom_dialog(g_gui);
+        open_rom_dialog(g_gui);
         return true;
     }
 

@@ -29,7 +29,7 @@ We support Windows, macOS, and Linux.
 ### Linux
 
 ```bash
-sudo apt install cmake g++ libsdl2-dev libvulkan-dev
+sudo apt install cmake g++ libsdl2-dev libvulkan-dev zenity
 
 git clone --recursive git@github.com:kmc-jp/n64-emu.git
 cd n64-emu
@@ -38,6 +38,8 @@ cd build
 cmake -DCMAKE_BUILD_TYPE=Release ..
 cmake --build . --parallel
 ```
+
+`zenity` (or `kdialog`) is used for the GUI Open ROM dialog. Without it, open a ROM via the command line or Recents.
 
 ### Windows 
 

@@ -14,10 +14,10 @@ add_library(ui_gui STATIC)
 target_sources(ui_gui PRIVATE
     app.cpp
     config_toml.cpp
+    file_dialog.cpp
     gui.cpp
     imgui_layer.cpp
     recent_roms.cpp
-    win32_file_dialog.cpp
 )
 
 target_link_libraries(ui PUBLIC
@@ -36,5 +36,7 @@ target_link_libraries(ui_gui PUBLIC
     ui
     imgui
     tomlplusplus
-    comdlg32
 )
+if(WIN32)
+    target_link_libraries(ui_gui PUBLIC comdlg32 shell32)
+endif()

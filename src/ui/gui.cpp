@@ -5,7 +5,7 @@
 #include "ui/imgui_layer.h"
 #include "ui/sdl_platform.h"
 #include "ui/vulkan_devices.h"
-#include "ui/win32_file_dialog.h"
+#include "ui/file_dialog.h"
 #include "video/present.h"
 #include <SDL.h>
 #include <filesystem>
@@ -231,7 +231,7 @@ void gui_draw(GuiState &state) {
     if (ImGui::BeginMainMenuBar()) {
         if (ImGui::BeginMenu("File")) {
             if (ImGui::MenuItem("Open ROM...", "Ctrl+O"))
-                win32_open_rom_dialog(state);
+                open_rom_dialog(state);
             draw_recents_menu(state);
             if (ImGui::MenuItem("Open n64-emu folder"))
                 open_settings_dir();
