@@ -13,6 +13,7 @@ n64-emu is an experimental Nintendo 64 emulator with low-level emulation (LLE) a
 - Internal resolution upscaling
 - Optical-flow frame interpolation
 - Full audio support
+- Save data support
 
 ## Build
 
@@ -163,6 +164,8 @@ This project was heavily inspired by the following projects ❤️.
 - [n64-tests](https://github.com/Dillonb/n64-tests) by [Dillon](https://github.com/Dillonb): CPU test ROMs
 - [parallel-RDP](https://github.com/Themaister/parallel-rdp) by [Themaister](https://github.com/Themaister): Vulkan RDP implementation
 
-## Copyright
+## License
+
+See [LICENSE](LICENSE).
 
 "Nintendo 64" is a registered trademark of Nintendo Co., Ltd.

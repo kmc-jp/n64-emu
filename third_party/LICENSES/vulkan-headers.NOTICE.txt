@@ -1,0 +1,8 @@
+﻿Vulkan-Headers
+
+Copyright 2015-2023 The Khronos Group Inc.
+
+SPDX-License-Identifier: Apache-2.0
+
+See Apache-2.0.txt in this directory for the full license text.
+Upstream: https://github.com/KhronosGroup/Vulkan-Headers

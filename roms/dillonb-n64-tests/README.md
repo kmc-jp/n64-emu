@@ -1,5 +1,13 @@
 Pre-build binary from https://github.com/Dillonb/n64-tests
 
+## License note (n64-emu)
+
+Upstream [Dillonb/n64-tests](https://github.com/Dillonb/n64-tests) does not
+publish a license. These binaries are included in n64-emu only with personal
+permission from the author for use with this emulator. They are **not**
+covered by n64-emu's MIT License. Do not redistribute or reuse them outside
+that understanding without separate permission.
+
 # Dillon's n64 tests
 A WIP N64 test suite designed for young emulators
 

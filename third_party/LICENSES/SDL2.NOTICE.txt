@@ -1,0 +1,4 @@
+﻿SDL 2.0 and later use the zlib License:
+https://www.libsdl.org/license.php
+
+Upstream: https://github.com/libsdl-org/SDL
