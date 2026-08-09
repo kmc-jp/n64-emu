@@ -1,6 +1,6 @@
 #include "app/parallel_rdp_wrapper.h"
-#include "app/frame_interpolate.h"
-#include "app/depth_capture.h"
+#include "video/frame_interpolate.h"
+#include "video/depth_capture.h"
 #include "fragment_spirv.h"
 #include "mmio/vi.h"
 #include "rdp_device.hpp"
@@ -123,8 +123,7 @@ void fini_prdp() {
 constexpr RDP::ScanoutOptions get_prdp_scanout_options() {
     RDP::ScanoutOptions opts;
     opts.persist_frame_on_invalid_input = true;
-    // Progressive window: upscale-deinterlace (defaults). Do not weave just
-    // because the game set SERRATE — that is a display-mode choice in simple64.
+    // Progressive window: upscale-deinterlace (defaults).
     opts.vi.aa = true;
     opts.vi.scale = true;
     opts.vi.dither_filter = true;
@@ -137,8 +136,7 @@ constexpr RDP::ScanoutOptions get_prdp_scanout_options() {
 }
 
 // Fit into the swapchain using NTSC 4:3 display aspect — not the raw scanout
-// pixel size. VI output can be e.g. 640x240; stretching that with pixel aspect
-// makes the picture look horizontally squashed. Match simple64's approach.
+// pixel size.
 static void calculate_viewport(float *x, float *y, float *width, float *height,
                                float win_w, float win_h) {
     constexpr float kDisplayW = 640.f;

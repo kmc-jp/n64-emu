@@ -9,6 +9,7 @@ target_link_libraries(n64 PRIVATE
     log
 )
 
+add_subdirectory(video)
 add_subdirectory(app)
 add_subdirectory(audio)
 add_subdirectory(cpu)

@@ -1,4 +1,4 @@
-#include "app/frame_interpolate.h"
+#include "video/frame_interpolate.h"
 #include "utils/log.h"
 #include "limits.hpp"
 
@@ -440,7 +440,7 @@ void FrameInterpolator::estimate_flow(Vulkan::CommandBuffer &cmd) {
                 has_prev = 1;
             else if (is_coarse && use_temporal)
                 has_prev = 2;
-            // Coarse: r=2; fine: r=1 (was 4/2 — dominant cost).
+            // Coarse: r=2; fine: r=1 (was 4/2  Edominant cost).
             int radius = is_coarse ? 2 : 1;
 
             if (flow_tmp_->get_width() != w || flow_tmp_->get_height() != h) {
@@ -535,7 +535,7 @@ void FrameInterpolator::normalize_and_blend_temporal(Vulkan::CommandBuffer &cmd,
         storage_barrier(cmd, img);
     };
 
-    // Displacement → per-field velocity for EMA / store.
+    // Displacement ↁEper-field velocity for EMA / store.
     scale(*flow_ab_[0], inv_k);
     scale(*flow_ba_[0], inv_k);
 
@@ -801,7 +801,7 @@ void FrameInterpolator::note_latency_stats(unsigned k) {
     if (stats_window_t_.time_since_epoch().count() == 0)
         stats_window_t_ = now;
 
-    // Aggregate only — per-pair logging stalls the present thread on Windows consoles.
+    // Aggregate only  Eper-pair logging stalls the present thread on Windows consoles.
     const double window_ms =
         std::chrono::duration<double, std::milli>(now - stats_window_t_).count();
     if (window_ms >= 1000.0 && stats_pairs_ > 0) {

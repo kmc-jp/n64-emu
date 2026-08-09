@@ -36,7 +36,7 @@ class FrameInterpolator {
 
   private:
     static constexpr unsigned kMaxLevels = 5;
-    // Cap matching resolution — 512 was quality-heavy for realtime.
+    // Cap matching resolution  E512 was quality-heavy for realtime.
     static constexpr unsigned kTargetLumaWidth = 320;
     static constexpr unsigned kCoarsestSize = 20;
     static constexpr unsigned kFingerprintSize = 16;

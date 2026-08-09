@@ -1,4 +1,4 @@
-#include "app/depth_capture.h"
+#include "video/depth_capture.h"
 #include "utils/log.h"
 
 #ifndef N64_FRAME_INTERP
