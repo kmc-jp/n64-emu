@@ -8,7 +8,7 @@
 #include <unordered_map>
 
 namespace N64 {
-namespace PRDPWrapper {
+namespace Video {
 
 // Snapshots RDRAM Z at SyncFull (before the next frame clears a shared Z),
 // keyed by the color framebuffer address for VI_ORIGIN lookup.
@@ -44,5 +44,5 @@ class DepthCapturer {
     void ensure_program(Vulkan::Device &device);
 };
 
-} // namespace PRDPWrapper
+} // namespace Video
 } // namespace N64

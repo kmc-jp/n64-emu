@@ -7,7 +7,7 @@
 #include <deque>
 
 namespace N64 {
-namespace PRDPWrapper {
+namespace Video {
 
 // Optical-flow frame interpolator for VI duplicate-field replacement.
 // When enabled, delays output by one game frame and fills held fields with
@@ -165,5 +165,5 @@ class FrameInterpolator {
                             unsigned h);
 };
 
-} // namespace PRDPWrapper
+} // namespace Video
 } // namespace N64

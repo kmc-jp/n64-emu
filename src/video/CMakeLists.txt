@@ -1,8 +1,9 @@
-# Frame interpolation (optical flow) and depth capture for VI scanout.
+# Video presentation: swapchain blit, RDP scanout, frame interpolation.
 add_library(video STATIC)
 target_sources(video PRIVATE
     depth_capture.cpp
     frame_interpolate.cpp
+    present.cpp
 )
 
 # ---------------------------------------------------------------------------
@@ -55,6 +56,9 @@ function(n64_compile_shader relpath ext var_name)
     set(_shader_headers "${_acc}" PARENT_SCOPE)
 endfunction()
 
+n64_compile_shader(fullscreen vert vertex_spirv)
+n64_compile_shader(blit frag fragment_spirv)
+
 set(_fi_shaders
     luma_downsample
     pyramid_down
@@ -85,10 +89,13 @@ add_dependencies(video video_shaders)
 target_include_directories(video PRIVATE "${_shader_gen_dir}")
 
 target_compile_definitions(video PUBLIC N64_FRAME_INTERP=1)
-message(STATUS "[n64-emu] Frame-interp shaders: glslc=${N64_GLSLC}")
+message(STATUS "[n64-emu] Shaders: glslc=${N64_GLSLC}")
+message(STATUS "[n64-emu] Frame interpolation: ON")
 
 target_link_libraries(video PUBLIC
     common
     log
+    mmio
+    rdp
     parallel-rdp
 )

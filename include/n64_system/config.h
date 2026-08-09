@@ -17,8 +17,8 @@ enum class CpuBackend {
 struct Config {
     std::string rom_filepath{};
     std::string log_filepath{};
-    Utils::LogLevel log_level;
-    bool test_mode;
+    Utils::LogLevel log_level{Utils::LogLevel::INFO};
+    bool test_mode{false};
     bool debug{false};
     std::vector<uint32_t> break_pcs{};
     std::vector<uint32_t> watch_paddrs{};
@@ -29,8 +29,8 @@ struct Config {
 #else
     CpuBackend cpu_backend{CpuBackend::Interpreter};
 #endif
-    // Run RSP on a worker thread (run-until-halt with quantum). Off by default.
-    bool rsp_thread{false};
+    // Run RSP on a worker thread (run-until-halt with quantum). On by default.
+    bool rsp_thread{true};
     // No SDL window / Vulkan present (for CPU tests and CI).
     bool headless{false};
     // Parallel-RDP internal resolution multiplier (1, 2, 4, or 8).
@@ -38,8 +38,6 @@ struct Config {
     // Optical-flow frame interpolation (duplicate VI fields -> intermediates).
     bool frame_interp{false};
 };
-
-bool read_config_from_command_line(Config &config, int argc, char *argv[]);
 
 } // namespace N64System
 } // namespace N64

@@ -1,6 +1,7 @@
 add_library(mmio STATIC)
 target_sources(mmio PRIVATE
     ai.cpp
+    controller_input.cpp
     mi.cpp
     pi.cpp
     pif.cpp
@@ -15,5 +16,4 @@ target_link_libraries(mmio PUBLIC
     memory
     n64_system
     rcp
-    SDL2::SDL2
 )

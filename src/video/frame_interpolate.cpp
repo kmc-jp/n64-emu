@@ -30,7 +30,7 @@
 #include <cstdlib>
 
 namespace N64 {
-namespace PRDPWrapper {
+namespace Video {
 namespace {
 
 void fill_array_sizes(Vulkan::ResourceLayout &layout) {
@@ -1032,5 +1032,5 @@ Vulkan::ImageHandle FrameInterpolator::process(Vulkan::Device &device,
 #endif
 }
 
-} // namespace PRDPWrapper
+} // namespace Video
 } // namespace N64

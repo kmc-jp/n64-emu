@@ -1,0 +1,318 @@
+#include "ui/app.h"
+#include "memory/memory.h"
+#include "mmio/vi.h"
+#include "n64_system/n64_system.h"
+#include "rcp/rsp_thread.h"
+#include "ui/audio_sdl.h"
+#include "ui/gui.h"
+#include "ui/imgui_layer.h"
+#include "ui/input_sdl.h"
+#include "ui/sdl_platform.h"
+#include "ui/win32_file_dialog.h"
+#include "utils/log.h"
+#include "video/present.h"
+#include <SDL.h>
+#include <SDL_vulkan.h>
+#include <cstdlib>
+#include <filesystem>
+#include <string>
+
+namespace N64 {
+namespace Ui {
+
+namespace {
+constexpr const char *kWindowTitle = "n64-emu";
+constexpr const char *kGameWindowTitle = "n64-emu - Game";
+constexpr int kWindowWidth = 1600;
+constexpr int kWindowHeight = kWindowWidth * 3 / 4;
+
+GuiState g_gui{};
+Vulkan::WSI *g_wsi = nullptr;
+SDL_Window *g_menu_window = nullptr;
+SDL_Window *g_game_window = nullptr;
+
+void prepare_imgui() {
+    imgui_new_frame();
+    gui_draw(g_gui);
+}
+
+void on_field_present(N64::Mmio::VI::VI &vi) {
+    if (!g_wsi)
+        return;
+    g_wsi->get_platform().poll_input();
+    poll_and_inject_controller(imgui_want_capture_keyboard());
+    prepare_imgui();
+    // Always present so the ImGui menu bar refreshes even on duplicate VI.
+    Video::present_field(*g_wsi, vi, true);
+}
+
+N64System::PresentCounters on_present_stats() {
+    const auto s = Video::take_present_stats();
+    return {s.presented, s.skipped};
+}
+
+void on_overlay_draw(Vulkan::CommandBuffer &cmd) { imgui_render(cmd); }
+
+void update_window_title(SDL_Window *target) {
+    if (!target)
+        return;
+
+    std::string title = g_memory().rom.get_image_name();
+    if (title.empty() && g_gui.config && !g_gui.config->rom_filepath.empty()) {
+        title = std::filesystem::path(g_gui.config->rom_filepath)
+                    .filename()
+                    .string();
+    }
+    if (title.empty())
+        title = kWindowTitle;
+    SDL_SetWindowTitle(target, title.c_str());
+}
+
+bool switch_present_window(Vulkan::WSI &wsi, SDL2Platform &platform,
+                           SDL_Window *target) {
+    if (!target)
+        return false;
+
+    wsi.deinit_surface_and_swapchain();
+    platform.set_window(target);
+    if (!imgui_set_sdl_window(target))
+        return false;
+
+    auto &ctx = wsi.get_context();
+    VkSurfaceKHR surface =
+        platform.create_surface(ctx.get_instance(), ctx.get_gpu());
+    if (surface == VK_NULL_HANDLE) {
+        Utils::critical("Failed to create Vulkan surface for new window");
+        return false;
+    }
+    wsi.reinit_surface_and_swapchain(surface);
+    return true;
+}
+
+bool event_hook(const SDL_Event &e) {
+    imgui_process_event(e);
+
+    if (e.type == SDL_WINDOWEVENT &&
+        e.window.event == SDL_WINDOWEVENT_CLOSE) {
+        const Uint32 id = e.window.windowID;
+        if (g_game_window && id == SDL_GetWindowID(g_game_window)) {
+            g_gui.request_stop = true;
+            return true;
+        }
+        if (g_menu_window && id == SDL_GetWindowID(g_menu_window)) {
+            g_gui.request_quit = true;
+            return true;
+        }
+    }
+
+    if (e.type == SDL_KEYDOWN && e.key.keysym.sym == SDLK_o &&
+        (e.key.keysym.mod & KMOD_CTRL)) {
+        win32_open_rom_dialog(g_gui);
+        return true;
+    }
+
+    if (e.type == SDL_KEYDOWN && e.key.keysym.sym == SDLK_F11 &&
+        !e.key.repeat) {
+        SDL_Window *target = g_game_window ? g_game_window : g_menu_window;
+        if (target) {
+            const bool fs =
+                (SDL_GetWindowFlags(target) &
+                 (SDL_WINDOW_FULLSCREEN | SDL_WINDOW_FULLSCREEN_DESKTOP)) != 0;
+            SDL_SetWindowFullscreen(target,
+                                    fs ? 0 : SDL_WINDOW_FULLSCREEN_DESKTOP);
+        }
+        return true;
+    }
+    return false;
+}
+
+bool try_start_game(Vulkan::WSI &wsi, SDL2Platform &platform, uint8_t *rdram) {
+    if (!g_gui.request_start || !g_gui.config ||
+        g_gui.config->rom_filepath.empty())
+        return false;
+    g_gui.request_start = false;
+
+    if (!g_game_window) {
+        g_game_window =
+            create_main_window(kGameWindowTitle, kWindowWidth, kWindowHeight);
+        if (!g_game_window) {
+            Utils::critical("Failed to open game window");
+            return false;
+        }
+        if (!switch_present_window(wsi, platform, g_game_window)) {
+            SDL_DestroyWindow(g_game_window);
+            g_game_window = nullptr;
+            return false;
+        }
+        if (g_menu_window)
+            SDL_HideWindow(g_menu_window);
+    }
+
+    Video::init_video(wsi, rdram, g_gui.config->upscale, g_gui.config->frame_interp);
+    N64System::set_up(*g_gui.config);
+    g_gui.mode = AppMode::Running;
+    update_window_title(g_game_window);
+    return true;
+}
+
+void stop_game(Vulkan::WSI &wsi, SDL2Platform &platform) {
+    N64System::shutdown();
+    Video::fini_video();
+    g_gui.mode = AppMode::Menu;
+    g_gui.request_stop = false;
+
+    if (g_game_window) {
+        if (g_menu_window) {
+            if (!switch_present_window(wsi, platform, g_menu_window))
+                Utils::critical("Failed to restore menu window surface");
+            SDL_ShowWindow(g_menu_window);
+            SDL_RaiseWindow(g_menu_window);
+        }
+        SDL_DestroyWindow(g_game_window);
+        g_game_window = nullptr;
+    }
+
+    if (g_menu_window)
+        SDL_SetWindowTitle(g_menu_window, kWindowTitle);
+}
+
+} // namespace
+
+App::App(N64System::Config &config_, UiSettings &ui_settings_)
+    : config(config_), ui_settings(ui_settings_), window(nullptr),
+      game_window(nullptr) {
+    if (SDL_Init(SDL_INIT_EVERYTHING) != 0) {
+        Utils::critical("Failed to initialize SDL: %s", SDL_GetError());
+        exit(-1);
+    }
+    Audio::set_sink(&sdl_audio_sink());
+    Audio::init();
+
+    window = create_main_window(kWindowTitle, kWindowWidth, kWindowHeight);
+    if (!window) {
+        Utils::critical("Failed to open Window");
+        exit(-1);
+    }
+    g_menu_window = window;
+
+    if (volkInitialize() != VK_SUCCESS) {
+        Utils::critical("Failed to initialize volk");
+        exit(-1);
+    }
+    if (!Vulkan::Context::init_loader(
+            (PFN_vkGetInstanceProcAddr)SDL_Vulkan_GetVkGetInstanceProcAddr())) {
+        Utils::critical("Failed to load Vulkan");
+        exit(-1);
+    }
+}
+
+App::~App() {
+    imgui_shutdown();
+    N64::Rsp::g_rsp_thread().shutdown();
+    Audio::shutdown();
+    if (game_window) {
+        SDL_DestroyWindow(game_window);
+        game_window = nullptr;
+        g_game_window = nullptr;
+    }
+    if (window) {
+        SDL_DestroyWindow(window);
+        g_menu_window = nullptr;
+        SDL_Vulkan_UnloadLibrary();
+        SDL_Quit();
+    }
+}
+
+void App::run() {
+    ensure_prdp_vulkan_icd();
+
+    SDL2Platform platform(window);
+    platform.event_hook = &event_hook;
+    Vulkan::WSI wsi;
+    wsi.set_platform(&platform);
+    wsi.set_backbuffer_srgb(false);
+    const unsigned wsi_threads = recommended_wsi_thread_indices();
+    const Vulkan::PresentMode present_mode = recommended_present_mode();
+    wsi.set_present_mode(present_mode);
+    Utils::info("WSI: {} thread indices (hw_concurrency={}), present={}",
+                wsi_threads, std::thread::hardware_concurrency(),
+                present_mode_name(present_mode));
+
+    Vulkan::Context::SystemHandles system_handles;
+    if (!wsi.init_simple(wsi_threads, system_handles)) {
+        Utils::critical("Failed to initialize WSI");
+        exit(-1);
+    }
+
+    {
+        const VkPhysicalDeviceProperties &gpu =
+            wsi.get_device().get_gpu_properties();
+        Utils::info("Using Vulkan device: {}", gpu.deviceName);
+        if (gpu.deviceType == VK_PHYSICAL_DEVICE_TYPE_CPU) {
+            Utils::warn(
+                "Vulkan device is CPU-based ({}); RDP will be very slow",
+                gpu.deviceName);
+        }
+    }
+
+    if (!imgui_init(window, wsi, ui_settings.theme))
+        exit(-1);
+    Video::set_overlay_draw(&on_overlay_draw);
+
+    uint8_t *rdram = g_memory().get_rdram().data();
+    g_wsi = &wsi;
+    g_gui.config = &config;
+    g_gui.ui_settings = &ui_settings;
+    g_gui.wsi = &wsi;
+    g_gui.rdram = rdram;
+    g_gui.mode = AppMode::Menu;
+
+    N64System::set_field_present(&on_field_present);
+    N64System::set_present_stats_fn(&on_present_stats);
+
+    if (!config.rom_filepath.empty())
+        g_gui.request_start = true;
+
+    while (platform.is_alive && !g_gui.request_quit) {
+        if (g_gui.mode == AppMode::Menu) {
+            platform.poll_input();
+            if (!platform.is_alive || g_gui.request_quit)
+                break;
+
+            poll_and_inject_controller(imgui_want_capture_keyboard());
+            prepare_imgui();
+            Video::present_ui_only(wsi);
+
+            try_start_game(wsi, platform, rdram);
+            // Sync member used by destructor if start opened a game window.
+            game_window = g_game_window;
+            SDL_Delay(16);
+            continue;
+        }
+
+        N64System::step(config);
+
+        if (g_gui.request_stop || g_gui.request_quit) {
+            const bool quit = g_gui.request_quit;
+            stop_game(wsi, platform);
+            game_window = g_game_window;
+            if (quit)
+                break;
+            try_start_game(wsi, platform, rdram);
+            game_window = g_game_window;
+        }
+    }
+
+    if (g_gui.mode == AppMode::Running)
+        stop_game(wsi, platform);
+    game_window = g_game_window;
+
+    N64System::set_field_present(nullptr);
+    N64System::set_present_stats_fn(nullptr);
+    Video::set_overlay_draw(nullptr);
+    imgui_shutdown();
+    g_wsi = nullptr;
+}
+
+} // namespace Ui
+} // namespace N64

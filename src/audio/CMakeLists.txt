@@ -5,5 +5,4 @@ target_sources(audio PRIVATE
 target_link_libraries(audio PUBLIC
     common
     log
-    SDL2::SDL2
 )

@@ -2,6 +2,7 @@
 #define ROM_H
 
 #include <cstdint>
+#include <string>
 #include <vector>
 
 namespace N64 {
@@ -84,6 +85,9 @@ class Rom {
     SaveType get_save_type() const;
 
     std::vector<uint8_t> &get_raw_data();
+
+    // Trimmed cartidge title from the ROM header (20-char image_name field).
+    std::string get_image_name() const;
 
     uint8_t read_offset8(uint32_t offset) const;
 

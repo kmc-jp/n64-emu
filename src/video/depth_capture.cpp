@@ -10,7 +10,7 @@
 #endif
 
 namespace N64 {
-namespace PRDPWrapper {
+namespace Video {
 namespace {
 
 Vulkan::ImageHandle create_depth_image(Vulkan::Device &device, unsigned w,
@@ -151,5 +151,5 @@ Vulkan::ImageHandle DepthCapturer::take(uint32_t color_addr) {
     return it->second;
 }
 
-} // namespace PRDPWrapper
+} // namespace Video
 } // namespace N64

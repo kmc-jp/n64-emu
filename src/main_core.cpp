@@ -1,13 +1,12 @@
 #include "n64_system/config.h"
-#include "ui/app.h"
+#include "ui/app_core.h"
 #include "ui/config_cli.h"
-#include "ui/config_toml.h"
 #include "utils/log.h"
 #include <iostream>
 
 constexpr std::string_view USAGE =
-    "Usage: n64 [options] [ROM.z64]\n"
-    "ImGui GUI frontend (menu bar + file dialog).\n"
+    "Usage: n64-core [options] <ROM.z64>\n"
+    "CLI / windowed frontend without ImGui (for tests and scripting).\n"
     "Options:\n"
     "--log <file>\tspecify output log file(default to stdout)\n"
     "--log-level=[trace|debug|info|critical|off]\tset log level (default to "
@@ -19,26 +18,21 @@ constexpr std::string_view USAGE =
     "--upscale=[1|2|4|8]\tParallel-RDP resolution multiplier (default 4)\n"
     "--frame-interp\tenable optical-flow frame interpolation\n"
     "--no-frame-interp\tdisable frame interpolation (default)\n"
+    "--headless\tno window / no Vulkan present\n"
+    "--test\trun n64-tests (implies --headless)\n"
     "--debug\tenable interactive debugger\n"
     "--break=ADDR\tbreak when PC hits ADDR (implies --debug)\n"
     "--break-after=N\tbreak after N scheduler cycles (implies --debug)\n"
-    "--watch=PADDR\twatch physical bus access (implies --debug)\n"
-    "\nWithout a ROM path, opens the GUI menu.\n"
-    "For headless/CI tests use n64-core instead.\n";
+    "--watch=PADDR\twatch physical bus access (implies --debug)\n";
 
 int main(int argc, char *argv[]) {
     N64::N64System::Config config{};
-    N64::Ui::UiSettings ui_settings{};
 
     Utils::init_logger();
 
-    N64::Ui::load_toml(config, ui_settings);
-    if (!N64::Ui::apply_command_line(config, argc, argv)) {
+    if (!N64::Ui::apply_command_line(config, argc, argv) ||
+        config.rom_filepath.empty()) {
         std::cout << USAGE << std::endl;
-        return -1;
-    }
-    if (config.headless || config.test_mode) {
-        std::cerr << "Error: --headless/--test are for n64-core, not n64\n";
         return -1;
     }
 
@@ -46,7 +40,7 @@ int main(int argc, char *argv[]) {
         Utils::set_log_file(config.log_filepath);
     Utils::set_log_level(config.log_level);
 
-    N64::Ui::App app(config, ui_settings);
+    N64::Ui::AppCore app(config);
     app.run();
     return 0;
 }

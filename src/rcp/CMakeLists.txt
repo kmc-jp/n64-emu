@@ -17,5 +17,6 @@ target_link_libraries(rcp PUBLIC
     log
     mmio
     n64_system
+    rdp
     Threads::Threads
 )

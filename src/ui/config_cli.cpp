@@ -1,39 +1,17 @@
-#include "n64_system/config.h"
-#include "utils/log.h"
+#include "ui/config_cli.h"
 #include <cstdlib>
 #include <iostream>
 #include <string_view>
 
 namespace N64 {
-namespace N64System {
+namespace Ui {
 
-bool read_config_from_command_line(Config &config, int argc, char *argv[]) {
-    if (argc < 2)
-        return false;
-
-    // default to info
-    config.log_level = Utils::LogLevel::INFO;
-    // default to false
-    config.test_mode = false;
-    config.debug = false;
-    config.break_pcs.clear();
-    config.watch_paddrs.clear();
-    config.break_after_cycles = 0;
-#if defined(__x86_64__) || defined(_M_X64)
-    config.cpu_backend = CpuBackend::Jit;
-#else
-    config.cpu_backend = CpuBackend::Interpreter;
-#endif
-    config.headless = false;
-    config.rsp_thread = false;
-    config.upscale = 4;
-    config.frame_interp = false;
-
+bool apply_command_line(N64System::Config &config, int argc, char *argv[]) {
     for (int i = 1; i < argc; ++i) {
         const std::string_view current = argv[i];
         if (current == "--log") {
-            if (config.log_filepath.empty() == false) {
-                std::cerr << "Error: log file already specified" << std::endl;
+            if (i + 1 >= argc) {
+                std::cerr << "Error: --log requires a path" << std::endl;
                 return false;
             }
             config.log_filepath = argv[i + 1];
@@ -60,16 +38,15 @@ bool read_config_from_command_line(Config &config, int argc, char *argv[]) {
             }
         } else if (current == "--test") {
             config.test_mode = true;
-            // Tests only need the CPU; avoid popping a window.
             config.headless = true;
         } else if (current == "--headless") {
             config.headless = true;
         } else if (current == "--debug") {
             config.debug = true;
         } else if (current == "--jit") {
-            config.cpu_backend = CpuBackend::Jit;
+            config.cpu_backend = N64System::CpuBackend::Jit;
         } else if (current == "--no-jit") {
-            config.cpu_backend = CpuBackend::Interpreter;
+            config.cpu_backend = N64System::CpuBackend::Interpreter;
         } else if (current == "--rsp-thread") {
             config.rsp_thread = true;
         } else if (current == "--no-rsp-thread") {
@@ -130,12 +107,14 @@ bool read_config_from_command_line(Config &config, int argc, char *argv[]) {
             }
             config.debug = true;
             config.watch_paddrs.push_back(static_cast<uint32_t>(p));
-        } else if (current.empty() == false && !current.starts_with('-')) {
-            if (config.rom_filepath.empty() == false) {
+        } else if (current == "--help" || current == "-h") {
+            return false;
+        } else if (!current.empty() && !current.starts_with('-')) {
+            if (!config.rom_filepath.empty()) {
                 std::cerr << "Error: ROM file already specified" << std::endl;
                 return false;
             }
-            config.rom_filepath = current;
+            config.rom_filepath = std::string(current);
         } else {
             std::cerr << "Error: unknown argument `" << current << "`"
                       << std::endl;
@@ -144,7 +123,7 @@ bool read_config_from_command_line(Config &config, int argc, char *argv[]) {
     }
 
 #if !defined(__x86_64__) && !defined(_M_X64)
-    if (config.cpu_backend == CpuBackend::Jit) {
+    if (config.cpu_backend == N64System::CpuBackend::Jit) {
         std::cerr << "Error: --jit is only supported on x86-64" << std::endl;
         return false;
     }
@@ -156,8 +135,14 @@ bool read_config_from_command_line(Config &config, int argc, char *argv[]) {
         return false;
     }
 
+    if (config.headless && config.rom_filepath.empty()) {
+        std::cerr << "Error: ROM path required for --headless/--test"
+                  << std::endl;
+        return false;
+    }
+
     return true;
 }
 
-} // namespace N64System
+} // namespace Ui
 } // namespace N64

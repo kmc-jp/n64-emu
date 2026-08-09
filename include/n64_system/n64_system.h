@@ -1,8 +1,10 @@
 #ifndef N64_SYSTEM
 #define N64_SYSTEM
 
-namespace Vulkan {
-class WSI;
+#include <cstdint>
+
+namespace N64::Mmio::VI {
+class VI;
 }
 namespace N64::N64System {
 struct Config;
@@ -11,19 +13,27 @@ struct Config;
 namespace N64 {
 namespace N64System {
 
-// TODO: unused now. should remove?
 enum class N64Renderer {
     PARALLEL_RDP,
     CPU_RENDERER,
 };
 
-// TODO: unused now. should remove?
-// TODO: support other renderer
 constexpr N64Renderer n64_renderer = N64Renderer::CPU_RENDERER;
 
 void set_up(Config &config);
+void shutdown();
 
-void step(Config &config, Vulkan::WSI *wsi);
+using FieldPresentFn = void (*)(N64::Mmio::VI::VI &vi);
+void set_field_present(FieldPresentFn fn);
+
+struct PresentCounters {
+    uint64_t presented = 0;
+    uint64_t skipped = 0;
+};
+using PresentStatsFn = PresentCounters (*)();
+void set_present_stats_fn(PresentStatsFn fn);
+
+void step(Config &config);
 
 } // namespace N64System
 } // namespace N64

@@ -1,5 +1,5 @@
 #include "rcp/dpc.h"
-#include "app/parallel_rdp_wrapper.h"
+#include "rdp/rdp_core.h"
 #include "memory/memory.h"
 #include "memory/memory_map.h"
 #include "mmio/mi.h"
@@ -65,7 +65,7 @@ uint32_t Dpc::read_paddr32(uint32_t paddr) const {
 
 void Dpc::write_paddr32(uint32_t paddr, uint32_t value) {
     // RSP worker may submit DPC while the main thread presents; serialize.
-    std::lock_guard<std::recursive_mutex> lock(PRDPWrapper::rdp_mutex());
+    std::lock_guard<std::recursive_mutex> lock(Rdp::mutex());
     // https://github.com/Dillonb/n64/blob/6502f7d2f163c3f14da5bff8cd6d5ccc47143156/src/rdp/rdp.c#L65
     switch (paddr) {
     case PADDR_DPC_START:
@@ -221,11 +221,11 @@ void Dpc::process_list() {
 
         // Don't need to process commands under 8
         if (command >= 8) {
-            PRDPWrapper::enqueue_command(command_length, &cmd_buf[buf_index]);
+            Rdp::enqueue_command(command_length, &cmd_buf[buf_index]);
         }
 
         if (command == RDP_COMMAND_FULL_SYNC) {
-            PRDPWrapper::on_full_sync();
+            Rdp::on_full_sync();
             status.pipe_busy = 0;
             status.start_gclk = 0;
             status.cbuf_ready = 0;

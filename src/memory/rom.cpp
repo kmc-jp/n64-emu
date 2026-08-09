@@ -173,6 +173,17 @@ uint32_t Rom::get_cic_seed() const {
 
 std::vector<uint8_t> &Rom::get_raw_data() { return rom; }
 
+std::string Rom::get_image_name() const {
+    std::string name(header.image_name, sizeof(header.image_name));
+    while (!name.empty() &&
+           (name.back() == '\0' || name.back() == ' ' || name.back() == '\t'))
+        name.pop_back();
+    const auto start = name.find_first_not_of(" \t");
+    if (start == std::string::npos)
+        return {};
+    return name.substr(start);
+}
+
 uint8_t Rom::read_offset8(uint32_t offset) const {
     return Utils::read_from_byte_array8(rom, offset);
 }

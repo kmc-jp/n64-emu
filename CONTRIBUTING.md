@@ -28,8 +28,21 @@ If you are using VS Code on Windows, create `.vscode/launch.json` with the follo
       "name": "C++ Launch (Windows)",
       "type": "cppvsdbg",
       "request": "launch",
-      "program": "${workspaceFolder}\\build\\src\\Debug\\n64.exe",
+      "program": "${workspaceFolder}\\build\\src\\Debug\\n64-core.exe",
       "args": ["${workspaceFolder}\\<your-rom.z64>"],
+      "externalConsole": true,
+      "logging": {
+        "moduleLoad": false,
+        "trace": true
+      },
+      "cwd": "${fileDirname}"
+    },
+    {
+      "name": "C++ Launch GUI (Windows)",
+      "type": "cppvsdbg",
+      "request": "launch",
+      "program": "${workspaceFolder}\\build\\src\\Debug\\n64.exe",
+      "args": [],
       "externalConsole": true,
       "logging": {
         "moduleLoad": false,
@@ -66,7 +79,7 @@ Parts of the implementation and design are also based on the following projects:
 - https://github.com/Dillonb/n64
 - https://github.com/SimoneN64/Kaizen
 
-Project64 is likely the most accurate — please prefer it when possible.
+Project64 is likely the most accurate  Eplease prefer it when possible.
 Kaizen is based on Dillonb/n64, so they are largely the same (the main difference is C vs C++).
 
 ## LSP (VS Code)

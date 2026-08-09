@@ -1,11 +1,11 @@
-﻿#include "mmio/pif.h"
+#include "mmio/pif.h"
 #include "cpu/cpu.h"
 #include "memory/bus.h"
 #include "memory/memory.h"
+#include "mmio/controller_input.h"
 #include "rcp/rsp.h"
 #include "utils/byte_array.h"
 #include "utils/log.h"
-#include <SDL.h>
 
 namespace N64 {
 namespace Mmio {
@@ -525,68 +525,13 @@ void Pif::process_controller_command(int channel, uint8_t *cmd) {
 }
 
 N64ControllerState Pif::poll_n64_controller() const {
-    N64ControllerState ret;
-    // TODO: Support multiple controllers. (Use controller channel)
-    SDL_PumpEvents();
-    const uint8_t *state = SDL_GetKeyboardState(NULL);
-    if (state[SDL_SCANCODE_PAGEUP] | state[SDL_SCANCODE_UP])
-        ret.byte2 |= N64ControllerByte2::C_UP;
-    if (state[SDL_SCANCODE_PAGEDOWN] | state[SDL_SCANCODE_DOWN])
-        ret.byte2 |= N64ControllerByte2::C_DOWN;
-    if (state[SDL_SCANCODE_HOME] | state[SDL_SCANCODE_LEFT])
-        ret.byte2 |= N64ControllerByte2::C_LEFT;
-    if (state[SDL_SCANCODE_END] | state[SDL_SCANCODE_RIGHT])
-        ret.byte2 |= N64ControllerByte2::C_RIGHT;
-    if (state[SDL_SCANCODE_P])
-        ret.byte2 |= N64ControllerByte2::R;
-    if (state[SDL_SCANCODE_Q])
-        ret.byte2 |= N64ControllerByte2::L;
-
-    // DP, A, B , Z, Start
-    if (state[SDL_SCANCODE_W])
-        ret.byte1 |= N64ControllerByte1::DP_UP;
-    if (state[SDL_SCANCODE_S])
-        ret.byte1 |= N64ControllerByte1::DP_DOWN;
-    if (state[SDL_SCANCODE_A])
-        ret.byte1 |= N64ControllerByte1::DP_LEFT;
-    if (state[SDL_SCANCODE_D])
-        ret.byte1 |= N64ControllerByte1::DP_RIGHT;
-    if (state[SDL_SCANCODE_SPACE])
-        ret.byte1 |= N64ControllerByte1::A;
-    if (state[SDL_SCANCODE_RSHIFT])
-        ret.byte1 |= N64ControllerByte1::B;
-    if (state[SDL_SCANCODE_Z])
-        ret.byte1 |= N64ControllerByte1::Z;
-    if (state[SDL_SCANCODE_X])
-        ret.byte1 |= N64ControllerByte1::START;
-
-    if (state[SDL_SCANCODE_I])
-        ret.joy_y = 127;
-    if (state[SDL_SCANCODE_J])
-        ret.joy_x = -127;
-    if (state[SDL_SCANCODE_K])
-        ret.joy_y = -127;
-    if (state[SDL_SCANCODE_L])
-        ret.joy_x = 127;
-
+    // Host keyboard/gamepad mapping lives in ui; core only reads injected state.
+    // TODO: Support multiple controllers (channel).
+    const N64ControllerState ret = Input::get_controller_state(0);
     Utils::debug("byte1 {:#10b}", ret.byte1);
     Utils::debug("byte2 {:#10b}", ret.byte2);
     Utils::debug("joy_x {:#10b}", ret.joy_x);
     Utils::debug("joy_y {:#10b}", ret.joy_y);
-
-    // TODO: read more buttons
-    /*
-    ret.a = 0;
-    ret.b = 0;
-    ret.z = 0;
-    ret.l = 0;
-    ret.r = 0;
-    ret.zero = 0;
-    ret.start = 0;
-    ret.joy_reset = 0;
-    ret.joy_x = 0;
-    ret.joy_y = 0;
-    */
     return ret;
 }
 

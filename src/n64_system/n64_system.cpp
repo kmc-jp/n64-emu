@@ -1,5 +1,4 @@
 #include "n64_system/n64_system.h"
-#include "app/parallel_rdp_wrapper.h"
 #include "cpu/cached_interp.h"
 #if defined(N64_JIT_X64)
 #include "cpu/jit/jit.h"
@@ -27,11 +26,17 @@
 namespace N64 {
 namespace N64System {
 
+namespace {
+FieldPresentFn g_field_present = nullptr;
+PresentStatsFn g_present_stats = nullptr;
+} // namespace
+
+void set_field_present(FieldPresentFn fn) { g_field_present = fn; }
+void set_present_stats_fn(PresentStatsFn fn) { g_present_stats = fn; }
+
 static void reset_all(Config &config) {
-    // this is not an actual hardware. but reset here.
     N64::g_scheduler().init();
 
-    // reset all hardware
     N64::g_memory().reset();
     N64::g_memory().load_rom(config.rom_filepath);
     N64::g_tlb().reset();
@@ -73,15 +78,17 @@ void set_up(Config &config) {
         N64::g_cpu().set_pc64(0x80001000);
         Utils::info("Skipped Bootcode");
     } else {
-        // PIF ROM execution
         Utils::debug("Executing PIF ROM");
         N64::g_si().pif.execute_rom_hle();
     }
 }
 
+void shutdown() {
+    Utils::info("Stopping N64 system");
+    Rsp::g_rsp_thread().shutdown();
+}
+
 static void cpu_step_callback(Config &config) {
-    // Check condition for n64-tests
-    // https://github.com/Dillonb/n64-tests
     if (config.test_mode) {
         if (N64::g_cpu().gpr.read(30) != 0) {
             Utils::info("Test finished");
@@ -96,7 +103,6 @@ static void cpu_step_callback(Config &config) {
         }
     }
 
-    // For debugging
     if constexpr (Utils::LOG_INSTRUCTION) {
         if (N64::g_scheduler().get_current_time() % 0x10'0000 == 0) {
             Utils::set_log_level(Utils::LogLevel::TRACE);
@@ -110,10 +116,8 @@ static void cpu_step_callback(Config &config) {
     }
 }
 
-// https://github.com/Dillonb/n64/blob/6502f7d2f163c3f14da5bff8cd6d5ccc47143156/src/system/n64system.c#L313
-void step(Config &config, Vulkan::WSI *wsi) {
+void step(Config &config) {
     static int consumed_cpu_cycles = 0;
-    // N64_PROFILE_FRAME=1: wall-clock split of emu vs RDP/present per VI field.
     static const bool profile_frame = [] {
         const char *e = getenv("N64_PROFILE_FRAME");
         return e && e[0] != '\0' && e[0] != '0';
@@ -129,14 +133,12 @@ void step(Config &config, Vulkan::WSI *wsi) {
         const auto field_t0 = profile_frame ? std::chrono::steady_clock::now()
                                             : std::chrono::steady_clock::time_point{};
         for (int line = 0; line < g_vi().get_num_half_lines(); line++) {
-            // TODO: why this value?
             g_vi().set_reg_current(line * 2 + field);
             if ((g_vi().get_reg_current() & 0x3FE) == g_vi().get_reg_intr()) {
                 g_mi().get_reg_intr().vi = 1;
                 N64System::check_interrupt();
             }
 
-            // FIXME: what if a CPU step take more than one cycle?
             int remaining = g_vi().get_cycles_per_half_line();
             const bool use_jit =
 #if defined(N64_JIT_X64)
@@ -162,14 +164,12 @@ void step(Config &config, Vulkan::WSI *wsi) {
                                        : std::chrono::steady_clock::time_point{};
                 if (use_jit) {
 #if defined(N64_JIT_X64)
-                    // Dynarec soft-chains and advances RSP + scheduler per BB.
                     taken = Cpu::Jit::g_dynarec().run(remaining,
                                                      config.rsp_thread);
                     if (taken < 1)
                         taken = 1;
 #endif
                 } else if (dbg_on || need_step_cb) {
-                    // Single-step for debugger / n64-tests / instruction log.
                     g_cpu().step();
                     taken = static_cast<int>(Cpu::CPU_CYCLES_PER_INST);
                     consumed_cpu_cycles += taken;
@@ -193,7 +193,6 @@ void step(Config &config, Vulkan::WSI *wsi) {
                     }
                     sched.tick(static_cast<uint64_t>(taken));
                 } else {
-                    // Cached interpreter: batch like JIT soft-chain.
                     taken = Cpu::CachedInterp::run(remaining, config.rsp_thread);
                     if (taken < 1)
                         taken = 1;
@@ -233,8 +232,8 @@ void step(Config &config, Vulkan::WSI *wsi) {
         }
         const auto rdp_t0 = profile_frame ? std::chrono::steady_clock::now()
                                           : std::chrono::steady_clock::time_point{};
-        if (wsi)
-            PRDPWrapper::update_screen(*wsi, g_vi());
+        if (g_field_present)
+            g_field_present(g_vi());
         if (profile_frame) {
             const auto t1 = std::chrono::steady_clock::now();
             prof_emu_ms +=
@@ -250,7 +249,8 @@ void step(Config &config, Vulkan::WSI *wsi) {
                 const double cpu = prof_cpu_ms * inv;
                 const double rsp = prof_rsp_ms * inv;
                 const double rdp = prof_rdp_ms * inv;
-                const auto present = PRDPWrapper::take_present_stats();
+                const PresentCounters present =
+                    g_present_stats ? g_present_stats() : PresentCounters{};
                 Utils::info(
                     "frame profile: fields/s={} presents/s={} skipped/s={} "
                     "avg cpu={:.2f}ms rsp={:.2f}ms rdp={:.2f}ms total={:.2f}ms "

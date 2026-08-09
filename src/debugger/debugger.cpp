@@ -12,7 +12,6 @@
 #include "rcp/rsp.h"
 #include "utils/byte_array.h"
 #include "utils/log.h"
-#include <SDL.h>
 #include <cstdio>
 #include <cstdlib>
 #include <iostream>
@@ -283,15 +282,6 @@ void Debugger::enter_repl(const char *reason) {
 
     std::string line;
     while (std::getline(std::cin, line)) {
-        // Keep the window responsive while paused.
-        SDL_PumpEvents();
-        SDL_Event e;
-        while (SDL_PollEvent(&e)) {
-            if (e.type == SDL_QUIT) {
-                std::exit(0);
-            }
-        }
-
         if (handle_repl_line(line)) {
             return;
         }

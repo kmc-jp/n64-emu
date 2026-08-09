@@ -1,6 +1,5 @@
 #include "audio/audio.h"
 #include "utils/log.h"
-#include <SDL.h>
 #include <algorithm>
 #include <chrono>
 #include <cmath>
@@ -20,17 +19,14 @@ constexpr int DEFAULT_GUEST_FREQUENCY = 44100;
 constexpr int CHANNELS = 2;
 constexpr size_t RING_FRAMES = 48000;
 
-// Ring fullness target (~200 ms). Above this, slow the emu thread.
 constexpr double TARGET_SEC = 0.200;
-// Below this, pause output until the emu refills (avoids silence pops).
 constexpr double LOW_WATER_SEC = 0.050;
-// Resume once we have rebuilt some cushion.
 constexpr double RESUME_SEC = 0.100;
 constexpr int MAX_HIGH_WATER_WAIT_MS = 200;
 constexpr int MAX_FULL_RING_WAIT_MS = 250;
 
 bool g_enabled = false;
-SDL_AudioDeviceID g_device = 0;
+Sink *g_sink = nullptr;
 int g_host_frequency = 0;
 int g_guest_frequency = DEFAULT_GUEST_FREQUENCY;
 double g_resample_pos = 0.0;
@@ -46,9 +42,8 @@ size_t g_write_frame = 0;
 size_t g_frames_avail = 0;
 
 size_t frames_for_seconds(double seconds) {
-    if (g_host_frequency <= 0) {
+    if (g_host_frequency <= 0)
         return 0;
-    }
     return static_cast<size_t>(g_host_frequency * seconds);
 }
 
@@ -84,39 +79,17 @@ size_t ring_read_locked(int16_t *out, size_t count) {
 }
 
 void set_output_paused(bool pause) {
-    if (g_device == 0 || pause == g_output_paused) {
+    if (!g_sink || pause == g_output_paused)
         return;
-    }
-    SDL_PauseAudioDevice(g_device, pause ? 1 : 0);
+    g_sink->set_paused(pause);
     g_output_paused = pause;
 }
 
-void SDLCALL audio_callback(void * /*userdata*/, Uint8 *stream, int len) {
-    const size_t want_frames =
-        static_cast<size_t>(len) / (sizeof(int16_t) * CHANNELS);
-    auto *out = reinterpret_cast<int16_t *>(stream);
-
-    size_t got = 0;
-    {
-        std::lock_guard<std::mutex> lock(g_mutex);
-        got = ring_read_locked(out, want_frames);
-    }
-    g_space_cv.notify_all();
-
-    if (got < want_frames) {
-        std::memset(out + got * CHANNELS, 0,
-                    (want_frames - got) * CHANNELS * sizeof(int16_t));
-    }
-}
-
 void close_device() {
-    if (g_device != 0) {
-        SDL_PauseAudioDevice(g_device, 1);
-        SDL_CloseAudioDevice(g_device);
-        g_device = 0;
-    }
+    if (g_sink)
+        g_sink->close();
     g_output_paused = false;
-    std::lock_guard<std::mutex> lock(g_mutex);
+    std::lock_guard lock(g_mutex);
     ring_clear_locked();
 }
 
@@ -124,39 +97,23 @@ bool open_device() {
     close_device();
 
     {
-        std::lock_guard<std::mutex> lock(g_mutex);
+        std::lock_guard lock(g_mutex);
         g_ring_cap_frames = RING_FRAMES;
         g_ring.assign(g_ring_cap_frames * CHANNELS, 0);
         ring_clear_locked();
     }
 
-    SDL_AudioSpec want{};
-    SDL_AudioSpec have{};
-    want.freq = HOST_FREQUENCY;
-    want.format = AUDIO_S16SYS;
-    want.channels = CHANNELS;
-    want.samples = 1024;
-    want.callback = audio_callback;
-    want.userdata = nullptr;
-
-    g_device = SDL_OpenAudioDevice(nullptr, 0, &want, &have,
-                                   SDL_AUDIO_ALLOW_FREQUENCY_CHANGE);
-    if (g_device == 0) {
-        Utils::critical("Audio: Failed to open device: {}", SDL_GetError());
+    if (!g_sink)
         return false;
-    }
-    if (have.format != AUDIO_S16SYS || have.channels != CHANNELS) {
-        Utils::critical("Audio: Unexpected device format");
-        close_device();
-        return false;
-    }
 
-    g_host_frequency = have.freq;
-    g_callback_frames = have.samples > 0 ? static_cast<size_t>(have.samples)
-                                         : size_t{1024};
-    // Start paused until the ring has a cushion.
+    const int hz = g_sink->open(HOST_FREQUENCY);
+    if (hz <= 0)
+        return false;
+
+    g_host_frequency = hz;
+    g_callback_frames = 1024;
     g_output_paused = true;
-    SDL_PauseAudioDevice(g_device, 1);
+    g_sink->set_paused(true);
     Utils::info("Audio: Callback device {} Hz (guest {} Hz)", g_host_frequency,
                 g_guest_frequency);
     return true;
@@ -164,18 +121,17 @@ bool open_device() {
 
 void apply_sync_policy() {
     const size_t target = frames_for_seconds(TARGET_SEC);
-    const size_t low = std::max(frames_for_seconds(LOW_WATER_SEC),
-                                g_callback_frames * 2);
+    const size_t low =
+        std::max(frames_for_seconds(LOW_WATER_SEC), g_callback_frames * 2);
     const size_t resume = std::max(frames_for_seconds(RESUME_SEC), low);
 
     bool pause = false;
     bool resume_out = false;
     {
-        std::unique_lock<std::mutex> lock(g_mutex);
+        std::unique_lock lock(g_mutex);
         if (g_frames_avail < low) {
-            if (!g_output_paused) {
+            if (!g_output_paused)
                 pause = true;
-            }
         } else if (g_output_paused && g_frames_avail >= resume) {
             resume_out = true;
         }
@@ -184,26 +140,31 @@ void apply_sync_policy() {
                               std::chrono::milliseconds(MAX_HIGH_WATER_WAIT_MS);
         while (g_enabled && g_frames_avail > target) {
             if (g_space_cv.wait_until(lock, deadline) ==
-                std::cv_status::timeout) {
+                std::cv_status::timeout)
                 break;
-            }
         }
     }
 
-    // Never call Pause/Unpause while holding g_mutex (callback can block).
-    if (pause) {
+    if (pause)
         set_output_paused(true);
-    } else if (resume_out) {
+    else if (resume_out)
         set_output_paused(false);
-    }
 }
 
 } // namespace
 
+void set_sink(Sink *sink) { g_sink = sink; }
+
+size_t pull_frames(int16_t *out_interleaved, size_t frame_count) {
+    std::lock_guard lock(g_mutex);
+    return ring_read_locked(out_interleaved, frame_count);
+}
+
+void notify_space() { g_space_cv.notify_all(); }
+
 void init() {
-    if (g_enabled) {
+    if (g_enabled)
         return;
-    }
     g_enabled = true;
     g_guest_frequency = DEFAULT_GUEST_FREQUENCY;
     open_device();
@@ -216,21 +177,18 @@ void shutdown() {
     g_host_frequency = 0;
 }
 
-bool enabled() { return g_enabled && g_device != 0; }
+bool enabled() { return g_enabled && g_sink != nullptr && g_host_frequency > 0; }
 
 void set_frequency(int hz) {
-    if (!g_enabled) {
+    if (!g_enabled)
         return;
-    }
-    if (hz < 1000) {
+    if (hz < 1000)
         hz = DEFAULT_GUEST_FREQUENCY;
-    }
-    if (hz == g_guest_frequency) {
+    if (hz == g_guest_frequency)
         return;
-    }
     g_guest_frequency = hz;
     {
-        std::lock_guard<std::mutex> lock(g_mutex);
+        std::lock_guard lock(g_mutex);
         g_resample_pos = 0.0;
     }
     Utils::debug("Audio: Guest sample rate -> {} Hz", g_guest_frequency);
@@ -244,14 +202,12 @@ void set_frequency_from_dacrate(uint32_t dacrate) {
 
 void push_samples(std::span<const int16_t> interleaved_stereo) {
     if (!enabled() || interleaved_stereo.size() < 2 || g_host_frequency <= 0 ||
-        g_guest_frequency <= 0) {
+        g_guest_frequency <= 0)
         return;
-    }
 
     const size_t in_frames = interleaved_stereo.size() / 2;
-    if (in_frames == 0) {
+    if (in_frames == 0)
         return;
-    }
 
     const double ratio = static_cast<double>(g_host_frequency) /
                          static_cast<double>(g_guest_frequency);
@@ -284,12 +240,11 @@ void push_samples(std::span<const int16_t> interleaved_stereo) {
     g_resample_pos -= static_cast<double>(in_frames);
 
     size_t written = 0;
-    const auto full_deadline =
-        std::chrono::steady_clock::now() +
-        std::chrono::milliseconds(MAX_FULL_RING_WAIT_MS);
+    const auto full_deadline = std::chrono::steady_clock::now() +
+                               std::chrono::milliseconds(MAX_FULL_RING_WAIT_MS);
 
     while (written < out_frames && g_enabled) {
-        std::unique_lock<std::mutex> lock(g_mutex);
+        std::unique_lock lock(g_mutex);
         while (frames_free_locked() == 0 && g_enabled) {
             if (g_space_cv.wait_until(lock, full_deadline) ==
                 std::cv_status::timeout) {
@@ -298,11 +253,9 @@ void push_samples(std::span<const int16_t> interleaved_stereo) {
                 return;
             }
         }
-        if (!g_enabled) {
+        if (!g_enabled)
             return;
-        }
-        const size_t n =
-            std::min(out_frames - written, frames_free_locked());
+        const size_t n = std::min(out_frames - written, frames_free_locked());
         ring_write_locked(host.data() + written * CHANNELS, n);
         written += n;
     }
