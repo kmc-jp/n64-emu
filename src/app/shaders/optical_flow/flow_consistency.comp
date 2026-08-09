@@ -1,0 +1,68 @@
+#version 450
+layout(local_size_x = 8, local_size_y = 8) in;
+
+// Forward-backward consistency: lower confidence where AB/BA disagree.
+layout(set = 0, binding = 0, rgba16f) uniform image2D uFlowAB;
+layout(set = 0, binding = 1, rgba16f) uniform image2D uFlowBA;
+
+layout(push_constant) uniform Push {
+    uvec2 size;
+    float alpha;
+    float beta;
+} push;
+
+vec2 load_flow_ab(vec2 pos, ivec2 size) {
+    ivec2 i0 = ivec2(floor(pos));
+    vec2 f = pos - vec2(i0);
+    ivec2 i1 = i0 + ivec2(1);
+    i0 = clamp(i0, ivec2(0), size - 1);
+    i1 = clamp(i1, ivec2(0), size - 1);
+    vec2 a = imageLoad(uFlowAB, i0).xy;
+    vec2 b = imageLoad(uFlowAB, ivec2(i1.x, i0.y)).xy;
+    vec2 c = imageLoad(uFlowAB, ivec2(i0.x, i1.y)).xy;
+    vec2 d = imageLoad(uFlowAB, i1).xy;
+    return mix(mix(a, b, f.x), mix(c, d, f.x), f.y);
+}
+
+vec2 load_flow_ba(vec2 pos, ivec2 size) {
+    ivec2 i0 = ivec2(floor(pos));
+    vec2 f = pos - vec2(i0);
+    ivec2 i1 = i0 + ivec2(1);
+    i0 = clamp(i0, ivec2(0), size - 1);
+    i1 = clamp(i1, ivec2(0), size - 1);
+    vec2 a = imageLoad(uFlowBA, i0).xy;
+    vec2 b = imageLoad(uFlowBA, ivec2(i1.x, i0.y)).xy;
+    vec2 c = imageLoad(uFlowBA, ivec2(i0.x, i1.y)).xy;
+    vec2 d = imageLoad(uFlowBA, i1).xy;
+    return mix(mix(a, b, f.x), mix(c, d, f.x), f.y);
+}
+
+void main() {
+    ivec2 x = ivec2(gl_GlobalInvocationID.xy);
+    ivec2 size = ivec2(push.size);
+    if (x.x >= size.x || x.y >= size.y)
+        return;
+
+    vec4 ab = imageLoad(uFlowAB, x);
+    vec4 ba = imageLoad(uFlowBA, x);
+    vec2 fab = ab.xy;
+    vec2 fba = ba.xy;
+
+    // |f_AB(x) + f_BA(x + f_AB(x))|^2 < α(|f_AB|^2+|f_BA_at|^2) + β
+    vec2 fba_at = load_flow_ba(vec2(x) + fab, size);
+    float fb_err2 = dot(fab + fba_at, fab + fba_at);
+    float thresh = push.alpha * (dot(fab, fab) + dot(fba_at, fba_at)) + push.beta;
+    float conf_ab = ab.z;
+    if (fb_err2 > thresh)
+        conf_ab *= 0.05;
+
+    vec2 fab_at = load_flow_ab(vec2(x) + fba, size);
+    float bf_err2 = dot(fba + fab_at, fba + fab_at);
+    float thresh_ba = push.alpha * (dot(fba, fba) + dot(fab_at, fab_at)) + push.beta;
+    float conf_ba = ba.z;
+    if (bf_err2 > thresh_ba)
+        conf_ba *= 0.05;
+
+    imageStore(uFlowAB, x, vec4(fab, conf_ab, 0.0));
+    imageStore(uFlowBA, x, vec4(fba, conf_ba, 0.0));
+}

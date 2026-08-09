@@ -3,24 +3,51 @@ layout(local_size_x = 8, local_size_y = 8) in;
 
 layout(set = 0, binding = 0) uniform sampler2D uFrameA;
 layout(set = 0, binding = 1) uniform sampler2D uFrameB;
-layout(set = 0, binding = 2) uniform sampler2D uFlowAB; // A->B, luma level-0 pixels
-layout(set = 0, binding = 3) uniform sampler2D uFlowBA; // B->A
+layout(set = 0, binding = 2) uniform sampler2D uFlowAB; // xy=flow, z=confidence
+layout(set = 0, binding = 3) uniform sampler2D uFlowBA;
 layout(set = 0, binding = 4, rgba8) uniform writeonly image2D uOut;
 layout(set = 0, binding = 5) readonly buffer SceneBuf {
     uint total_sad_bits;
     uint pixel_count;
     uint scene_cut;
 } scene;
+layout(set = 0, binding = 6) uniform sampler2D uPrevFlowAB; // for static snap hysteresis
 
 layout(push_constant) uniform Push {
     uvec2 out_size;
     vec2 flow_scale; // out_pixel / flow_pixel
-    float phase;     // 0..1
-    float debug;     // 0 = normal, 1 = visualize flow
+    float phase;
+    float debug;
+    float onesided;    // 1 = hard A/B switch (legacy)
+    float static_snap; // 1 = snap tiny motion to identity UV
+    float obmc;        // 1 = 2x2 raised-cosine OBMC
+    float have_prev;   // 1 = uPrevFlowAB valid
 } push;
 
-vec2 sample_flow(sampler2D flow, vec2 uv) {
-    return textureLod(flow, uv, 0.0).rg;
+const float PI = 3.14159265;
+
+float smooth_conf(sampler2D flow, vec2 uv) {
+    vec2 texel = 1.0 / vec2(textureSize(flow, 0));
+    float s = 0.0;
+    for (int dy = -1; dy <= 1; ++dy)
+        for (int dx = -1; dx <= 1; ++dx)
+            s += textureLod(flow, uv + texel * vec2(float(dx), float(dy)), 0.0).z;
+    return s / 9.0;
+}
+
+vec2 apply_static_snap(vec2 from_uv, vec2 base_uv, vec2 flow_out_px,
+                       float prev_len) {
+    if (push.static_snap < 0.5)
+        return from_uv;
+    float len = length(flow_out_px);
+    // Hysteresis: stay snapped longer if previous pair looked static.
+    float thr = (push.have_prev > 0.5 && prev_len < 0.12) ? 0.12 : 0.08;
+    float snap = 1.0 - smoothstep(thr * 0.65, thr, len);
+    return mix(from_uv, base_uv, snap);
+}
+
+    vec4 fetch_flow(sampler2D flow, ivec2 tex, ivec2 fsize) {
+    return texelFetch(flow, clamp(tex, ivec2(0), fsize - 1), 0);
 }
 
 void main() {
@@ -39,49 +66,109 @@ void main() {
         return;
     }
 
-    // Static / near-static pixels: never warp — lerp (or hold) avoids chatter.
     float static_diff = dot(abs(a0.rgb - b0.rgb), vec3(0.333));
     if (static_diff < 0.012) {
         imageStore(uOut, p, mix(a0, b0, t));
         return;
     }
 
-    vec2 f_ab = sample_flow(uFlowAB, uv) * push.flow_scale;
-    vec2 f_ba = sample_flow(uFlowBA, uv) * push.flow_scale;
-
-    // Kill sub-pixel junk that still made it through refine.
-    float mag_ab = length(f_ab);
-    float mag_ba = length(f_ba);
-    if (mag_ab < 0.75)
-        f_ab = vec2(0.0);
-    if (mag_ba < 0.75)
-        f_ba = vec2(0.0);
-
-    // Soft gate: low frame difference ⇒ distrust warp even if flow is non-zero.
+    float conf_ab = smooth_conf(uFlowAB, uv);
+    float conf_ba = smooth_conf(uFlowBA, uv);
     float motion_gate = smoothstep(0.012, 0.06, static_diff);
+    conf_ab *= motion_gate;
+    conf_ba *= motion_gate;
 
-    vec2 from_a = uv - (t * f_ab) / vec2(push.out_size);
-    vec2 from_b = uv + ((1.0 - t) * f_ba) / vec2(push.out_size);
+    float prev_len = 0.0;
+    if (push.have_prev > 0.5)
+        prev_len = length(textureLod(uPrevFlowAB, uv, 0.0).xy * push.flow_scale);
 
-    vec4 ca = textureLod(uFrameA, from_a, 0.0);
-    vec4 cb = textureLod(uFrameB, from_b, 0.0);
+    vec4 ca = a0;
+    vec4 cb = b0;
+    vec2 f_ab_dbg = textureLod(uFlowAB, uv, 0.0).xy * push.flow_scale;
 
-    float diff = dot(abs(ca.rgb - cb.rgb), vec3(0.333));
-    float conf = clamp(1.0 - diff * 5.0, 0.0, 1.0) * motion_gate;
+    if (push.obmc > 0.5) {
+        ivec2 fsize = textureSize(uFlowAB, 0);
+        vec2 flow_pos = uv * vec2(fsize) - 0.5;
+        ivec2 i0 = ivec2(floor(flow_pos));
+        vec2 f = flow_pos - vec2(i0);
+        // Separable raised-cosine over the flow texel (half-block overlap).
+        float wx0 = 0.5 * (1.0 + cos(PI * clamp(f.x, 0.0, 1.0)));
+        float wx1 = 1.0 - wx0;
+        float wy0 = 0.5 * (1.0 + cos(PI * clamp(f.y, 0.0, 1.0)));
+        float wy1 = 1.0 - wy0;
+        float wts[4] = float[](wx0 * wy0, wx1 * wy0, wx0 * wy1, wx1 * wy1);
+        ivec2 offs[4] = ivec2[](ivec2(0, 0), ivec2(1, 0), ivec2(0, 1), ivec2(1, 1));
 
-    // Occlusion / inconsistency: if either warp disagrees with unwarped source,
-    // fall back harder.
-    float err_a = dot(abs(ca.rgb - a0.rgb), vec3(0.333));
-    float err_b = dot(abs(cb.rgb - b0.rgb), vec3(0.333));
-    conf *= 1.0 - smoothstep(0.08, 0.25, max(err_a, err_b));
+        vec4 sum_a = vec4(0.0);
+        vec4 sum_b = vec4(0.0);
+        float wsum = 0.0;
+        for (int i = 0; i < 4; ++i) {
+            float w = wts[i];
+            if (w < 1e-4)
+                continue;
+            vec4 fab = fetch_flow(uFlowAB, i0 + offs[i], fsize);
+            vec4 fba = fetch_flow(uFlowBA, i0 + offs[i], fsize);
+            vec2 fab_out = fab.xy * push.flow_scale;
+            vec2 fba_out = fba.xy * push.flow_scale;
+            vec2 from_a = uv - (t * fab_out) / vec2(push.out_size);
+            vec2 from_b = uv + ((1.0 - t) * fba_out) / vec2(push.out_size);
+            from_a = apply_static_snap(from_a, uv, fab_out, prev_len);
+            from_b = apply_static_snap(from_b, uv, fba_out, prev_len);
+            sum_a += w * textureLod(uFrameA, from_a, 0.0);
+            sum_b += w * textureLod(uFrameB, from_b, 0.0);
+            wsum += w;
+        }
+        ca = sum_a / max(wsum, 1e-4);
+        cb = sum_b / max(wsum, 1e-4);
+    } else {
+        vec4 fab4 = textureLod(uFlowAB, uv, 0.0);
+        vec4 fba4 = textureLod(uFlowBA, uv, 0.0);
+        vec2 f_ab = fab4.xy * push.flow_scale;
+        vec2 f_ba = fba4.xy * push.flow_scale;
+        f_ab_dbg = f_ab;
+        vec2 from_a = uv - (t * f_ab) / vec2(push.out_size);
+        vec2 from_b = uv + ((1.0 - t) * f_ba) / vec2(push.out_size);
+        from_a = apply_static_snap(from_a, uv, f_ab, prev_len);
+        from_b = apply_static_snap(from_b, uv, f_ba, prev_len);
+        ca = textureLod(uFrameA, from_a, 0.0);
+        cb = textureLod(uFrameB, from_b, 0.0);
+    }
 
-    vec4 warped = mix(ca, cb, t);
     vec4 fallback = mix(a0, b0, t);
-    vec4 outc = mix(fallback, warped, conf);
+    vec4 outc = fallback;
+
+    if (push.onesided > 0.5) {
+        // Legacy hard source pick (for A/B bisect via N64_FLOW_ONESIDED=1).
+        const float conf_hi = 0.25;
+        bool ok_a = conf_ab >= conf_hi;
+        bool ok_b = conf_ba >= conf_hi;
+        if (ok_a && ok_b) {
+            float diff = dot(abs(ca.rgb - cb.rgb), vec3(0.333));
+            float conf = clamp(1.0 - diff * 5.0, 0.0, 1.0) *
+                         min(conf_ab, conf_ba);
+            outc = mix(fallback, mix(ca, cb, t), conf);
+        } else if (ok_a) {
+            outc = mix(fallback, ca, conf_ab);
+        } else if (ok_b) {
+            outc = mix(fallback, cb, conf_ba);
+        }
+    } else {
+        // Continuous weights — no hard A/B seams.
+        float wA = conf_ab * (1.0 - t);
+        float wB = conf_ba * t;
+        float wsum = wA + wB;
+        if (wsum > 1e-4) {
+            vec4 warped = (wA * ca + wB * cb) / wsum;
+            float diff = dot(abs(ca.rgb - cb.rgb), vec3(0.333));
+            float agree = clamp(1.0 - diff * 5.0, 0.0, 1.0);
+            float conf = agree * clamp(wsum, 0.0, 1.0);
+            outc = mix(fallback, warped, conf);
+        }
+    }
 
     if (push.debug > 0.5) {
-        vec2 f = f_ab * 0.05;
-        outc = vec4(0.5 + f.x, 0.5 + f.y, conf, 1.0);
+        outc = vec4(0.5 + f_ab_dbg.x * 0.05, 0.5 + f_ab_dbg.y * 0.05,
+                    max(conf_ab, conf_ba), 1.0);
     }
 
     imageStore(uOut, p, outc);

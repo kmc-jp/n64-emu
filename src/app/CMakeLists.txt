@@ -68,6 +68,9 @@ set(_fi_shaders
     pyramid_down
     flow_refine
     flow_smooth
+    flow_advect
+    flow_consistency
+    flow_temporal_save
     scene_reduce
     scene_finalize
     warp_blend

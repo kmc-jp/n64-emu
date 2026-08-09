@@ -3,14 +3,15 @@ layout(local_size_x = 8, local_size_y = 8) in;
 
 layout(set = 0, binding = 0, r16f) uniform readonly image2D uLumaA;
 layout(set = 0, binding = 1, r16f) uniform readonly image2D uLumaB;
-layout(set = 0, binding = 2, rg16f) uniform readonly image2D uFlowIn;
-layout(set = 0, binding = 3, rg16f) uniform writeonly image2D uFlowOut;
+layout(set = 0, binding = 2, rgba16f) uniform readonly image2D uFlowIn;
+layout(set = 0, binding = 3, rgba16f) uniform writeonly image2D uFlowOut;
 
 layout(push_constant) uniform Push {
     uvec2 size;
-    int has_prev;
+    int has_prev; // 0=none, 1=pyramid (half-res*2), 2=temporal (same-res)
     int radius;
     int reverse;
+    int enable_subpixel;
 } push;
 
 float sample_a(ivec2 p, ivec2 size) {
@@ -42,13 +43,19 @@ float patch_sad_ba(ivec2 pa, ivec2 pb, ivec2 size) {
     return sad;
 }
 
-float patch_var_a(ivec2 pa, ivec2 size) {
+float patch_sad(ivec2 pa, ivec2 pb, ivec2 size) {
+    return push.reverse != 0 ? patch_sad_ba(pa, pb, size)
+                             : patch_sad_ab(pa, pb, size);
+}
+
+float patch_var_src(ivec2 pa, ivec2 size) {
     float sum = 0.0;
     float sum2 = 0.0;
     const float n = 25.0;
     for (int dy = -2; dy <= 2; ++dy) {
         for (int dx = -2; dx <= 2; ++dx) {
-            float v = sample_a(pa + ivec2(dx, dy), size);
+            float v = push.reverse != 0 ? sample_b(pa + ivec2(dx, dy), size)
+                                        : sample_a(pa + ivec2(dx, dy), size);
             sum += v;
             sum2 += v * v;
         }
@@ -57,19 +64,37 @@ float patch_var_a(ivec2 pa, ivec2 size) {
     return max(sum2 / n - mean * mean, 0.0);
 }
 
-float patch_var_b(ivec2 pa, ivec2 size) {
-    float sum = 0.0;
-    float sum2 = 0.0;
-    const float n = 25.0;
-    for (int dy = -2; dy <= 2; ++dy) {
-        for (int dx = -2; dx <= 2; ++dx) {
-            float v = sample_b(pa + ivec2(dx, dy), size);
-            sum += v;
-            sum2 += v * v;
+// Only fit when cost has a true local minimum (denom > 0).
+float parabola_offset(float sm, float s0, float sp) {
+    float denom = sm - 2.0 * s0 + sp;
+    if (abs(denom) < 1e-5 || denom <= 0.0)
+        return 0.0;
+    return clamp(0.5 * (sm - sp) / denom, -0.5, 0.5);
+}
+
+void search_around(ivec2 p, ivec2 size, ivec2 base, int r, inout float best,
+                   inout float second, inout ivec2 best_d) {
+    for (int dy = -r; dy <= r; ++dy) {
+        for (int dx = -r; dx <= r; ++dx) {
+            if (abs(dx) + abs(dy) > r + (r / 2))
+                continue;
+            ivec2 d = base + ivec2(dx, dy);
+            if (d.x == 0 && d.y == 0)
+                continue;
+            float sad = patch_sad(p, p + d, size);
+            float len = float(abs(d.x) + abs(d.y));
+            float best_len = float(abs(best_d.x) + abs(best_d.y));
+            float score = sad + 0.02 * len;
+            float best_score = best + 0.02 * best_len;
+            if (score < best_score) {
+                second = best;
+                best = sad;
+                best_d = d;
+            } else if (sad < second) {
+                second = sad;
+            }
         }
     }
-    float mean = sum / n;
-    return max(sum2 / n - mean * mean, 0.0);
 }
 
 void main() {
@@ -78,58 +103,63 @@ void main() {
     if (p.x >= size.x || p.y >= size.y)
         return;
 
-    // Flat / textureless patches produce ambiguous matches → force zero flow.
-    float var = push.reverse != 0 ? patch_var_b(p, size) : patch_var_a(p, size);
-    if (var < 1e-4) {
+    if (patch_var_src(p, size) < 1e-4) {
         imageStore(uFlowOut, p, vec4(0.0));
         return;
     }
 
     vec2 seed = vec2(0.0);
-    if (push.has_prev != 0) {
+    if (push.has_prev == 1) {
         ivec2 in_size = imageSize(uFlowIn);
         ivec2 q = clamp(p / 2, ivec2(0), in_size - 1);
         seed = imageLoad(uFlowIn, q).rg * 2.0;
+    } else if (push.has_prev == 2) {
+        ivec2 in_size = imageSize(uFlowIn);
+        ivec2 q = clamp(p, ivec2(0), in_size - 1);
+        seed = imageLoad(uFlowIn, q).rg;
     }
 
-    ivec2 base = ivec2(round(seed));
-    float sad0 = push.reverse != 0 ? patch_sad_ba(p, p, size)
-                                   : patch_sad_ab(p, p, size);
-
-    // Already almost identical at zero offset → static region.
-    // (25 samples; ~0.02 mean abs delta)
+    float sad0 = patch_sad(p, p, size);
     if (sad0 < 0.5) {
         imageStore(uFlowOut, p, vec4(0.0));
         return;
     }
 
     float best = sad0;
+    float second = 1e9;
     ivec2 best_d = ivec2(0);
     int r = push.radius;
 
-    for (int dy = -r; dy <= r; ++dy) {
-        for (int dx = -r; dx <= r; ++dx) {
-            if (abs(dx) + abs(dy) > r + (r / 2))
-                continue;
-            ivec2 d = base + ivec2(dx, dy);
-            if (d.x == 0 && d.y == 0)
-                continue;
-            float sad = push.reverse != 0 ? patch_sad_ba(p, p + d, size)
-                                          : patch_sad_ab(p, p + d, size);
-            // Prefer smaller motion on near-ties to kill chatter.
-            float len = float(abs(d.x) + abs(d.y));
-            float best_len = float(abs(best_d.x) + abs(best_d.y));
-            if (sad + 0.02 * len < best + 0.02 * best_len) {
-                best = sad;
-                best_d = d;
-            }
-        }
+    ivec2 base = ivec2(round(seed));
+    search_around(p, size, base, r, best, second, best_d);
+
+    // Temporal lock-in escape: also try a zero seed when seeded away from 0.
+    if (push.has_prev == 2 && length(seed) > 0.5) {
+        search_around(p, size, ivec2(0), r, best, second, best_d);
     }
 
-    // Improvement over zero must be meaningful, else keep zero.
+    second = max(second, sad0);
+
     if (sad0 - best < 0.35) {
-        best_d = ivec2(0);
+        imageStore(uFlowOut, p, vec4(0.0));
+        return;
     }
 
-    imageStore(uFlowOut, p, vec4(vec2(best_d), 0.0, 0.0));
+    float conf = 0.0;
+    if (second > 1e-6)
+        conf = clamp(1.0 - best / second, 0.0, 1.0);
+
+    vec2 flow = vec2(best_d);
+    // Subpixel only on confident matches with a real local minimum.
+    if (push.enable_subpixel != 0 && conf >= 0.2) {
+        float sxm = patch_sad(p, p + best_d + ivec2(-1, 0), size);
+        float sx0 = best;
+        float sxp = patch_sad(p, p + best_d + ivec2(1, 0), size);
+        float sym = patch_sad(p, p + best_d + ivec2(0, -1), size);
+        float syp = patch_sad(p, p + best_d + ivec2(0, 1), size);
+        flow += vec2(parabola_offset(sxm, sx0, sxp),
+                     parabola_offset(sym, sx0, syp));
+    }
+
+    imageStore(uFlowOut, p, vec4(flow, conf, 0.0));
 }

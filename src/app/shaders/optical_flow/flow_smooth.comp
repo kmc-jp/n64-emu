@@ -1,8 +1,8 @@
 #version 450
 layout(local_size_x = 8, local_size_y = 8) in;
 
-layout(set = 0, binding = 0, rg16f) uniform readonly image2D uIn;
-layout(set = 0, binding = 1, rg16f) uniform writeonly image2D uOut;
+layout(set = 0, binding = 0, rgba16f) uniform readonly image2D uIn;
+layout(set = 0, binding = 1, rgba16f) uniform writeonly image2D uOut;
 
 layout(push_constant) uniform Push {
     uvec2 size;
@@ -14,16 +14,19 @@ void main() {
     if (p.x >= size.x || p.y >= size.y)
         return;
 
-    // 3x3 vector median (component-wise) + shrink tiny vectors to zero.
     float xs[9];
     float ys[9];
+    float cs[9];
     int n = 0;
+    float conf_min = 1.0;
     for (int dy = -1; dy <= 1; ++dy) {
         for (int dx = -1; dx <= 1; ++dx) {
             ivec2 q = clamp(p + ivec2(dx, dy), ivec2(0), size - 1);
-            vec2 v = imageLoad(uIn, q).rg;
+            vec4 v = imageLoad(uIn, q);
             xs[n] = v.x;
             ys[n] = v.y;
+            cs[n] = v.z;
+            conf_min = min(conf_min, v.z);
             n++;
         }
     }
@@ -46,10 +49,17 @@ void main() {
         }
         ys[j + 1] = ky;
     }
+    for (int i = 1; i < 9; ++i) {
+        float kc = cs[i];
+        int j = i - 1;
+        while (j >= 0 && cs[j] > kc) {
+            cs[j + 1] = cs[j];
+            j--;
+        }
+        cs[j + 1] = kc;
+    }
 
-    vec2 m = vec2(xs[4], ys[4]);
-    if (length(m) < 0.6)
-        m = vec2(0.0);
-
-    imageStore(uOut, p, vec4(m, 0.0, 0.0));
+    // Median flow; confidence uses neighborhood minimum to stay conservative.
+    float conf = min(cs[4], conf_min);
+    imageStore(uOut, p, vec4(xs[4], ys[4], conf, 0.0));
 }

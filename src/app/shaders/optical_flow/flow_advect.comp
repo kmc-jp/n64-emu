@@ -1,0 +1,37 @@
+#version 450
+layout(local_size_x = 8, local_size_y = 8) in;
+
+// Forward-warp previous level-0 flow into coarsest-level seed (scale 1/2^L).
+layout(set = 0, binding = 0, rgba16f) uniform readonly image2D uPrevFlow;
+layout(set = 0, binding = 1, rgba16f) uniform writeonly image2D uSeed;
+
+layout(push_constant) uniform Push {
+    uvec2 dst_size;
+    uvec2 src_size;
+    float scale; // dst/src ≈ 1/2^(num_levels-1)
+} push;
+
+void main() {
+    ivec2 dst = ivec2(gl_GlobalInvocationID.xy);
+    ivec2 dst_size = ivec2(push.dst_size);
+    if (dst.x >= dst_size.x || dst.y >= dst_size.y)
+        return;
+
+    // Map coarse pixel center back to previous full-res flow.
+    vec2 src_pos = (vec2(dst) + 0.5) / push.scale - 0.5;
+    ivec2 i0 = ivec2(floor(src_pos));
+    vec2 f = src_pos - vec2(i0);
+    ivec2 src_size = ivec2(push.src_size);
+    ivec2 i1 = i0 + ivec2(1);
+    i0 = clamp(i0, ivec2(0), src_size - 1);
+    i1 = clamp(i1, ivec2(0), src_size - 1);
+
+    vec4 a = imageLoad(uPrevFlow, i0);
+    vec4 b = imageLoad(uPrevFlow, ivec2(i1.x, i0.y));
+    vec4 c = imageLoad(uPrevFlow, ivec2(i0.x, i1.y));
+    vec4 d = imageLoad(uPrevFlow, i1);
+    vec4 v = mix(mix(a, b, f.x), mix(c, d, f.x), f.y);
+
+    // Scale motion into coarse-pixel units.
+    imageStore(uSeed, dst, vec4(v.xy * push.scale, v.z, 0.0));
+}

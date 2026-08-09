@@ -1,0 +1,25 @@
+#version 450
+layout(local_size_x = 8, local_size_y = 8) in;
+
+// Copy level-0 flow into temporal store, or clear if scene cut.
+layout(set = 0, binding = 0, rgba16f) uniform readonly image2D uSrc;
+layout(set = 0, binding = 1, rgba16f) uniform writeonly image2D uDst;
+layout(set = 0, binding = 2) readonly buffer SceneBuf {
+    uint total_sad_bits;
+    uint pixel_count;
+    uint scene_cut;
+} scene;
+
+layout(push_constant) uniform Push {
+    uvec2 size;
+} push;
+
+void main() {
+    ivec2 p = ivec2(gl_GlobalInvocationID.xy);
+    if (p.x >= int(push.size.x) || p.y >= int(push.size.y))
+        return;
+    if (scene.scene_cut != 0u)
+        imageStore(uDst, p, vec4(0.0));
+    else
+        imageStore(uDst, p, imageLoad(uSrc, p));
+}
