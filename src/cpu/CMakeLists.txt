@@ -1,5 +1,6 @@
 add_library(cpu STATIC)
 target_sources(cpu PRIVATE
+    cached_interp.cpp
     cop0.cpp
     cop1.cpp
     cpu.cpp

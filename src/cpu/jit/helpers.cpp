@@ -28,18 +28,9 @@ bool paddr_in_rdram(uint32_t paddr, uint32_t access_size) {
            paddr + (access_size - 1) <= PHYS_RDRAM_MEM_END;
 }
 
-// Soft-TLB hit for an access that stays within one 4 KiB page.
 std::optional<uint32_t> soft_lookup(uint32_t vaddr, uint32_t access_size,
                                     bool is_store) {
-    if ((vaddr & 0xFFFu) + access_size - 1 > 0xFFFu)
-        return std::nullopt;
-    const uint32_t vpn = vaddr >> 12;
-    const Mmu::SoftTlbEntry &e =
-        is_store ? Mmu::soft_tlb_store_table()[vpn & Mmu::SOFT_TLB_MASK]
-                 : Mmu::soft_tlb_load_table()[vpn & Mmu::SOFT_TLB_MASK];
-    if (e.vpn != vpn)
-        return std::nullopt;
-    return e.pa_page | (vaddr & 0xFFFu);
+    return Mmu::soft_tlb_lookup(vaddr, access_size, is_store);
 }
 } // namespace
 

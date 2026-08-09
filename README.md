@@ -83,7 +83,7 @@ git submodule update --init --recursive
 Notes:
 
 - Vulkan is provided via [MoltenVK](https://github.com/KhronosGroup/MoltenVK) (Metal backend).
-- CPU dynarec (`--jit`) is x86-64 only. On Apple Silicon, use `--no-jit`.
+- CPU dynarec (`--jit`) is x86-64 only. On Apple Silicon, use `--no-jit` (cached interpreter).
 
 ## Run
 
@@ -98,7 +98,7 @@ Only the z64 format (big-endian) is supported.
 | Option | Description |
 | --- | --- |
 | `--jit` | Use the CPU dynarec (x86-64 only, default on x86-64) |
-| `--no-jit` | Disable CPU dynarec (use interpreter) |
+| `--no-jit` | Disable CPU dynarec (use cached interpreter) |
 | `--log <file>` | Write logs to a file (default: stdout) |
 | `--log-level=<level>` | Set log level: `trace`, `debug`, `info` (default), `critical`, or `off` |
 | `--upscale=<n>` | Parallel-RDP internal resolution: `1`, `2`, `4` (default), or `8` |

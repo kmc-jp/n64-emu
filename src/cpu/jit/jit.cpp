@@ -1,4 +1,5 @@
 ﻿#include "cpu/jit/jit.h"
+#include "cpu/cached_interp.h"
 #include "cpu/cpu.h"
 #include "cpu/jit/helpers.h"
 #include "cpu/jit/invalidate_hook.h"
@@ -26,8 +27,10 @@ Dynarec &Dynarec::get_instance() { return instance_; }
 
 void Dynarec::reset() {
     cache_.clear();
+    CachedInterp::clear();
     set_code_invalidate_hook([](uint32_t paddr, uint32_t length) {
         g_dynarec().invalidate_range(paddr, length);
+        CachedInterp::invalidate_range(paddr, length);
     });
 }
 

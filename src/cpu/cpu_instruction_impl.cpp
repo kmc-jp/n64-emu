@@ -1,7 +1,8 @@
-﻿#include "cpu_instruction_impl.h"
+#include "cpu_instruction_impl.h"
 #include "cpu/cpu.h"
 #include "memory/bus.h"
 #include "mmu/mmu.h"
+#include "mmu/soft_tlb.h"
 #include "mmu/tlb.h"
 #include "utils/log.h"
 #include "utils/stdint.h"
@@ -683,7 +684,7 @@ void CpuImpl::op_lb(Cpu &cpu, instruction_t inst) {
     Utils::instruction_trace("LB {} <= *({} + {:#x})",
                              GPR_NAMES[inst.i_type.rt],
                              GPR_NAMES[inst.i_type.rs], offset);
-    std::optional<uint32_t> paddr = Mmu::resolve_vaddr(vaddr);
+    std::optional<uint32_t> paddr = Mmu::resolve_vaddr_cached(static_cast<uint32_t>(vaddr), 1);
 
     if (paddr.has_value()) {
         int8_t value = Memory::read_paddr8(paddr.value());
@@ -701,7 +702,7 @@ void CpuImpl::op_lbu(Cpu &cpu, instruction_t inst) {
     Utils::instruction_trace("LBU {} <= *({} + {:#x})",
                              GPR_NAMES[inst.i_type.rt],
                              GPR_NAMES[inst.i_type.rs], offset);
-    std::optional<uint32_t> paddr = Mmu::resolve_vaddr(vaddr);
+    std::optional<uint32_t> paddr = Mmu::resolve_vaddr_cached(static_cast<uint32_t>(vaddr), 1);
 
     if (paddr.has_value()) {
         uint8_t value = Memory::read_paddr8(paddr.value());
@@ -720,7 +721,7 @@ void CpuImpl::op_lh(Cpu &cpu, instruction_t inst) {
     Utils::instruction_trace("LH {} <= *({} + {:#x})",
                              GPR_NAMES[inst.i_type.rt],
                              GPR_NAMES[inst.i_type.rs], offset);
-    std::optional<uint32_t> paddr = Mmu::resolve_vaddr(vaddr);
+    std::optional<uint32_t> paddr = Mmu::resolve_vaddr_cached(static_cast<uint32_t>(vaddr), 2);
 
     if (paddr.has_value()) {
         int16_t value = Memory::read_paddr16(paddr.value());
@@ -739,7 +740,7 @@ void CpuImpl::op_lhu(Cpu &cpu, instruction_t inst) {
     Utils::instruction_trace("LHU: {} <= *({} + {:#x})",
                              GPR_NAMES[inst.i_type.rt],
                              GPR_NAMES[inst.i_type.rs], offset);
-    std::optional<uint32_t> paddr = Mmu::resolve_vaddr(vaddr);
+    std::optional<uint32_t> paddr = Mmu::resolve_vaddr_cached(static_cast<uint32_t>(vaddr), 2);
 
     if (paddr.has_value()) {
         uint16_t value = Memory::read_paddr16(paddr.value());
@@ -757,7 +758,7 @@ void CpuImpl::op_lw(Cpu &cpu, instruction_t inst) {
                              GPR_NAMES[inst.i_type.rt],
                              GPR_NAMES[inst.i_type.rs], offset);
     uint64_t vaddr = cpu.gpr.read(inst.i_type.rs) + offset;
-    std::optional<uint32_t> paddr = Mmu::resolve_vaddr(vaddr);
+    std::optional<uint32_t> paddr = Mmu::resolve_vaddr_cached(static_cast<uint32_t>(vaddr), 4);
 
     if (paddr.has_value()) {
         int32_t word = Memory::read_paddr32(paddr.value());
@@ -775,7 +776,7 @@ void CpuImpl::op_lwu(Cpu &cpu, instruction_t inst) {
                              GPR_NAMES[inst.i_type.rt],
                              GPR_NAMES[inst.i_type.rs], offset);
     uint64_t vaddr = cpu.gpr.read(inst.i_type.rs) + offset;
-    std::optional<uint32_t> paddr = Mmu::resolve_vaddr(vaddr);
+    std::optional<uint32_t> paddr = Mmu::resolve_vaddr_cached(static_cast<uint32_t>(vaddr), 4);
 
     if (paddr.has_value()) {
         uint32_t word = Memory::read_paddr32(paddr.value());
@@ -793,7 +794,7 @@ void CpuImpl::op_lwl(Cpu &cpu, instruction_t inst) {
     Utils::instruction_trace("LWL {} <= *({} + {:#x})",
                              GPR_NAMES[inst.i_type.rt],
                              GPR_NAMES[inst.i_type.rs], offset);
-    std::optional<uint32_t> paddr = Mmu::resolve_vaddr(vaddr);
+    std::optional<uint32_t> paddr = Mmu::resolve_vaddr_cached(static_cast<uint32_t>(vaddr), 1);
     if (paddr.has_value()) {
         const uint32_t shift = 8 * static_cast<uint32_t>((vaddr ^ 0) & 3);
         const uint32_t mask = 0xFFFFFFFFu << shift;
@@ -816,7 +817,7 @@ void CpuImpl::op_lwr(Cpu &cpu, instruction_t inst) {
     Utils::instruction_trace("LWR {} <= *({} + {:#x})",
                              GPR_NAMES[inst.i_type.rt],
                              GPR_NAMES[inst.i_type.rs], offset);
-    std::optional<uint32_t> paddr = Mmu::resolve_vaddr(vaddr);
+    std::optional<uint32_t> paddr = Mmu::resolve_vaddr_cached(static_cast<uint32_t>(vaddr), 1);
     if (paddr.has_value()) {
         const uint32_t shift = 8 * static_cast<uint32_t>((vaddr ^ 3) & 3);
         const uint32_t mask = 0xFFFFFFFFu >> shift;
@@ -851,7 +852,7 @@ void CpuImpl::op_ld(Cpu &cpu, instruction_t inst) {
                              GPR_NAMES[inst.i_type.rt],
                              GPR_NAMES[inst.i_type.rs], offset);
     uint64_t vaddr = cpu.gpr.read(inst.i_type.rs) + offset;
-    std::optional<uint32_t> paddr = Mmu::resolve_vaddr(vaddr);
+    std::optional<uint32_t> paddr = Mmu::resolve_vaddr_cached(static_cast<uint32_t>(vaddr), 8);
 
     if (paddr.has_value()) {
         uint64_t value = Memory::read_paddr64(paddr.value());
@@ -867,7 +868,7 @@ void CpuImpl::op_ldl(Cpu &cpu, instruction_t inst) {
     int16_t offset = inst.fi_type.offset;
     uint64_t vaddr = cpu.gpr.read(inst.fi_type.base) + offset;
     // TODO: trace log
-    std::optional<uint32_t> paddr = Mmu::resolve_vaddr(vaddr);
+    std::optional<uint32_t> paddr = Mmu::resolve_vaddr_cached(static_cast<uint32_t>(vaddr), 1);
     if (paddr.has_value()) {
         int32_t shift = 8 * ((vaddr ^ 0) & 7);
         uint64_t mask = (uint64_t)0xFFFFFFFFFFFFFFFF << shift;
@@ -885,7 +886,7 @@ void CpuImpl::op_ldr(Cpu &cpu, instruction_t inst) {
     int16_t offset = inst.fi_type.offset;
     uint64_t vaddr = cpu.gpr.read(inst.fi_type.base) + offset;
     // TODO: trace log
-    std::optional<uint32_t> paddr = Mmu::resolve_vaddr(vaddr);
+    std::optional<uint32_t> paddr = Mmu::resolve_vaddr_cached(static_cast<uint32_t>(vaddr), 1);
     if (paddr.has_value()) {
         int32_t shift = 8 * ((vaddr ^ 7) & 7);
         uint64_t mask = (uint64_t)0xFFFFFFFFFFFFFFFF >> shift;
@@ -905,7 +906,7 @@ void CpuImpl::op_ll(Cpu &cpu, instruction_t inst) {
     Utils::instruction_trace("LL: {} <= *({} + {:#x})",
                              GPR_NAMES[inst.i_type.rt],
                              GPR_NAMES[inst.i_type.rs], offset);
-    std::optional<uint32_t> paddr = Mmu::resolve_vaddr(vaddr);
+    std::optional<uint32_t> paddr = Mmu::resolve_vaddr_cached(static_cast<uint32_t>(vaddr), 4);
 
     if (paddr.has_value()) {
         int32_t word = Memory::read_paddr32(paddr.value());
@@ -927,7 +928,7 @@ void CpuImpl::op_lld(Cpu &cpu, instruction_t inst) {
     Utils::instruction_trace("LLD: {} <= *({} + {:#x})",
                              GPR_NAMES[inst.i_type.rt],
                              GPR_NAMES[inst.i_type.rs], offset);
-    std::optional<uint32_t> paddr = Mmu::resolve_vaddr(vaddr);
+    std::optional<uint32_t> paddr = Mmu::resolve_vaddr_cached(static_cast<uint32_t>(vaddr), 8);
 
     if (paddr.has_value()) {
         uint64_t value = Memory::read_paddr64(paddr.value());
@@ -948,7 +949,7 @@ void CpuImpl::op_sb(Cpu &cpu, instruction_t inst) {
     Utils::instruction_trace("SB: *({} + {:#x}) <= {}",
                              GPR_NAMES[inst.i_type.rs], offset,
                              GPR_NAMES[inst.r_type.rt]);
-    std::optional<uint32_t> paddr = Mmu::resolve_vaddr(vaddr, Mmu::BusAccess::STORE);
+    std::optional<uint32_t> paddr = Mmu::resolve_vaddr_cached(static_cast<uint32_t>(vaddr), 1, Mmu::BusAccess::STORE);
 
     if (paddr.has_value()) {
         uint8_t value = cpu.gpr.read(inst.r_type.rt);
@@ -966,7 +967,7 @@ void CpuImpl::op_sh(Cpu &cpu, instruction_t inst) {
     Utils::instruction_trace("SH: *({} + {:#x}) <= {}",
                              GPR_NAMES[inst.i_type.rs], offset,
                              GPR_NAMES[inst.r_type.rt]);
-    std::optional<uint32_t> paddr = Mmu::resolve_vaddr(vaddr, Mmu::BusAccess::STORE);
+    std::optional<uint32_t> paddr = Mmu::resolve_vaddr_cached(static_cast<uint32_t>(vaddr), 2, Mmu::BusAccess::STORE);
 
     if (paddr.has_value()) {
         uint16_t value = cpu.gpr.read(inst.r_type.rt);
@@ -985,7 +986,7 @@ void CpuImpl::op_swl(Cpu &cpu, instruction_t inst) {
                              GPR_NAMES[inst.i_type.rs], offset,
                              GPR_NAMES[inst.r_type.rt]);
     std::optional<uint32_t> paddr =
-        Mmu::resolve_vaddr(vaddr, Mmu::BusAccess::STORE);
+        Mmu::resolve_vaddr_cached(static_cast<uint32_t>(vaddr), 1, Mmu::BusAccess::STORE);
     if (paddr.has_value()) {
         const uint32_t shift = 8 * static_cast<uint32_t>((vaddr ^ 0) & 3);
         const uint32_t mask = 0xFFFFFFFFu >> shift;
@@ -1007,7 +1008,8 @@ void CpuImpl::op_sw(Cpu &cpu, instruction_t inst) {
     Utils::instruction_trace("SW: *({} + {:#x}) <= {}",
                              GPR_NAMES[inst.i_type.rs], offset,
                              GPR_NAMES[inst.r_type.rt]);
-    std::optional<uint32_t> paddr = Mmu::resolve_vaddr(vaddr, Mmu::BusAccess::STORE);
+    std::optional<uint32_t> paddr = Mmu::resolve_vaddr_cached(
+        static_cast<uint32_t>(vaddr), 4, Mmu::BusAccess::STORE);
 
     if (paddr.has_value()) {
         uint32_t word = cpu.gpr.read(inst.r_type.rt);
@@ -1026,7 +1028,7 @@ void CpuImpl::op_swr(Cpu &cpu, instruction_t inst) {
                              GPR_NAMES[inst.i_type.rs], offset,
                              GPR_NAMES[inst.r_type.rt]);
     std::optional<uint32_t> paddr =
-        Mmu::resolve_vaddr(vaddr, Mmu::BusAccess::STORE);
+        Mmu::resolve_vaddr_cached(static_cast<uint32_t>(vaddr), 1, Mmu::BusAccess::STORE);
     if (paddr.has_value()) {
         const uint32_t shift = 8 * static_cast<uint32_t>((vaddr ^ 3) & 3);
         const uint32_t mask = 0xFFFFFFFFu << shift;
@@ -1048,7 +1050,7 @@ void CpuImpl::op_sd(Cpu &cpu, instruction_t inst) {
                              GPR_NAMES[inst.i_type.rs], offset,
                              GPR_NAMES[inst.r_type.rt]);
     uint64_t vaddr = cpu.gpr.read(inst.i_type.rs) + offset;
-    std::optional<uint32_t> paddr = Mmu::resolve_vaddr(vaddr, Mmu::BusAccess::STORE);
+    std::optional<uint32_t> paddr = Mmu::resolve_vaddr_cached(static_cast<uint32_t>(vaddr), 8, Mmu::BusAccess::STORE);
 
     if (paddr.has_value()) {
         uint64_t dword = cpu.gpr.read(inst.r_type.rt);
@@ -1064,7 +1066,7 @@ void CpuImpl::op_sdl(Cpu &cpu, instruction_t inst) {
     int16_t offset = inst.fi_type.offset;
     uint64_t vaddr = cpu.gpr.read(inst.fi_type.base) + offset;
     // TODO: trace log
-    std::optional<uint32_t> paddr = Mmu::resolve_vaddr(vaddr, Mmu::BusAccess::STORE);
+    std::optional<uint32_t> paddr = Mmu::resolve_vaddr_cached(static_cast<uint32_t>(vaddr), 1, Mmu::BusAccess::STORE);
     if (paddr.has_value()) {
         int32_t shift = 8 * ((vaddr ^ 0) & 7);
         uint64_t mask = 0xFFFFFFFFFFFFFFFF >> shift;
@@ -1083,7 +1085,7 @@ void CpuImpl::op_sdr(Cpu &cpu, instruction_t inst) {
     int16_t offset = inst.fi_type.offset;
     uint64_t vaddr = cpu.gpr.read(inst.fi_type.base) + offset;
     // TODO: trace log
-    std::optional<uint32_t> paddr = Mmu::resolve_vaddr(vaddr, Mmu::BusAccess::STORE);
+    std::optional<uint32_t> paddr = Mmu::resolve_vaddr_cached(static_cast<uint32_t>(vaddr), 1, Mmu::BusAccess::STORE);
     if (paddr.has_value()) {
         int32_t shift = 8 * ((vaddr ^ 7) & 7);
         uint64_t mask = (uint64_t)0xFFFFFFFFFFFFFFFF << shift;
@@ -1108,7 +1110,7 @@ void CpuImpl::op_sc(Cpu &cpu, instruction_t inst) {
     if (cpu.cop0.llbit) {
         cpu.cop0.llbit = false;
         std::optional<uint32_t> paddr =
-            Mmu::resolve_vaddr(vaddr, Mmu::BusAccess::STORE);
+            Mmu::resolve_vaddr_cached(static_cast<uint32_t>(vaddr), 4, Mmu::BusAccess::STORE);
         if (paddr.has_value()) {
             uint32_t word = static_cast<uint32_t>(cpu.gpr.read(inst.i_type.rt));
             Memory::write_paddr32(paddr.value(), word);
@@ -1133,7 +1135,7 @@ void CpuImpl::op_scd(Cpu &cpu, instruction_t inst) {
     if (cpu.cop0.llbit) {
         cpu.cop0.llbit = false;
         std::optional<uint32_t> paddr =
-            Mmu::resolve_vaddr(vaddr, Mmu::BusAccess::STORE);
+            Mmu::resolve_vaddr_cached(static_cast<uint32_t>(vaddr), 8, Mmu::BusAccess::STORE);
         if (paddr.has_value()) {
             uint64_t dword = cpu.gpr.read(inst.i_type.rt);
             Memory::write_paddr64(paddr.value(), dword);

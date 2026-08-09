@@ -1,5 +1,6 @@
 #include "n64_system/n64_system.h"
 #include "app/parallel_rdp_wrapper.h"
+#include "cpu/cached_interp.h"
 #if defined(N64_JIT_X64)
 #include "cpu/jit/jit.h"
 #endif
@@ -36,7 +37,12 @@ static void reset_all(Config &config) {
     N64::g_tlb().reset();
     N64::g_cpu().reset();
 #if defined(N64_JIT_X64)
-    N64::Cpu::Jit::g_dynarec().reset();
+    if (config.cpu_backend == CpuBackend::Jit)
+        N64::Cpu::Jit::g_dynarec().reset();
+    else
+        N64::Cpu::CachedInterp::reset();
+#else
+    N64::Cpu::CachedInterp::reset();
 #endif
     N64::g_rsp().reset();
     N64::g_dpc().reset();
@@ -162,23 +168,11 @@ void step(Config &config, Vulkan::WSI *wsi) {
                     if (taken < 1)
                         taken = 1;
 #endif
-                } else {
+                } else if (dbg_on || need_step_cb) {
+                    // Single-step for debugger / n64-tests / instruction log.
                     g_cpu().step();
                     taken = static_cast<int>(Cpu::CPU_CYCLES_PER_INST);
-                }
-                if (profile_frame) {
-                    cpu_ms += std::chrono::duration<double, std::milli>(
-                                  std::chrono::steady_clock::now() - cpu_t0)
-                                  .count();
-                }
-
-                if (need_step_cb)
-                    cpu_step_callback(config);
-
-                if (!use_jit) {
                     consumed_cpu_cycles += taken;
-
-                    // RSP step. RSP ticks 2/3x faster than CPU.
                     const auto rsp_t0 =
                         profile_frame ? std::chrono::steady_clock::now()
                                       : std::chrono::steady_clock::time_point{};
@@ -197,9 +191,22 @@ void step(Config &config, Vulkan::WSI *wsi) {
                                       std::chrono::steady_clock::now() - rsp_t0)
                                       .count();
                     }
-
                     sched.tick(static_cast<uint64_t>(taken));
+                } else {
+                    // Cached interpreter: batch like JIT soft-chain.
+                    taken = Cpu::CachedInterp::run(remaining, config.rsp_thread);
+                    if (taken < 1)
+                        taken = 1;
                 }
+                if (profile_frame) {
+                    cpu_ms += std::chrono::duration<double, std::milli>(
+                                  std::chrono::steady_clock::now() - cpu_t0)
+                                  .count();
+                }
+
+                if (need_step_cb)
+                    cpu_step_callback(config);
+
                 remaining -= taken;
             }
             if (profile_frame) {
@@ -243,11 +250,13 @@ void step(Config &config, Vulkan::WSI *wsi) {
                 const double cpu = prof_cpu_ms * inv;
                 const double rsp = prof_rsp_ms * inv;
                 const double rdp = prof_rdp_ms * inv;
+                const auto present = PRDPWrapper::take_present_stats();
                 Utils::info(
-                    "frame profile: fields/s≈{} avg cpu={:.2f}ms rsp={:.2f}ms "
-                    "rdp={:.2f}ms total={:.2f}ms (cpu {:.0f}% / rsp {:.0f}% / "
-                    "rdp {:.0f}%) budget60={:.2f}ms",
-                    prof_fields, cpu, rsp, rdp, emu + rdp,
+                    "frame profile: fields/s≈{} presents/s≈{} skipped/s≈{} "
+                    "avg cpu={:.2f}ms rsp={:.2f}ms rdp={:.2f}ms total={:.2f}ms "
+                    "(cpu {:.0f}% / rsp {:.0f}% / rdp {:.0f}%) budget60={:.2f}ms",
+                    prof_fields, present.presented, present.skipped, cpu, rsp,
+                    rdp, emu + rdp,
                     (emu + rdp) > 0 ? 100.0 * cpu / (emu + rdp) : 0.0,
                     (emu + rdp) > 0 ? 100.0 * rsp / (emu + rdp) : 0.0,
                     (emu + rdp) > 0 ? 100.0 * rdp / (emu + rdp) : 0.0,

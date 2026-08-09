@@ -2,6 +2,7 @@
 #include "cpu/cpu.h"
 #include "memory/bus.h"
 #include "mmu/mmu.h"
+#include "mmu/soft_tlb.h"
 #include "mmu/tlb.h"
 #include "utils/log.h"
 #include <cmath>
@@ -202,7 +203,7 @@ void FpuImpl::op_lwc1(Cpu &cpu, instruction_t inst) {
     Utils::instruction_trace("LWC1 FGR[{}] <= *({} + {:#x})", ft,
                              GPR_NAMES[base], offset);
     uint64_t vaddr = cpu.gpr.read(base) + offset;
-    std::optional<uint32_t> paddr = Mmu::resolve_vaddr(vaddr);
+    std::optional<uint32_t> paddr = Mmu::resolve_vaddr_cached(static_cast<uint32_t>(vaddr), 4);
     if (paddr.has_value()) {
         uint32_t word = Memory::read_paddr32(paddr.value());
         cpu.cop1.set_fgr_word(ft, word, cpu.cop0.reg.status.fr);
@@ -222,7 +223,7 @@ void FpuImpl::op_ldc1(Cpu &cpu, instruction_t inst) {
     Utils::instruction_trace("LDC1 FGR[{}] <= *({} + {:#x})", ft,
                              GPR_NAMES[base], offset);
     uint64_t vaddr = cpu.gpr.read(base) + offset;
-    std::optional<uint32_t> paddr = Mmu::resolve_vaddr(vaddr);
+    std::optional<uint32_t> paddr = Mmu::resolve_vaddr_cached(static_cast<uint32_t>(vaddr), 8);
     if (paddr.has_value()) {
         uint64_t dword = Memory::read_paddr64(paddr.value());
         cpu.cop1.set_fgr_dword(ft, dword, cpu.cop0.reg.status.fr);
@@ -243,7 +244,7 @@ void FpuImpl::op_swc1(Cpu &cpu, instruction_t inst) {
                              offset, ft);
     uint64_t vaddr = cpu.gpr.read(base) + offset;
     std::optional<uint32_t> paddr =
-        Mmu::resolve_vaddr(vaddr, Mmu::BusAccess::STORE);
+        Mmu::resolve_vaddr_cached(static_cast<uint32_t>(vaddr), 4, Mmu::BusAccess::STORE);
     if (paddr.has_value()) {
         uint32_t word = cpu.cop1.get_fgr_word(ft, cpu.cop0.reg.status.fr);
         Memory::write_paddr32(paddr.value(), word);
@@ -264,7 +265,7 @@ void FpuImpl::op_sdc1(Cpu &cpu, instruction_t inst) {
                              offset, ft);
     uint64_t vaddr = cpu.gpr.read(base) + offset;
     std::optional<uint32_t> paddr =
-        Mmu::resolve_vaddr(vaddr, Mmu::BusAccess::STORE);
+        Mmu::resolve_vaddr_cached(static_cast<uint32_t>(vaddr), 8, Mmu::BusAccess::STORE);
     if (paddr.has_value()) {
         uint64_t dword = cpu.cop1.get_fgr_dword(ft, cpu.cop0.reg.status.fr);
         Memory::write_paddr64(paddr.value(), dword);
