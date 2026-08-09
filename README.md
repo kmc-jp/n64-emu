@@ -14,7 +14,7 @@ n64-emu is an experimental Nintendo 64 emulator with low-level emulation (LLE) a
 - SDL2
 - Vulkan
 
-We primarily support MSVC on Windows and GCC/Clang on Linux.
+We support Windows, macOS, and Linux.
 
 ### Linux
 
@@ -25,10 +25,8 @@ git clone --recursive git@github.com:kmc-jp/n64-emu.git
 cd n64-emu
 mkdir build
 cd build
-# configure build
-cmake ..
-# build
-make # or cmake --build . 
+cmake -DCMAKE_BUILD_TYPE=Release ..
+cmake --build . --parallel
 ```
 
 ### Windows 
@@ -43,15 +41,39 @@ git clone --recursive git@github.com:kmc-jp/n64-emu.git
 cd n64-emu
 mkdir build
 cd build
-# configure build
-cmake ..
-# build
-make # or cmake --build . 
+cmake -DCMAKE_BUILD_TYPE=Release ..
+cmake --build . --config Release --parallel
 ```
 
 ### macOS
 
-TODO: Help wanted!
+1. Install [Homebrew](https://brew.sh/) if needed, then:
+
+```bash
+brew install cmake sdl2 molten-vk
+```
+
+2. Clone and build:
+
+```bash
+git clone --recursive git@github.com:kmc-jp/n64-emu.git
+cd n64-emu
+mkdir build
+cd build
+cmake -DCMAKE_BUILD_TYPE=Release ..
+cmake --build . --parallel
+```
+
+If you already cloned without `--recursive`:
+
+```bash
+git submodule update --init --recursive
+```
+
+Notes:
+
+- Vulkan is provided via [MoltenVK](https://github.com/KhronosGroup/MoltenVK) (Metal backend).
+- CPU dynarec (`--jit`) is x86-64 only. On Apple Silicon, use `--no-jit`.
 
 ## Run
 
