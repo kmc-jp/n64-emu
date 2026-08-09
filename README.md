@@ -12,7 +12,7 @@ n64-emu is an experimental Nintendo 64 emulator with low-level emulation (LLE) a
 - C++20 compiler
 - CMake 3.16 or later
 - SDL2
-- Vulkan (for windowed mode; not required for `--headless`)
+- Vulkan
 
 We primarily support MSVC on Windows and GCC/Clang on Linux.
 
