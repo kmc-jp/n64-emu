@@ -99,6 +99,7 @@ Only the z64 format (big-endian) is supported.
 | `--no-jit` | Disable CPU dynarec (use interpreter) |
 | `--log <file>` | Write logs to a file (default: stdout) |
 | `--log-level=<level>` | Set log level: `trace`, `debug`, `info` (default), `critical`, or `off` |
+| `--upscale=<n>` | Parallel-RDP internal resolution: `1`, `2`, `4` (default), or `8` |
 | `--headless` | Run without a window / Vulkan present |
 | `--debug` | Enable the interactive debugger |
 

@@ -19,9 +19,25 @@ std::recursive_mutex &rdp_mutex() {
     return mu;
 }
 
-void init_prdp(Vulkan::WSI &wsi, uint8_t *rdram) {
+void init_prdp(Vulkan::WSI &wsi, uint8_t *rdram, unsigned upscale) {
     std::lock_guard<std::recursive_mutex> lock(rdp_mutex());
     RDP::CommandProcessorFlags flags = 0;
+    switch (upscale) {
+    case 2:
+        flags = RDP::COMMAND_PROCESSOR_FLAG_UPSCALING_2X_BIT;
+        break;
+    case 4:
+        flags = RDP::COMMAND_PROCESSOR_FLAG_UPSCALING_4X_BIT;
+        break;
+    case 8:
+        flags = RDP::COMMAND_PROCESSOR_FLAG_UPSCALING_8X_BIT;
+        break;
+    case 1:
+        break;
+    default:
+        Utils::warn("Unsupported RDP upscale factor {}; using 1x", upscale);
+        break;
+    }
 
     // RDRAM must be host-endian word storage (byte addr^3 / half^2), which is
     // what paraLLEl-RDP shaders assume. See Utils::{byte,half}_address.

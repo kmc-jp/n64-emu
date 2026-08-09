@@ -26,6 +26,7 @@ bool read_config_from_command_line(Config &config, int argc, char *argv[]) {
 #endif
     config.headless = false;
     config.rsp_thread = false;
+    config.upscale = 4;
 
     for (int i = 1; i < argc; ++i) {
         const std::string_view current = argv[i];
@@ -72,6 +73,19 @@ bool read_config_from_command_line(Config &config, int argc, char *argv[]) {
             config.rsp_thread = true;
         } else if (current == "--no-rsp-thread") {
             config.rsp_thread = false;
+        } else if (current.starts_with("--upscale=")) {
+            std::string_view n_str =
+                current.substr(std::string("--upscale=").size());
+            char *end = nullptr;
+            const std::string n_s(n_str);
+            const unsigned long n = std::strtoul(n_s.c_str(), &end, 0);
+            if (end == n_s.c_str() || *end != '\0' ||
+                (n != 1 && n != 2 && n != 4 && n != 8)) {
+                std::cerr << "Error: invalid --upscale value `" << n_str
+                          << "` (expected 1, 2, 4, or 8)" << std::endl;
+                return false;
+            }
+            config.upscale = static_cast<unsigned>(n);
         } else if (current.starts_with("--break=")) {
             std::string_view pc_str =
                 current.substr(std::string("--break=").size());

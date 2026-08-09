@@ -13,6 +13,7 @@ constexpr std::string_view USAGE =
     "--no-jit\tdisable CPU dynarec (use interpreter)\n"
     "--rsp-thread\trun RSP on a worker thread (experimental)\n"
     "--no-rsp-thread\tdisable RSP worker thread (default)\n"
+    "--upscale=[1|2|4|8]\tParallel-RDP resolution multiplier (default 4)\n"
     "--headless\tno window / no Vulkan present\n"
     "--test\trun n64-tests (implies --headless)\n"
     "--debug\tenable interactive debugger\n"
