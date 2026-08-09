@@ -27,6 +27,7 @@ bool read_config_from_command_line(Config &config, int argc, char *argv[]) {
     config.headless = false;
     config.rsp_thread = false;
     config.upscale = 4;
+    config.frame_interp = false;
 
     for (int i = 1; i < argc; ++i) {
         const std::string_view current = argv[i];
@@ -86,6 +87,10 @@ bool read_config_from_command_line(Config &config, int argc, char *argv[]) {
                 return false;
             }
             config.upscale = static_cast<unsigned>(n);
+        } else if (current == "--frame-interp") {
+            config.frame_interp = true;
+        } else if (current == "--no-frame-interp") {
+            config.frame_interp = false;
         } else if (current.starts_with("--break=")) {
             std::string_view pc_str =
                 current.substr(std::string("--break=").size());

@@ -1,0 +1,88 @@
+#version 450
+layout(local_size_x = 8, local_size_y = 8) in;
+
+layout(set = 0, binding = 0) uniform sampler2D uFrameA;
+layout(set = 0, binding = 1) uniform sampler2D uFrameB;
+layout(set = 0, binding = 2) uniform sampler2D uFlowAB; // A->B, luma level-0 pixels
+layout(set = 0, binding = 3) uniform sampler2D uFlowBA; // B->A
+layout(set = 0, binding = 4, rgba8) uniform writeonly image2D uOut;
+layout(set = 0, binding = 5) readonly buffer SceneBuf {
+    uint total_sad_bits;
+    uint pixel_count;
+    uint scene_cut;
+} scene;
+
+layout(push_constant) uniform Push {
+    uvec2 out_size;
+    vec2 flow_scale; // out_pixel / flow_pixel
+    float phase;     // 0..1
+    float debug;     // 0 = normal, 1 = visualize flow
+} push;
+
+vec2 sample_flow(sampler2D flow, vec2 uv) {
+    return textureLod(flow, uv, 0.0).rg;
+}
+
+void main() {
+    ivec2 p = ivec2(gl_GlobalInvocationID.xy);
+    if (p.x >= int(push.out_size.x) || p.y >= int(push.out_size.y))
+        return;
+
+    vec2 uv = (vec2(p) + 0.5) / vec2(push.out_size);
+    float t = clamp(push.phase, 0.0, 1.0);
+
+    vec4 a0 = textureLod(uFrameA, uv, 0.0);
+    vec4 b0 = textureLod(uFrameB, uv, 0.0);
+
+    if (scene.scene_cut != 0u) {
+        imageStore(uOut, p, b0);
+        return;
+    }
+
+    // Static / near-static pixels: never warp — lerp (or hold) avoids chatter.
+    float static_diff = dot(abs(a0.rgb - b0.rgb), vec3(0.333));
+    if (static_diff < 0.012) {
+        imageStore(uOut, p, mix(a0, b0, t));
+        return;
+    }
+
+    vec2 f_ab = sample_flow(uFlowAB, uv) * push.flow_scale;
+    vec2 f_ba = sample_flow(uFlowBA, uv) * push.flow_scale;
+
+    // Kill sub-pixel junk that still made it through refine.
+    float mag_ab = length(f_ab);
+    float mag_ba = length(f_ba);
+    if (mag_ab < 0.75)
+        f_ab = vec2(0.0);
+    if (mag_ba < 0.75)
+        f_ba = vec2(0.0);
+
+    // Soft gate: low frame difference ⇒ distrust warp even if flow is non-zero.
+    float motion_gate = smoothstep(0.012, 0.06, static_diff);
+
+    vec2 from_a = uv - (t * f_ab) / vec2(push.out_size);
+    vec2 from_b = uv + ((1.0 - t) * f_ba) / vec2(push.out_size);
+
+    vec4 ca = textureLod(uFrameA, from_a, 0.0);
+    vec4 cb = textureLod(uFrameB, from_b, 0.0);
+
+    float diff = dot(abs(ca.rgb - cb.rgb), vec3(0.333));
+    float conf = clamp(1.0 - diff * 5.0, 0.0, 1.0) * motion_gate;
+
+    // Occlusion / inconsistency: if either warp disagrees with unwarped source,
+    // fall back harder.
+    float err_a = dot(abs(ca.rgb - a0.rgb), vec3(0.333));
+    float err_b = dot(abs(cb.rgb - b0.rgb), vec3(0.333));
+    conf *= 1.0 - smoothstep(0.08, 0.25, max(err_a, err_b));
+
+    vec4 warped = mix(ca, cb, t);
+    vec4 fallback = mix(a0, b0, t);
+    vec4 outc = mix(fallback, warped, conf);
+
+    if (push.debug > 0.5) {
+        vec2 f = f_ab * 0.05;
+        outc = vec4(0.5 + f.x, 0.5 + f.y, conf, 1.0);
+    }
+
+    imageStore(uOut, p, outc);
+}

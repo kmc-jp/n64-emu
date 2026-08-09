@@ -181,7 +181,8 @@ void App::run() {
         }
     }
 
-    PRDPWrapper::init_prdp(wsi, g_memory().get_rdram().data(), config.upscale);
+    PRDPWrapper::init_prdp(wsi, g_memory().get_rdram().data(), config.upscale,
+                           config.frame_interp);
 
     N64System::set_up(config);
 

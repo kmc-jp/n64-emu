@@ -1,8 +1,10 @@
 #include "app/parallel_rdp_wrapper.h"
-#include "app/spirv.h"
+#include "app/frame_interpolate.h"
+#include "fragment_spirv.h"
 #include "mmio/vi.h"
 #include "rdp_device.hpp"
 #include "utils/log.h"
+#include "vertex_spirv.h"
 #include "wsi.hpp"
 #include <mutex>
 
@@ -13,14 +15,29 @@ constexpr uint32_t RDRAM_SIZE = 8 * 1024 * 1024;
 constexpr uint32_t HIDDEN_RDRAM_SIZE = 4 * 1024 * 1024;
 
 RDP::CommandProcessor *command_processor;
+FrameInterpolator g_frame_interp;
 
 std::recursive_mutex &rdp_mutex() {
     static std::recursive_mutex mu;
     return mu;
 }
 
-void init_prdp(Vulkan::WSI &wsi, uint8_t *rdram, unsigned upscale) {
+void init_prdp(Vulkan::WSI &wsi, uint8_t *rdram, unsigned upscale,
+               bool frame_interp) {
     std::lock_guard<std::recursive_mutex> lock(rdp_mutex());
+    g_frame_interp.reset();
+    g_frame_interp.set_enabled(frame_interp);
+#if !N64_FRAME_INTERP
+    if (frame_interp) {
+        Utils::warn(
+            "--frame-interp requested but build has no glslc/shaders; "
+            "ignoring");
+        g_frame_interp.set_enabled(false);
+    }
+#else
+    if (frame_interp)
+        Utils::info("Frame interpolation enabled (optical flow)");
+#endif
     RDP::CommandProcessorFlags flags = 0;
     switch (upscale) {
     case 2:
@@ -65,6 +82,7 @@ void init_prdp(Vulkan::WSI &wsi, uint8_t *rdram, unsigned upscale) {
 
 void fini_prdp() {
     std::lock_guard<std::recursive_mutex> lock(rdp_mutex());
+    g_frame_interp.reset();
     delete command_processor;
     command_processor = nullptr;
 }
@@ -123,6 +141,8 @@ void render_screen(Vulkan::WSI &wsi, Util::IntrusivePtr<Vulkan::Image> image) {
     Vulkan::ResourceLayout fragment_layout = {};
     fragment_layout.output_mask = 1 << 0;
     fragment_layout.sets[0].sampled_image_mask = 1 << 0;
+    fragment_layout.sets[0].fp_mask = 1 << 0;
+    fragment_layout.sets[0].array_size[0] = 1;
     auto *program = wsi.get_device().request_program(
         vertex_spirv, sizeof(vertex_spirv), fragment_spirv,
         sizeof(fragment_spirv), &vertex_layout, &fragment_layout);
@@ -209,6 +229,8 @@ void update_screen(Vulkan::WSI &wsi, N64::Mmio::VI::VI &vi) {
 
     command_processor->begin_frame_context();
     wsi.begin_frame();
+    if (image)
+        image = g_frame_interp.process(wsi.get_device(), image, vi.reg_origin);
     render_screen(wsi, image);
     wsi.end_frame();
 }

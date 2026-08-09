@@ -35,6 +35,8 @@ struct Config {
     bool headless{false};
     // Parallel-RDP internal resolution multiplier (1, 2, 4, or 8).
     unsigned upscale{4};
+    // Optical-flow frame interpolation (duplicate VI fields -> intermediates).
+    bool frame_interp{false};
 };
 
 bool read_config_from_command_line(Config &config, int argc, char *argv[]);

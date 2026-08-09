@@ -9,7 +9,9 @@ n64-emu is an experimental Nintendo 64 emulator with low-level emulation (LLE) a
 - Low-level emulation (LLE) of N64 hardware
 - Full CPU JIT support (x86-64 only)
 - RSP emulation with SIMD extensions
-- Graphic rendering with GPU acceleration
+- Graphic rendering with GPU acceleration (Parallel-RDP)
+- Internal resolution upscaling
+- Optical-flow frame interpolation
 - Full audio support
 
 ## Build
@@ -39,7 +41,7 @@ cmake --build . --parallel
 
 ### Windows 
 
-1. Install a Vulkan-capable GPU driver (and optionally the [Vulkan SDK](https://vulkan.lunarg.com/)).
+1. Install a Vulkan-capable GPU driver and the [Vulkan SDK](https://vulkan.lunarg.com/) (`glslc` is required to compile `src/app/shaders`).
 2. Download SDL2 from https://github.com/libsdl-org/SDL/releases and extract it.
 3. Set the `SDL2_DIR` environment variable to the location where you extracted the SDL2 development package.
 4. Run the following commands:
@@ -100,6 +102,8 @@ Only the z64 format (big-endian) is supported.
 | `--log <file>` | Write logs to a file (default: stdout) |
 | `--log-level=<level>` | Set log level: `trace`, `debug`, `info` (default), `critical`, or `off` |
 | `--upscale=<n>` | Parallel-RDP internal resolution: `1`, `2`, `4` (default), or `8` |
+| `--frame-interp` | Enable optical-flow frame interpolation (fills duplicate VI fields) |
+| `--no-frame-interp` | Disable frame interpolation (default) |
 | `--headless` | Run without a window / Vulkan present |
 | `--debug` | Enable the interactive debugger |
 

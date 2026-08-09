@@ -1,0 +1,135 @@
+#version 450
+layout(local_size_x = 8, local_size_y = 8) in;
+
+layout(set = 0, binding = 0, r16f) uniform readonly image2D uLumaA;
+layout(set = 0, binding = 1, r16f) uniform readonly image2D uLumaB;
+layout(set = 0, binding = 2, rg16f) uniform readonly image2D uFlowIn;
+layout(set = 0, binding = 3, rg16f) uniform writeonly image2D uFlowOut;
+
+layout(push_constant) uniform Push {
+    uvec2 size;
+    int has_prev;
+    int radius;
+    int reverse;
+} push;
+
+float sample_a(ivec2 p, ivec2 size) {
+    return imageLoad(uLumaA, clamp(p, ivec2(0), size - 1)).r;
+}
+float sample_b(ivec2 p, ivec2 size) {
+    return imageLoad(uLumaB, clamp(p, ivec2(0), size - 1)).r;
+}
+
+float patch_sad_ab(ivec2 pa, ivec2 pb, ivec2 size) {
+    float sad = 0.0;
+    for (int dy = -2; dy <= 2; ++dy) {
+        for (int dx = -2; dx <= 2; ++dx) {
+            sad += abs(sample_a(pa + ivec2(dx, dy), size) -
+                       sample_b(pb + ivec2(dx, dy), size));
+        }
+    }
+    return sad;
+}
+
+float patch_sad_ba(ivec2 pa, ivec2 pb, ivec2 size) {
+    float sad = 0.0;
+    for (int dy = -2; dy <= 2; ++dy) {
+        for (int dx = -2; dx <= 2; ++dx) {
+            sad += abs(sample_b(pa + ivec2(dx, dy), size) -
+                       sample_a(pb + ivec2(dx, dy), size));
+        }
+    }
+    return sad;
+}
+
+float patch_var_a(ivec2 pa, ivec2 size) {
+    float sum = 0.0;
+    float sum2 = 0.0;
+    const float n = 25.0;
+    for (int dy = -2; dy <= 2; ++dy) {
+        for (int dx = -2; dx <= 2; ++dx) {
+            float v = sample_a(pa + ivec2(dx, dy), size);
+            sum += v;
+            sum2 += v * v;
+        }
+    }
+    float mean = sum / n;
+    return max(sum2 / n - mean * mean, 0.0);
+}
+
+float patch_var_b(ivec2 pa, ivec2 size) {
+    float sum = 0.0;
+    float sum2 = 0.0;
+    const float n = 25.0;
+    for (int dy = -2; dy <= 2; ++dy) {
+        for (int dx = -2; dx <= 2; ++dx) {
+            float v = sample_b(pa + ivec2(dx, dy), size);
+            sum += v;
+            sum2 += v * v;
+        }
+    }
+    float mean = sum / n;
+    return max(sum2 / n - mean * mean, 0.0);
+}
+
+void main() {
+    ivec2 p = ivec2(gl_GlobalInvocationID.xy);
+    ivec2 size = ivec2(push.size);
+    if (p.x >= size.x || p.y >= size.y)
+        return;
+
+    // Flat / textureless patches produce ambiguous matches → force zero flow.
+    float var = push.reverse != 0 ? patch_var_b(p, size) : patch_var_a(p, size);
+    if (var < 1e-4) {
+        imageStore(uFlowOut, p, vec4(0.0));
+        return;
+    }
+
+    vec2 seed = vec2(0.0);
+    if (push.has_prev != 0) {
+        ivec2 in_size = imageSize(uFlowIn);
+        ivec2 q = clamp(p / 2, ivec2(0), in_size - 1);
+        seed = imageLoad(uFlowIn, q).rg * 2.0;
+    }
+
+    ivec2 base = ivec2(round(seed));
+    float sad0 = push.reverse != 0 ? patch_sad_ba(p, p, size)
+                                   : patch_sad_ab(p, p, size);
+
+    // Already almost identical at zero offset → static region.
+    // (25 samples; ~0.02 mean abs delta)
+    if (sad0 < 0.5) {
+        imageStore(uFlowOut, p, vec4(0.0));
+        return;
+    }
+
+    float best = sad0;
+    ivec2 best_d = ivec2(0);
+    int r = push.radius;
+
+    for (int dy = -r; dy <= r; ++dy) {
+        for (int dx = -r; dx <= r; ++dx) {
+            if (abs(dx) + abs(dy) > r + (r / 2))
+                continue;
+            ivec2 d = base + ivec2(dx, dy);
+            if (d.x == 0 && d.y == 0)
+                continue;
+            float sad = push.reverse != 0 ? patch_sad_ba(p, p + d, size)
+                                          : patch_sad_ab(p, p + d, size);
+            // Prefer smaller motion on near-ties to kill chatter.
+            float len = float(abs(d.x) + abs(d.y));
+            float best_len = float(abs(best_d.x) + abs(best_d.y));
+            if (sad + 0.02 * len < best + 0.02 * best_len) {
+                best = sad;
+                best_d = d;
+            }
+        }
+    }
+
+    // Improvement over zero must be meaningful, else keep zero.
+    if (sad0 - best < 0.35) {
+        best_d = ivec2(0);
+    }
+
+    imageStore(uFlowOut, p, vec4(vec2(best_d), 0.0, 0.0));
+}

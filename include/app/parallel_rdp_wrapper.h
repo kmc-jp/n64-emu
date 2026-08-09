@@ -17,7 +17,8 @@ namespace PRDPWrapper {
 // while the main thread presents).
 std::recursive_mutex &rdp_mutex();
 
-void init_prdp(Vulkan::WSI &wsi, uint8_t *rdram, unsigned upscale);
+void init_prdp(Vulkan::WSI &wsi, uint8_t *rdram, unsigned upscale,
+               bool frame_interp);
 
 void fini_prdp();
 

@@ -1,0 +1,19 @@
+#version 450
+layout(local_size_x = 1, local_size_y = 1) in;
+
+layout(set = 0, binding = 0) buffer SceneBuf {
+    uint total_sad_bits;
+    uint pixel_count;
+    uint scene_cut;
+} scene;
+
+layout(push_constant) uniform Push {
+    float threshold;
+} push;
+
+void main() {
+    float mean = 0.0;
+    if (scene.pixel_count > 0u)
+        mean = (float(scene.total_sad_bits) / 65536.0) / float(scene.pixel_count);
+    scene.scene_cut = mean > push.threshold ? 1u : 0u;
+}
