@@ -35,6 +35,9 @@ class CodeCache {
     void invalidate_range(uint32_t paddr, uint32_t length);
     void clear();
 
+    // True if any compiled block lives on the 4KiB page containing paddr.
+    bool page_has_code(uint32_t paddr) const;
+
     // Bump-allocate executable bytes from a shared slab.
     uint8_t *alloc_exec(size_t size);
     // After emitting into a reservation, give back unused tail bytes.

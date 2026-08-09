@@ -119,6 +119,23 @@ public:
 	void set_color_framebuffer(uint32_t addr, uint32_t width, FBFormat fmt);
 	void set_depth_framebuffer(uint32_t addr);
 
+	// Last color FB that received depth writes (survives SyncFull / context reset).
+	struct DepthBufferInfo
+	{
+		uint32_t color_addr = 0;
+		uint32_t depth_addr = 0;
+		uint32_t width = 0;
+		uint32_t height = 0;
+		bool valid() const
+		{
+			return depth_addr != 0 && width != 0 && height != 0;
+		}
+	};
+	DepthBufferInfo get_depth_buffer_info() const;
+	Vulkan::Buffer *get_rdram_buffer() const;
+	size_t get_rdram_offset() const;
+	void wait_pending_fences();
+
 	void set_scissor_state(const ScissorState &state);
 	void set_static_rasterization_state(const StaticRasterizationState &state);
 	void set_depth_blend_state(const DepthBlendState &state);
@@ -200,6 +217,8 @@ private:
 		uint32_t depth_addr = 0;
 		uint32_t width = 0;
 		uint32_t deduced_height = 0;
+		// Peak height for the current color image; not cleared on SyncFull.
+		uint32_t drawn_height = 0;
 		FBFormat fmt = FBFormat::I8;
 		bool depth_write_pending = false;
 		bool color_write_pending = false;

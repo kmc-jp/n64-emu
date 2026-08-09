@@ -260,9 +260,29 @@ void CommandProcessor::clear_buffer(Vulkan::Buffer &buffer, uint32_t value)
 	}
 }
 
+void CommandProcessor::set_sync_full_callback(SyncFullCallback cb, void *userdata)
+{
+	sync_full_cb = cb;
+	sync_full_userdata = userdata;
+}
+
 void CommandProcessor::op_sync_full(const uint32_t *)
 {
+	// Capture FB geometry before flush_queues resets deduced_height.
+	auto info = renderer.get_depth_buffer_info();
 	renderer.flush_and_signal();
+	if (sync_full_cb && info.valid() && rdram)
+	{
+		// Host-coherent path: extract is a later submit on the same queue, so
+		// no CPU fence wait is required. Incoherent needs resolve after GPU done.
+		if (!is_host_coherent)
+		{
+			renderer.wait_pending_fences();
+			renderer.resolve_coherency_external(info.depth_addr,
+			                                   info.width * info.height * 2);
+		}
+		sync_full_cb(sync_full_userdata, info, device, *rdram, rdram_offset, rdram_size);
+	}
 }
 
 void CommandProcessor::decode_triangle_setup(TriangleSetup &setup, const uint32_t *words) const

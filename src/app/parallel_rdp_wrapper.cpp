@@ -1,5 +1,6 @@
 #include "app/parallel_rdp_wrapper.h"
 #include "app/frame_interpolate.h"
+#include "app/depth_capture.h"
 #include "fragment_spirv.h"
 #include "mmio/vi.h"
 #include "rdp_device.hpp"
@@ -16,10 +17,25 @@ constexpr uint32_t HIDDEN_RDRAM_SIZE = 4 * 1024 * 1024;
 
 RDP::CommandProcessor *command_processor;
 FrameInterpolator g_frame_interp;
+DepthCapturer g_depth_capture;
+
+bool g_rdp_dirty = true;
+bool g_have_presented_origin = false;
+uint32_t g_last_presented_origin = 0;
+uint64_t g_presents = 0;
+uint64_t g_present_skips = 0;
 
 std::recursive_mutex &rdp_mutex() {
     static std::recursive_mutex mu;
     return mu;
+}
+
+PresentStats take_present_stats() {
+    std::lock_guard<std::recursive_mutex> lock(rdp_mutex());
+    PresentStats s{g_presents, g_present_skips};
+    g_presents = 0;
+    g_present_skips = 0;
+    return s;
 }
 
 void init_prdp(Vulkan::WSI &wsi, uint8_t *rdram, unsigned upscale,
@@ -27,16 +43,24 @@ void init_prdp(Vulkan::WSI &wsi, uint8_t *rdram, unsigned upscale,
     std::lock_guard<std::recursive_mutex> lock(rdp_mutex());
     g_frame_interp.reset();
     g_frame_interp.set_enabled(frame_interp);
+    g_depth_capture.reset();
+    g_depth_capture.set_enabled(frame_interp);
+    g_rdp_dirty = true;
+    g_have_presented_origin = false;
+    g_last_presented_origin = 0;
+    g_presents = 0;
+    g_present_skips = 0;
 #if !N64_FRAME_INTERP
     if (frame_interp) {
         Utils::warn(
             "--frame-interp requested but build has no glslc/shaders; "
             "ignoring");
         g_frame_interp.set_enabled(false);
+        g_depth_capture.set_enabled(false);
     }
 #else
     if (frame_interp)
-        Utils::info("Frame interpolation enabled (optical flow)");
+        Utils::info("Frame interpolation enabled (optical flow + depth)");
 #endif
     RDP::CommandProcessorFlags flags = 0;
     switch (upscale) {
@@ -78,11 +102,20 @@ void init_prdp(Vulkan::WSI &wsi, uint8_t *rdram, unsigned upscale,
         Utils::critical("Parallel-RDP does not support this device. Sorry!");
         exit(-1);
     }
+
+    command_processor->set_sync_full_callback(DepthCapturer::sync_full_thunk,
+                                              &g_depth_capture);
 }
 
 void fini_prdp() {
     std::lock_guard<std::recursive_mutex> lock(rdp_mutex());
     g_frame_interp.reset();
+    g_depth_capture.reset();
+    g_rdp_dirty = true;
+    g_have_presented_origin = false;
+    g_last_presented_origin = 0;
+    if (command_processor)
+        command_processor->set_sync_full_callback(nullptr, nullptr);
     delete command_processor;
     command_processor = nullptr;
 }
@@ -221,6 +254,16 @@ void update_screen(Vulkan::WSI &wsi, N64::Mmio::VI::VI &vi) {
         return;
     }
 
+    // Without frame interp, duplicate VI fields (same origin, no new RDP) only
+    // repeat scanout/present and stall the GPU path — skip them.
+    const bool can_skip_dup =
+        !g_frame_interp.enabled() && !g_rdp_dirty && g_have_presented_origin &&
+        vi.reg_origin == g_last_presented_origin;
+    if (can_skip_dup) {
+        ++g_present_skips;
+        return;
+    }
+
     //  FIXME: quarks?
     // https://github.com/simple64/simple64/blob/1e4ab555054a659c6e6a91db16ce46714be7ac00/parallel-rdp-standalone/parallel_imp.cpp#L257C7-L257C7
 
@@ -229,16 +272,25 @@ void update_screen(Vulkan::WSI &wsi, N64::Mmio::VI::VI &vi) {
 
     command_processor->begin_frame_context();
     wsi.begin_frame();
-    if (image)
-        image = g_frame_interp.process(wsi.get_device(), image, vi.reg_origin);
+    if (image) {
+        auto depth = g_depth_capture.take(vi.reg_origin);
+        image = g_frame_interp.process(wsi.get_device(), image, vi.reg_origin,
+                                       depth);
+    }
     render_screen(wsi, image);
     wsi.end_frame();
+
+    g_rdp_dirty = false;
+    g_have_presented_origin = true;
+    g_last_presented_origin = vi.reg_origin;
+    ++g_presents;
 }
 
 void enqueue_command(int command_length, const uint32_t *buffer) {
     std::lock_guard<std::recursive_mutex> lock(rdp_mutex());
     if (!command_processor)
         return;
+    g_rdp_dirty = true;
     command_processor->enqueue_command(command_length, buffer);
 }
 

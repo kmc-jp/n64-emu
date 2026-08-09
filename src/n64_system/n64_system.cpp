@@ -252,7 +252,7 @@ void step(Config &config, Vulkan::WSI *wsi) {
                 const double rdp = prof_rdp_ms * inv;
                 const auto present = PRDPWrapper::take_present_stats();
                 Utils::info(
-                    "frame profile: fields/s≈{} presents/s≈{} skipped/s≈{} "
+                    "frame profile: fields/s={} presents/s={} skipped/s={} "
                     "avg cpu={:.2f}ms rsp={:.2f}ms rdp={:.2f}ms total={:.2f}ms "
                     "(cpu {:.0f}% / rsp {:.0f}% / rdp {:.0f}%) budget60={:.2f}ms",
                     prof_fields, present.presented, present.skipped, cpu, rsp,
@@ -262,6 +262,10 @@ void step(Config &config, Vulkan::WSI *wsi) {
                     (emu + rdp) > 0 ? 100.0 * rdp / (emu + rdp) : 0.0,
                     1000.0 / 60.0);
                 Rsp::vu_profile_dump();
+#if defined(N64_JIT_X64)
+                if (config.cpu_backend == CpuBackend::Jit)
+                    Cpu::Jit::jit_profile_dump();
+#endif
                 prof_fields = 0;
                 prof_emu_ms = 0.0;
                 prof_cpu_ms = 0.0;

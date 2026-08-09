@@ -143,6 +143,11 @@ CompiledBlock *CodeCache::lookup(uint32_t paddr) {
     return b;
 }
 
+bool CodeCache::page_has_code(uint32_t paddr) const {
+    Page *page = find_page(paddr >> PAGE_SHIFT);
+    return page && page->has_code;
+}
+
 void CodeCache::insert(uint32_t paddr, BlockFn fn, uint16_t num_insts) {
     const uint32_t page_idx = paddr >> PAGE_SHIFT;
     const uint32_t word = (paddr & (PAGE_SIZE - 1)) >> 2;
@@ -160,11 +165,13 @@ void CodeCache::insert(uint32_t paddr, BlockFn fn, uint16_t num_insts) {
 }
 
 void CodeCache::invalidate_page(uint32_t paddr) {
-    clear_lookup_hint();
     const uint32_t page_idx = paddr >> PAGE_SHIFT;
     Page *page = find_page(page_idx);
-    if (!page)
+    // Data writes (framebuffer etc.) must not touch the lookup hint or we
+    // destroy soft-chaining after every store.
+    if (!page || !page->has_code)
         return;
+    clear_lookup_hint();
     for (auto *&e : page->entries)
         e = nullptr;
     page->has_code = false;
@@ -178,8 +185,19 @@ void CodeCache::invalidate_range(uint32_t paddr, uint32_t length) {
         static_cast<uint64_t>(paddr) + static_cast<uint64_t>(length) - 1;
     const uint32_t end = end64 > 0xffffffffu ? 0xffffffffu
                                              : static_cast<uint32_t>(end64);
-    for (uint64_t p = start; p <= end; p += PAGE_SIZE)
-        invalidate_page(static_cast<uint32_t>(p));
+    bool any = false;
+    for (uint64_t p = start; p <= end; p += PAGE_SIZE) {
+        Page *page = find_page(static_cast<uint32_t>(p) >> PAGE_SHIFT);
+        if (!page || !page->has_code)
+            continue;
+        if (!any) {
+            clear_lookup_hint();
+            any = true;
+        }
+        for (auto *&e : page->entries)
+            e = nullptr;
+        page->has_code = false;
+    }
 }
 
 void CodeCache::clear() {

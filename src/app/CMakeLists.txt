@@ -3,6 +3,7 @@ target_sources(app PRIVATE
     app.cpp
     parallel_rdp_wrapper.cpp
     frame_interpolate.cpp
+    depth_capture.cpp
 )
 
 # ---------------------------------------------------------------------------
@@ -70,10 +71,18 @@ set(_fi_shaders
     flow_smooth
     flow_advect
     flow_consistency
+    flow_temporal_blend
     flow_temporal_save
+    flow_scale
+    flow_global_reduce
+    flow_global_finalize
+    content_fingerprint
+    content_compare
+    content_finalize
     scene_reduce
     scene_finalize
     warp_blend
+    depth_extract
 )
 foreach(_name IN LISTS _fi_shaders)
     n64_compile_shader(optical_flow/${_name} comp ${_name}_spirv)

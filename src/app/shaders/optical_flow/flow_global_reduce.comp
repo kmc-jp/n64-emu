@@ -1,0 +1,28 @@
+#version 450
+layout(local_size_x = 8, local_size_y = 8) in;
+
+// Confidence-weighted mean translation (Q8 fixed-point ints).
+layout(set = 0, binding = 0, rgba16f) uniform readonly image2D uFlow;
+layout(set = 0, binding = 1) buffer Acc {
+    int sum_x;
+    int sum_y;
+    int sum_w;
+    int pad;
+} acc;
+
+layout(push_constant) uniform Push {
+    uvec2 size;
+    float conf_min;
+} push;
+
+void main() {
+    ivec2 p = ivec2(gl_GlobalInvocationID.xy);
+    if (p.x >= int(push.size.x) || p.y >= int(push.size.y))
+        return;
+    vec4 f = imageLoad(uFlow, p);
+    if (f.z < push.conf_min)
+        return;
+    atomicAdd(acc.sum_x, int(round(f.x * f.z * 256.0)));
+    atomicAdd(acc.sum_y, int(round(f.y * f.z * 256.0)));
+    atomicAdd(acc.sum_w, int(round(f.z * 256.0)));
+}

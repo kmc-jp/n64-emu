@@ -23,8 +23,8 @@ float sample_b(ivec2 p, ivec2 size) {
 
 float patch_sad_ab(ivec2 pa, ivec2 pb, ivec2 size) {
     float sad = 0.0;
-    for (int dy = -2; dy <= 2; ++dy) {
-        for (int dx = -2; dx <= 2; ++dx) {
+    for (int dy = -1; dy <= 1; ++dy) {
+        for (int dx = -1; dx <= 1; ++dx) {
             sad += abs(sample_a(pa + ivec2(dx, dy), size) -
                        sample_b(pb + ivec2(dx, dy), size));
         }
@@ -34,8 +34,8 @@ float patch_sad_ab(ivec2 pa, ivec2 pb, ivec2 size) {
 
 float patch_sad_ba(ivec2 pa, ivec2 pb, ivec2 size) {
     float sad = 0.0;
-    for (int dy = -2; dy <= 2; ++dy) {
-        for (int dx = -2; dx <= 2; ++dx) {
+    for (int dy = -1; dy <= 1; ++dy) {
+        for (int dx = -1; dx <= 1; ++dx) {
             sad += abs(sample_b(pa + ivec2(dx, dy), size) -
                        sample_a(pb + ivec2(dx, dy), size));
         }
@@ -51,9 +51,9 @@ float patch_sad(ivec2 pa, ivec2 pb, ivec2 size) {
 float patch_var_src(ivec2 pa, ivec2 size) {
     float sum = 0.0;
     float sum2 = 0.0;
-    const float n = 25.0;
-    for (int dy = -2; dy <= 2; ++dy) {
-        for (int dx = -2; dx <= 2; ++dx) {
+    const float n = 9.0;
+    for (int dy = -1; dy <= 1; ++dy) {
+        for (int dx = -1; dx <= 1; ++dx) {
             float v = push.reverse != 0 ? sample_b(pa + ivec2(dx, dy), size)
                                         : sample_a(pa + ivec2(dx, dy), size);
             sum += v;
@@ -103,10 +103,14 @@ void main() {
     if (p.x >= size.x || p.y >= size.y)
         return;
 
-    if (patch_var_src(p, size) < 1e-4) {
+    float var = patch_var_src(p, size);
+    if (var < 1e-4) {
         imageStore(uFlowOut, p, vec4(0.0));
         return;
     }
+    // Weak texture (sky, gradients) matches ambiguously; damp its confidence
+    // continuously rather than trusting it and smearing.
+    float texture_gate = smoothstep(0.004, 0.02, sqrt(var));
 
     vec2 seed = vec2(0.0);
     if (push.has_prev == 1) {
@@ -147,7 +151,7 @@ void main() {
 
     float conf = 0.0;
     if (second > 1e-6)
-        conf = clamp(1.0 - best / second, 0.0, 1.0);
+        conf = clamp(1.0 - best / second, 0.0, 1.0) * texture_gate;
 
     vec2 flow = vec2(best_d);
     // Subpixel only on confident matches with a real local minimum.

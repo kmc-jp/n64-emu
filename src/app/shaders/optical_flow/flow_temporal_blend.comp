@@ -1,0 +1,31 @@
+#version 450
+layout(local_size_x = 8, local_size_y = 8) in;
+
+// Temporal EMA of the flow field: blends the new estimate toward the previous
+// pair's flow where they agree, which removes per-pair shimmer.
+layout(set = 0, binding = 0, rgba16f) uniform readonly image2D uPrev;
+layout(set = 0, binding = 1, rgba16f) uniform image2D uCur;
+
+layout(push_constant) uniform Push {
+    uvec2 size;
+    float alpha; // max weight given to the previous flow
+} push;
+
+void main() {
+    ivec2 p = ivec2(gl_GlobalInvocationID.xy);
+    if (p.x >= int(push.size.x) || p.y >= int(push.size.y))
+        return;
+
+    vec4 cur = imageLoad(uCur, p);
+    vec4 prev = imageLoad(uPrev, p);
+
+    // A cleared/unreliable history has zero confidence and must not pull.
+    float w = push.alpha * smoothstep(0.0, 0.2, prev.z);
+    // Only trust history where it agrees with the new estimate.
+    float d = length(cur.xy - prev.xy);
+    w *= 1.0 - smoothstep(0.5, 2.0, d);
+
+    vec2 flow = mix(cur.xy, prev.xy, w);
+    float conf = mix(cur.z, 0.5 * (cur.z + prev.z), w);
+    imageStore(uCur, p, vec4(flow, conf, 0.0));
+}

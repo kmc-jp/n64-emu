@@ -1,0 +1,42 @@
+#version 450
+layout(local_size_x = 8, local_size_y = 8) in;
+
+// Unpack N64 compressed Z from RDRAM into linear 0..1 depth (near=0, far=1).
+layout(set = 0, binding = 0) readonly buffer Rdram16 {
+    uint data[];
+} rdram;
+layout(set = 0, binding = 1, r16f) uniform writeonly image2D uOut;
+
+layout(push_constant) uniform Push {
+    uvec2 size;
+    uint depth_addr_bytes;
+    uint rdram_size;
+} push;
+
+// Mirrors parallel-rdp z_encode.h (14-bit compressed → 18-bit UNORM).
+int z_decompress(int z) {
+    int exponent = z >> 11;
+    int mantissa = z & 0x7ff;
+    int shift = max(6 - exponent, 0);
+    int base = 0x40000 - (0x40000 >> exponent);
+    return (mantissa << shift) + base;
+}
+
+void main() {
+    ivec2 p = ivec2(gl_GlobalInvocationID.xy);
+    if (p.x >= int(push.size.x) || p.y >= int(push.size.y))
+        return;
+
+    // Halfword index into RDRAM (paraLLEl-RDP uses index ^ 1 for LE packing).
+    uint half_mask = (push.rdram_size >> 1) - 1u;
+    uint index = ((push.depth_addr_bytes >> 1) + push.size.x * uint(p.y) + uint(p.x)) & half_mask;
+    index ^= 1u;
+
+    // Pack two u16 into each uint of the SSBO.
+    uint word32 = rdram.data[index >> 1];
+    uint word16 = ((index & 1u) != 0u) ? (word32 >> 16) : (word32 & 0xffffu);
+    int z_comp = int(word16 >> 2);
+    float z = float(z_decompress(z_comp)) / float(0x3ffff);
+
+    imageStore(uOut, p, vec4(z, 0.0, 0.0, 0.0));
+}

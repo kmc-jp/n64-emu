@@ -9,6 +9,7 @@ layout(push_constant) uniform Push {
     uvec2 dst_size;
     uvec2 src_size;
     float scale; // dst/src ≈ 1/2^(num_levels-1)
+    float pair_scale; // fields in current pair (velocity → displacement)
 } push;
 
 void main() {
@@ -32,6 +33,7 @@ void main() {
     vec4 d = imageLoad(uPrevFlow, i1);
     vec4 v = mix(mix(a, b, f.x), mix(c, d, f.x), f.y);
 
-    // Scale motion into coarse-pixel units.
-    imageStore(uSeed, dst, vec4(v.xy * push.scale, v.z, 0.0));
+    // prev stores per-field velocity; scale to this pair's displacement in coarse px.
+    imageStore(uSeed, dst,
+               vec4(v.xy * push.scale * push.pair_scale, v.z, 0.0));
 }

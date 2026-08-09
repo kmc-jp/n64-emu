@@ -1,0 +1,53 @@
+#version 450
+layout(local_size_x = 8, local_size_y = 8) in;
+
+// Mean abs luma diff between fingerprints → content_changed flag.
+layout(set = 0, binding = 0, r16f) uniform readonly image2D uPrev;
+layout(set = 0, binding = 1, r16f) uniform readonly image2D uCurr;
+layout(set = 0, binding = 2) buffer DiffBuf {
+    uint total_sad_bits;
+    uint pixel_count;
+    uint content_changed;
+} diff;
+
+layout(push_constant) uniform Push {
+    uvec2 size;
+} push;
+
+shared float sad_sh[64];
+shared uint cnt_sh[64];
+
+void main() {
+    uint lid = gl_LocalInvocationIndex;
+    ivec2 p = ivec2(gl_GlobalInvocationID.xy);
+    ivec2 size = ivec2(push.size);
+
+    float mine = 0.0;
+    uint mine_n = 0u;
+    if (p.x < size.x && p.y < size.y) {
+        mine = abs(imageLoad(uPrev, p).r - imageLoad(uCurr, p).r);
+        mine_n = 1u;
+    }
+
+    sad_sh[lid] = mine;
+    cnt_sh[lid] = mine_n;
+    barrier();
+
+    for (uint stride = 32u; stride > 0u; stride >>= 1u) {
+        if (lid < stride) {
+            sad_sh[lid] += sad_sh[lid + stride];
+            cnt_sh[lid] += cnt_sh[lid + stride];
+        }
+        barrier();
+    }
+
+    if (lid == 0u) {
+        atomicAdd(diff.total_sad_bits, uint(sad_sh[0] * 65536.0));
+        atomicAdd(diff.pixel_count, cnt_sh[0]);
+    }
+
+    barrier();
+    memoryBarrierBuffer();
+
+    // One thread finalizes after all workgroups… use a second dispatch instead.
+}

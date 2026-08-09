@@ -1,0 +1,39 @@
+#version 450
+layout(local_size_x = 1, local_size_y = 1) in;
+
+layout(set = 0, binding = 0) readonly buffer Acc {
+    int sum_x_ab;
+    int sum_y_ab;
+    int sum_w_ab;
+    int pad0;
+    int sum_x_ba;
+    int sum_y_ba;
+    int sum_w_ba;
+    int pad1;
+} acc;
+
+layout(set = 0, binding = 1) writeonly buffer Out {
+    float ab_x;
+    float ab_y;
+    float ba_x;
+    float ba_y;
+} outb;
+
+layout(push_constant) uniform Push {
+    vec2 flow_scale; // out_px / luma_px
+} push;
+
+vec2 finish(int sx, int sy, int sw) {
+    if (sw <= 0)
+        return vec2(0.0);
+    return vec2(float(sx), float(sy)) / float(sw) * push.flow_scale;
+}
+
+void main() {
+    vec2 ab = finish(acc.sum_x_ab, acc.sum_y_ab, acc.sum_w_ab);
+    vec2 ba = finish(acc.sum_x_ba, acc.sum_y_ba, acc.sum_w_ba);
+    outb.ab_x = ab.x;
+    outb.ab_y = ab.y;
+    outb.ba_x = ba.x;
+    outb.ba_y = ba.y;
+}

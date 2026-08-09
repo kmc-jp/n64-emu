@@ -676,6 +676,9 @@ void Renderer::set_color_framebuffer(uint32_t addr, uint32_t width, FBFormat fmt
 	if (fb.addr != addr || fb.width != width || fb.fmt != fmt)
 		flush_queues();
 
+	if (fb.addr != addr)
+		fb.drawn_height = 0;
+
 	fb.addr = addr;
 	fb.width = width;
 	fb.fmt = fmt;
@@ -687,6 +690,38 @@ void Renderer::set_depth_framebuffer(uint32_t addr)
 		flush_queues();
 
 	fb.depth_addr = addr;
+}
+
+Renderer::DepthBufferInfo Renderer::get_depth_buffer_info() const
+{
+	DepthBufferInfo info;
+	info.color_addr = fb.addr;
+	info.depth_addr = fb.depth_addr;
+	info.width = fb.width;
+	info.height = fb.drawn_height ? fb.drawn_height : fb.deduced_height;
+	return info;
+}
+
+Vulkan::Buffer *Renderer::get_rdram_buffer() const
+{
+	return rdram;
+}
+
+size_t Renderer::get_rdram_offset() const
+{
+	return rdram_offset;
+}
+
+void Renderer::wait_pending_fences()
+{
+	for (auto &sync : internal_sync)
+	{
+		if (sync.fence)
+		{
+			sync.fence->wait();
+			sync.fence.reset();
+		}
+	}
 }
 
 void Renderer::set_scissor_state(const ScissorState &state)
@@ -1548,6 +1583,7 @@ void Renderer::update_deduced_height(const TriangleSetup &setup)
 	int max_active_line = max_active_sub_scanline >> 2;
 	int height = std::max(max_active_line + 1, 0);
 	fb.deduced_height = std::max(fb.deduced_height, uint32_t(height));
+	fb.drawn_height = std::max(fb.drawn_height, fb.deduced_height);
 }
 
 bool Renderer::need_flush() const

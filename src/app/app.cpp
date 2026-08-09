@@ -7,16 +7,62 @@
 #include "utils/log.h"
 #include <SDL.h>
 #include <SDL_vulkan.h>
+#include <algorithm>
 #include <cstdlib>
 #include <cstring>
+#include <thread>
 
 namespace N64 {
 namespace Frontend {
 const char *WINDOW_TITLE = "n64-emu (dev)";
 constexpr int WINDOW_WIDTH = 1600;
 constexpr int WINDOW_HEIGHT = WINDOW_WIDTH * 3 / 4;
-// 増やすと軽くなる
-constexpr int WSI_NUM_THREADS = 4;
+
+// Granite allocates per-thread command pools / descriptor caches for this many
+// indices. Parallel-RDP mostly uses index 0; keep a small pool sized to the
+// host. Override with N64_WSI_THREADS=<n>.
+static unsigned recommended_wsi_thread_indices() {
+    if (const char *e = getenv("N64_WSI_THREADS"); e && e[0]) {
+        char *end = nullptr;
+        const unsigned long v = std::strtoul(e, &end, 10);
+        if (end != e && v >= 1)
+            return static_cast<unsigned>(std::min<unsigned long>(v, 16));
+    }
+    unsigned hc = std::thread::hardware_concurrency();
+    if (hc == 0)
+        hc = 4;
+    return std::clamp(hc, 2u, 8u);
+}
+
+// Default mailbox: audio paces the emu; FIFO vsync can double-wait on interlaced
+// (2 presents/step) and stall the present path in heavy scenes.
+// Override: N64_PRESENT=fifo|mailbox|immediate
+static Vulkan::PresentMode recommended_present_mode() {
+    const char *e = getenv("N64_PRESENT");
+    if (e && e[0]) {
+        if (std::strcmp(e, "fifo") == 0 || std::strcmp(e, "vsync") == 0)
+            return Vulkan::PresentMode::SyncToVBlank;
+        if (std::strcmp(e, "immediate") == 0)
+            return Vulkan::PresentMode::UnlockedForceTearing;
+        if (std::strcmp(e, "mailbox") != 0)
+            Utils::warn("Unknown N64_PRESENT=`{}`; using mailbox", e);
+    }
+    return Vulkan::PresentMode::UnlockedNoTearing;
+}
+
+static const char *present_mode_name(Vulkan::PresentMode mode) {
+    switch (mode) {
+    case Vulkan::PresentMode::SyncToVBlank:
+        return "fifo";
+    case Vulkan::PresentMode::UnlockedNoTearing:
+        return "mailbox";
+    case Vulkan::PresentMode::UnlockedForceTearing:
+        return "immediate";
+    case Vulkan::PresentMode::UnlockedMaybeTear:
+        return "mailbox-or-immediate";
+    }
+    return "unknown";
+}
 
 // Mesa dzn (Vulkan-on-D3D12) lacks SSBO 8-bit storage required by paraLLEl-RDP.
 // On WSL it is often the default discrete GPU and can stall the loader; prefer
@@ -161,11 +207,15 @@ void App::run() {
     SDL2Platform platform(window);
     Vulkan::WSI wsi;
     wsi.set_platform(&platform);
-    // whats this?
     wsi.set_backbuffer_srgb(false);
-    wsi.set_present_mode(Vulkan::PresentMode::UnlockedNoTearing);
+    const unsigned wsi_threads = recommended_wsi_thread_indices();
+    const Vulkan::PresentMode present_mode = recommended_present_mode();
+    wsi.set_present_mode(present_mode);
+    Utils::info("WSI: {} thread indices (hw_concurrency={}), present={}",
+                wsi_threads, std::thread::hardware_concurrency(),
+                present_mode_name(present_mode));
     Vulkan::Context::SystemHandles system_handles;
-    if (!wsi.init_simple(WSI_NUM_THREADS, system_handles)) {
+    if (!wsi.init_simple(wsi_threads, system_handles)) {
         Utils::critical("Failed to initialize WSI");
         exit(-1);
     }

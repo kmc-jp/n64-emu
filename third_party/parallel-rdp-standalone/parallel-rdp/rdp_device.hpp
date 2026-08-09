@@ -153,6 +153,13 @@ public:
 	void scanout_sync(std::vector<RGBA> &colors, unsigned &width, unsigned &height, const ScanoutOptions &opts = {});
 	void scanout_async_buffer(VIScanoutBuffer &buffer, const ScanoutOptions &opts = {});
 
+	// Fired on the RDP command thread after SyncFull flushes GPU work.
+	// DepthBufferInfo is sampled before the flush resets per-pass height.
+	using SyncFullCallback = void (*)(void *userdata, const Renderer::DepthBufferInfo &info,
+	                                  Vulkan::Device &device, Vulkan::Buffer &rdram,
+	                                  size_t rdram_offset, size_t rdram_size);
+	void set_sync_full_callback(SyncFullCallback cb, void *userdata);
+
 	// Support for modifying certain registers per-scanline.
 	// The idea is that before we scanout(), we use set_vi_register() to
 	// set frame-global VI register state.
@@ -280,5 +287,8 @@ private:
 
 	std::unique_ptr<RDPDumpWriter> dump_writer;
 	bool dump_in_command_list = false;
+
+	SyncFullCallback sync_full_cb = nullptr;
+	void *sync_full_userdata = nullptr;
 };
 }

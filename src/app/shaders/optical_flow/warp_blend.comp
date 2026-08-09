@@ -12,6 +12,14 @@ layout(set = 0, binding = 5) readonly buffer SceneBuf {
     uint scene_cut;
 } scene;
 layout(set = 0, binding = 6) uniform sampler2D uPrevFlowAB; // for static snap hysteresis
+layout(set = 0, binding = 7) uniform sampler2D uDepthA; // R16F linear Z, optional
+layout(set = 0, binding = 8) uniform sampler2D uDepthB;
+layout(set = 0, binding = 9) readonly buffer GlobalMotion {
+    float ab_x;
+    float ab_y;
+    float ba_x;
+    float ba_y;
+} global_motion;
 
 layout(push_constant) uniform Push {
     uvec2 out_size;
@@ -22,6 +30,9 @@ layout(push_constant) uniform Push {
     float static_snap; // 1 = snap tiny motion to identity UV
     float obmc;        // 1 = 2x2 raised-cosine OBMC
     float have_prev;   // 1 = uPrevFlowAB valid
+    float blend_fallback; // 1 = crossfade when unsure (ghosty), 0 = frame hold
+    float have_depth;  // 1 = depth textures valid
+    float have_global; // 1 = global_motion buffer valid
 } push;
 
 const float PI = 3.14159265;
@@ -46,8 +57,37 @@ vec2 apply_static_snap(vec2 from_uv, vec2 base_uv, vec2 flow_out_px,
     return mix(from_uv, base_uv, snap);
 }
 
-    vec4 fetch_flow(sampler2D flow, ivec2 tex, ivec2 fsize) {
+vec4 fetch_flow(sampler2D flow, ivec2 tex, ivec2 fsize) {
     return texelFetch(flow, clamp(tex, ivec2(0), fsize - 1), 0);
+}
+
+// Local depth discontinuity (edge strength in 0..1).
+float depth_edge(sampler2D depth, vec2 uv) {
+    vec2 texel = 1.0 / vec2(textureSize(depth, 0));
+    float z = textureLod(depth, uv, 0.0).x;
+    float zx = textureLod(depth, uv + vec2(texel.x, 0.0), 0.0).x;
+    float zy = textureLod(depth, uv + vec2(0.0, texel.y), 0.0).x;
+    float g = max(abs(z - zx), abs(z - zy));
+    // N64 Z is nonlinearly quantized; ~1/512 of the 18-bit range is a weak edge.
+    return smoothstep(0.002, 0.02, g);
+}
+
+// Bidirectional occlusion from depth disagreement at warped sources.
+// Nearer surface (smaller Z) wins; the farther contribution is attenuated.
+void depth_occlusion_weights(vec2 from_a, vec2 from_b, inout float wA,
+                             inout float wB) {
+    if (push.have_depth < 0.5)
+        return;
+    float za = textureLod(uDepthA, from_a, 0.0).x;
+    float zb = textureLod(uDepthB, from_b, 0.0).x;
+    float edge = max(depth_edge(uDepthA, from_a), depth_edge(uDepthB, from_b));
+    float disagree = smoothstep(0.01, 0.06, abs(za - zb));
+    float occl = max(disagree, edge);
+    // Kill the farther sample when depths disagree / on a depth edge.
+    if (za > zb)
+        wA *= 1.0 - occl;
+    else
+        wB *= 1.0 - occl;
 }
 
 void main() {
@@ -82,9 +122,29 @@ void main() {
     if (push.have_prev > 0.5)
         prev_len = length(textureLod(uPrevFlowAB, uv, 0.0).xy * push.flow_scale);
 
+    // With depth, trust flow farther into low-confidence regions — occlusion
+    // handles ghosts instead of shrinking displacement.
+    float atten_lo = push.have_depth > 0.5 ? 0.02 : 0.05;
+    float atten_hi = push.have_depth > 0.5 ? 0.20 : 0.35;
+    float atten_a = smoothstep(atten_lo, atten_hi, conf_ab);
+    float atten_b = smoothstep(atten_lo, atten_hi, conf_ba);
+
+    // Low confidence falls back to global camera/pan motion, not zero
+    // (sky/walls share the dominant motion but fail block match).
+    vec2 fallback_ab = vec2(0.0);
+    vec2 fallback_ba = vec2(0.0);
+    if (push.have_global > 0.5) {
+        fallback_ab = vec2(global_motion.ab_x, global_motion.ab_y);
+        fallback_ba = vec2(global_motion.ba_x, global_motion.ba_y);
+    }
+
     vec4 ca = a0;
     vec4 cb = b0;
-    vec2 f_ab_dbg = textureLod(uFlowAB, uv, 0.0).xy * push.flow_scale;
+    vec2 from_a = uv;
+    vec2 from_b = uv;
+    vec2 f_ab_dbg = mix(fallback_ab,
+                        textureLod(uFlowAB, uv, 0.0).xy * push.flow_scale,
+                        atten_a);
 
     if (push.obmc > 0.5) {
         ivec2 fsize = textureSize(uFlowAB, 0);
@@ -102,40 +162,55 @@ void main() {
         vec4 sum_a = vec4(0.0);
         vec4 sum_b = vec4(0.0);
         float wsum = 0.0;
+        vec2 sum_from_a = vec2(0.0);
+        vec2 sum_from_b = vec2(0.0);
         for (int i = 0; i < 4; ++i) {
             float w = wts[i];
             if (w < 1e-4)
                 continue;
             vec4 fab = fetch_flow(uFlowAB, i0 + offs[i], fsize);
             vec4 fba = fetch_flow(uFlowBA, i0 + offs[i], fsize);
-            vec2 fab_out = fab.xy * push.flow_scale;
-            vec2 fba_out = fba.xy * push.flow_scale;
-            vec2 from_a = uv - (t * fab_out) / vec2(push.out_size);
-            vec2 from_b = uv + ((1.0 - t) * fba_out) / vec2(push.out_size);
-            from_a = apply_static_snap(from_a, uv, fab_out, prev_len);
-            from_b = apply_static_snap(from_b, uv, fba_out, prev_len);
-            sum_a += w * textureLod(uFrameA, from_a, 0.0);
-            sum_b += w * textureLod(uFrameB, from_b, 0.0);
+            vec2 fab_out = mix(fallback_ab, fab.xy * push.flow_scale, atten_a);
+            vec2 fba_out = mix(fallback_ba, fba.xy * push.flow_scale, atten_b);
+            vec2 fa = uv - (t * fab_out) / vec2(push.out_size);
+            vec2 fb = uv + ((1.0 - t) * fba_out) / vec2(push.out_size);
+            fa = apply_static_snap(fa, uv, fab_out, prev_len);
+            fb = apply_static_snap(fb, uv, fba_out, prev_len);
+            sum_a += w * textureLod(uFrameA, fa, 0.0);
+            sum_b += w * textureLod(uFrameB, fb, 0.0);
+            sum_from_a += w * fa;
+            sum_from_b += w * fb;
             wsum += w;
         }
         ca = sum_a / max(wsum, 1e-4);
         cb = sum_b / max(wsum, 1e-4);
+        from_a = sum_from_a / max(wsum, 1e-4);
+        from_b = sum_from_b / max(wsum, 1e-4);
     } else {
         vec4 fab4 = textureLod(uFlowAB, uv, 0.0);
         vec4 fba4 = textureLod(uFlowBA, uv, 0.0);
-        vec2 f_ab = fab4.xy * push.flow_scale;
-        vec2 f_ba = fba4.xy * push.flow_scale;
+        vec2 f_ab = mix(fallback_ab, fab4.xy * push.flow_scale, atten_a);
+        vec2 f_ba = mix(fallback_ba, fba4.xy * push.flow_scale, atten_b);
         f_ab_dbg = f_ab;
-        vec2 from_a = uv - (t * f_ab) / vec2(push.out_size);
-        vec2 from_b = uv + ((1.0 - t) * f_ba) / vec2(push.out_size);
+        from_a = uv - (t * f_ab) / vec2(push.out_size);
+        from_b = uv + ((1.0 - t) * f_ba) / vec2(push.out_size);
         from_a = apply_static_snap(from_a, uv, f_ab, prev_len);
         from_b = apply_static_snap(from_b, uv, f_ba, prev_len);
         ca = textureLod(uFrameA, from_a, 0.0);
         cb = textureLod(uFrameB, from_b, 0.0);
     }
 
-    vec4 fallback = mix(a0, b0, t);
+    // Crossfading two frames is what produces double images, so unsure pixels
+    // hold the temporally nearest frame instead (judder beats ghosting).
+    vec4 fallback = push.blend_fallback > 0.5 ? mix(a0, b0, t)
+                                              : (t <= 0.5 ? a0 : b0);
     vec4 outc = fallback;
+
+    float diff = dot(abs(ca.rgb - cb.rgb), vec3(0.333));
+    // Color agreement is a weak occlusion proxy; with real depth, relax it.
+    float agree_lo = push.have_depth > 0.5 ? 0.08 : 0.04;
+    float agree_hi = push.have_depth > 0.5 ? 0.35 : 0.22;
+    float agree = 1.0 - smoothstep(agree_lo, agree_hi, diff);
 
     if (push.onesided > 0.5) {
         // Legacy hard source pick (for A/B bisect via N64_FLOW_ONESIDED=1).
@@ -143,32 +218,42 @@ void main() {
         bool ok_a = conf_ab >= conf_hi;
         bool ok_b = conf_ba >= conf_hi;
         if (ok_a && ok_b) {
-            float diff = dot(abs(ca.rgb - cb.rgb), vec3(0.333));
-            float conf = clamp(1.0 - diff * 5.0, 0.0, 1.0) *
-                         min(conf_ab, conf_ba);
-            outc = mix(fallback, mix(ca, cb, t), conf);
+            outc = mix(fallback, mix(ca, cb, t), agree * min(conf_ab, conf_ba));
         } else if (ok_a) {
             outc = mix(fallback, ca, conf_ab);
         } else if (ok_b) {
             outc = mix(fallback, cb, conf_ba);
         }
     } else {
-        // Continuous weights — no hard A/B seams.
-        float wA = conf_ab * (1.0 - t);
-        float wB = conf_ba * t;
+        float wA = max(conf_ab * (1.0 - t), 0.0);
+        float wB = max(conf_ba * t, 0.0);
+        depth_occlusion_weights(from_a, from_b, wA, wB);
+
+        // Without depth, sharpen toward the better side when warps disagree.
+        // With depth, keep blending softer — occlusion already killed ghosts.
+        float sharp = push.have_depth > 0.5 ? mix(2.0, 1.0, agree)
+                                            : mix(8.0, 1.0, agree);
+        wA = pow(max(wA, 0.0), sharp);
+        wB = pow(max(wB, 0.0), sharp);
         float wsum = wA + wB;
-        if (wsum > 1e-4) {
+        if (wsum > 1e-6) {
             vec4 warped = (wA * ca + wB * cb) / wsum;
-            float diff = dot(abs(ca.rgb - cb.rgb), vec3(0.333));
-            float agree = clamp(1.0 - diff * 5.0, 0.0, 1.0);
-            float conf = agree * clamp(wsum, 0.0, 1.0);
+            float conf = agree * clamp(max(conf_ab, conf_ba), 0.0, 1.0);
+            if (push.have_depth > 0.5)
+                conf = max(conf, clamp(max(conf_ab, conf_ba), 0.0, 1.0) * 0.85);
             outc = mix(fallback, warped, conf);
         }
     }
 
     if (push.debug > 0.5) {
-        outc = vec4(0.5 + f_ab_dbg.x * 0.05, 0.5 + f_ab_dbg.y * 0.05,
-                    max(conf_ab, conf_ba), 1.0);
+        if (push.have_depth > 0.5) {
+            float za = textureLod(uDepthA, from_a, 0.0).x;
+            float zb = textureLod(uDepthB, from_b, 0.0).x;
+            outc = vec4(za, zb, abs(za - zb) * 8.0, 1.0);
+        } else {
+            outc = vec4(0.5 + f_ab_dbg.x * 0.05, 0.5 + f_ab_dbg.y * 0.05,
+                        max(conf_ab, conf_ba), 1.0);
+        }
     }
 
     imageStore(uOut, p, outc);

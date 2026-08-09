@@ -29,5 +29,12 @@ void enqueue_command(int command_length, const uint32_t *buffer);
 
 void on_full_sync();
 
+// Present path counters for N64_PROFILE_FRAME (since last take, then reset).
+struct PresentStats {
+    uint64_t presented = 0;
+    uint64_t skipped = 0;
+};
+PresentStats take_present_stats();
+
 } // namespace PRDPWrapper
 } // namespace N64

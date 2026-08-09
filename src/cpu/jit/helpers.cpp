@@ -23,6 +23,12 @@ ExecState g_exec{};
 
 uint8_t *rdram_data() { return g_memory().get_rdram().data(); }
 
+void note_rdram_store(uint32_t paddr, uint32_t length) {
+    // JIT RDRAM stores bypass Memory::write_paddr; still invalidate SMC pages.
+    if (g_dynarec().page_has_code(paddr))
+        g_dynarec().invalidate_range(paddr, length);
+}
+
 bool paddr_in_rdram(uint32_t paddr, uint32_t access_size) {
     return paddr <= PHYS_RDRAM_MEM_END &&
            paddr + (access_size - 1) <= PHYS_RDRAM_MEM_END;
@@ -355,6 +361,7 @@ void do_sb(uint8_t rt, uint8_t base, int16_t offset) {
             Utils::write_to_byte_array8(
                 std::span<uint8_t>(rdram_data(), RDRAM_SIZE), p,
                 static_cast<uint8_t>(v));
+            note_rdram_store(p, 1);
         },
         [](uint32_t p, uint64_t v) {
             Memory::write_paddr8(p, static_cast<uint8_t>(v));
@@ -368,6 +375,7 @@ void do_sh(uint8_t rt, uint8_t base, int16_t offset) {
             Utils::write_to_byte_array16(
                 std::span<uint8_t>(rdram_data(), RDRAM_SIZE), p,
                 static_cast<uint16_t>(v));
+            note_rdram_store(p, 2);
         },
         [](uint32_t p, uint64_t v) {
             Memory::write_paddr16(p, static_cast<uint16_t>(v));
@@ -381,6 +389,7 @@ void do_sw(uint8_t rt, uint8_t base, int16_t offset) {
             Utils::write_to_byte_array32(
                 std::span<uint8_t>(rdram_data(), RDRAM_SIZE), p,
                 static_cast<uint32_t>(v));
+            note_rdram_store(p, 4);
         },
         [](uint32_t p, uint64_t v) {
             Memory::write_paddr32(p, static_cast<uint32_t>(v));
@@ -393,6 +402,7 @@ void do_sd(uint8_t rt, uint8_t base, int16_t offset) {
         [](uint32_t p, uint64_t v) {
             Utils::write_to_byte_array64(
                 std::span<uint8_t>(rdram_data(), RDRAM_SIZE), p, v);
+            note_rdram_store(p, 8);
         },
         [](uint32_t p, uint64_t v) { Memory::write_paddr64(p, v); });
 }
@@ -414,10 +424,11 @@ void do_swl(uint8_t rt, uint8_t base, int16_t offset) {
                 : Memory::read_paddr32(aligned);
         const uint32_t reg = static_cast<uint32_t>(cpu.gpr.read(rt));
         const uint32_t out = (data & ~mask) | (reg >> shift);
-        if (paddr_in_rdram(aligned, 4))
+        if (paddr_in_rdram(aligned, 4)) {
             Utils::write_to_byte_array32(
                 std::span<uint8_t>(rdram_data(), RDRAM_SIZE), aligned, out);
-        else
+            note_rdram_store(aligned, 4);
+        } else
             Memory::write_paddr32(aligned, out);
     } else {
         cpu.handle_exception(
@@ -443,10 +454,11 @@ void do_swr(uint8_t rt, uint8_t base, int16_t offset) {
                 : Memory::read_paddr32(aligned);
         const uint32_t reg = static_cast<uint32_t>(cpu.gpr.read(rt));
         const uint32_t out = (data & ~mask) | (reg << shift);
-        if (paddr_in_rdram(aligned, 4))
+        if (paddr_in_rdram(aligned, 4)) {
             Utils::write_to_byte_array32(
                 std::span<uint8_t>(rdram_data(), RDRAM_SIZE), aligned, out);
-        else
+            note_rdram_store(aligned, 4);
+        } else
             Memory::write_paddr32(aligned, out);
     } else {
         cpu.handle_exception(
