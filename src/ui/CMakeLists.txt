@@ -6,6 +6,7 @@ target_sources(ui PRIVATE
     config_cli.cpp
     input_sdl.cpp
     sdl_platform.cpp
+    vulkan_devices.cpp
 )
 
 # ImGui GUI layer (binary: n64)
@@ -15,6 +16,7 @@ target_sources(ui_gui PRIVATE
     config_toml.cpp
     gui.cpp
     imgui_layer.cpp
+    recent_roms.cpp
     win32_file_dialog.cpp
 )
 

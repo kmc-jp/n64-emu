@@ -7,7 +7,9 @@
 #include "ui/gui.h"
 #include "ui/imgui_layer.h"
 #include "ui/input_sdl.h"
+#include "ui/recent_roms.h"
 #include "ui/sdl_platform.h"
+#include "ui/vulkan_devices.h"
 #include "ui/win32_file_dialog.h"
 #include "utils/log.h"
 #include "video/present.h"
@@ -150,6 +152,7 @@ bool try_start_game(Vulkan::WSI &wsi, SDL2Platform &platform, uint8_t *rdram) {
 
     Video::init_video(wsi, rdram, g_gui.config->upscale, g_gui.config->frame_interp);
     N64System::set_up(*g_gui.config);
+    remember_recent_rom(g_gui.recent_roms, g_gui.config->rom_filepath);
     g_gui.mode = AppMode::Running;
     update_window_title(g_game_window);
     return true;
@@ -239,7 +242,8 @@ void App::run() {
                 present_mode_name(present_mode));
 
     Vulkan::Context::SystemHandles system_handles;
-    if (!wsi.init_simple(wsi_threads, system_handles)) {
+    if (!init_wsi_with_device(wsi, wsi_threads, system_handles,
+                             config.vulkan_device)) {
         Utils::critical("Failed to initialize WSI");
         exit(-1);
     }
@@ -265,6 +269,8 @@ void App::run() {
     g_gui.ui_settings = &ui_settings;
     g_gui.wsi = &wsi;
     g_gui.rdram = rdram;
+    g_gui.applied_vulkan_device = config.vulkan_device;
+    g_gui.recent_roms = load_recent_roms();
     g_gui.mode = AppMode::Menu;
 
     N64System::set_field_present(&on_field_present);

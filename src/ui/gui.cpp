@@ -4,6 +4,7 @@
 #include "ui/config_toml.h"
 #include "ui/imgui_layer.h"
 #include "ui/sdl_platform.h"
+#include "ui/vulkan_devices.h"
 #include "ui/win32_file_dialog.h"
 #include "video/present.h"
 #include <SDL.h>
@@ -15,11 +16,46 @@ namespace Ui {
 
 namespace {
 
-namespace fs = std::filesystem;
-
 void save_settings(GuiState &state) {
     if (state.config && state.ui_settings)
         save_toml(*state.config, *state.ui_settings);
+}
+
+void open_rom_path(GuiState &state, const std::string &path) {
+    if (!state.config || path.empty())
+        return;
+    state.config->rom_filepath = path;
+    if (state.ui_settings) {
+        const auto dir = std::filesystem::path(path).parent_path();
+        if (!dir.empty()) {
+            state.ui_settings->last_rom_dir = dir.string();
+            save_settings(state);
+        }
+    }
+    state.request_start = true;
+    if (state.mode == AppMode::Running)
+        state.request_stop = true;
+}
+
+void draw_recents_menu(GuiState &state) {
+    if (!ImGui::BeginMenu("Recents", !state.recent_roms.empty()))
+        return;
+
+    for (const std::string &path : state.recent_roms) {
+        const std::string label =
+            std::filesystem::path(path).filename().string();
+        const bool exists = std::filesystem::exists(path);
+        if (!exists)
+            ImGui::BeginDisabled();
+        if (ImGui::MenuItem(label.c_str(), nullptr, false, exists))
+            open_rom_path(state, path);
+        if (ImGui::IsItemHovered(ImGuiHoveredFlags_AllowWhenDisabled))
+            ImGui::SetTooltip("%s", path.c_str());
+        if (!exists)
+            ImGui::EndDisabled();
+    }
+
+    ImGui::EndMenu();
 }
 
 SDL_Window *current_window(GuiState &state) {
@@ -56,13 +92,67 @@ void draw_video_settings(GuiState &state) {
     if (!state.show_video_settings)
         return;
 
-    ImGui::SetNextWindowSize(ImVec2(400, 160), ImGuiCond_FirstUseEver);
+    ImGui::SetNextWindowSize(ImVec2(460, 220), ImGuiCond_FirstUseEver);
     if (!ImGui::Begin("Video Settings", &state.show_video_settings)) {
         ImGui::End();
         return;
     }
 
     auto &cfg = *state.config;
+
+    std::vector<VulkanDeviceInfo> devices;
+    if (state.wsi) {
+        devices = enumerate_vulkan_devices(
+            state.wsi->get_context().get_instance());
+    }
+
+    std::string combo_label = "Auto";
+    if (!cfg.vulkan_device.empty()) {
+        if (const VulkanDeviceInfo *sel =
+                find_device_by_uuid(devices, cfg.vulkan_device)) {
+            combo_label =
+                sel->name + " (" + vulkan_device_type_name(sel->type) + ")";
+        } else {
+            combo_label = cfg.vulkan_device;
+        }
+    }
+
+    const VulkanDeviceInfo *preferred =
+        find_device_by_uuid(devices, cfg.vulkan_device);
+
+    ImGui::SetNextItemWidth(280);
+    if (ImGui::BeginCombo("Graphics accelerator", combo_label.c_str())) {
+        const bool auto_sel = cfg.vulkan_device.empty();
+        if (ImGui::Selectable("Auto", auto_sel) && !auto_sel) {
+            cfg.vulkan_device.clear();
+            save_settings(state);
+        }
+        if (auto_sel)
+            ImGui::SetItemDefaultFocus();
+
+        for (const auto &dev : devices) {
+            const std::string label =
+                dev.name + " (" + vulkan_device_type_name(dev.type) + ")" +
+                (dev.supports_prdp ? "" : " [unsupported]");
+            const bool selected = preferred && preferred->handle == dev.handle;
+            if (!dev.supports_prdp) {
+                ImGui::BeginDisabled();
+                ImGui::Selectable(label.c_str(), selected);
+                ImGui::EndDisabled();
+                continue;
+            }
+            if (ImGui::Selectable(label.c_str(), selected) && !selected) {
+                cfg.vulkan_device = dev.uuid;
+                save_settings(state);
+            }
+            if (selected)
+                ImGui::SetItemDefaultFocus();
+        }
+        ImGui::EndCombo();
+    }
+
+    if (cfg.vulkan_device != state.applied_vulkan_device)
+        ImGui::TextDisabled("Graphics accelerator applies after restart.");
 
     ImGui::SetNextItemWidth(120);
     if (ImGui::BeginCombo("Upscale",
@@ -142,6 +232,9 @@ void gui_draw(GuiState &state) {
         if (ImGui::BeginMenu("File")) {
             if (ImGui::MenuItem("Open ROM...", "Ctrl+O"))
                 win32_open_rom_dialog(state);
+            draw_recents_menu(state);
+            if (ImGui::MenuItem("Open n64-emu folder"))
+                open_settings_dir();
             ImGui::Separator();
             if (ImGui::MenuItem("Exit"))
                 state.request_quit = true;
@@ -180,14 +273,6 @@ void gui_draw(GuiState &state) {
                 ImGui::EndMenu();
             }
             ImGui::EndMenu();
-        }
-
-        if (state.config && !state.config->rom_filepath.empty()) {
-            const fs::path rom(state.config->rom_filepath);
-            const std::string label = "ROM: " + rom.filename().string();
-            const float w = ImGui::CalcTextSize(label.c_str()).x;
-            ImGui::SameLine(ImGui::GetWindowWidth() - w - 16.f);
-            ImGui::TextUnformatted(label.c_str());
         }
 
         ImGui::EndMainMenuBar();

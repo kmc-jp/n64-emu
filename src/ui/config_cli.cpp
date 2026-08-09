@@ -68,6 +68,13 @@ bool apply_command_line(N64System::Config &config, int argc, char *argv[]) {
             config.frame_interp = true;
         } else if (current == "--no-frame-interp") {
             config.frame_interp = false;
+        } else if (current.starts_with("--vulkan-device=")) {
+            std::string_view id =
+                current.substr(std::string("--vulkan-device=").size());
+            if (id.empty() || id == "auto")
+                config.vulkan_device.clear();
+            else
+                config.vulkan_device = std::string(id);
         } else if (current.starts_with("--break=")) {
             std::string_view pc_str =
                 current.substr(std::string("--break=").size());

@@ -37,6 +37,8 @@ struct Config {
     unsigned upscale{4};
     // Optical-flow frame interpolation (duplicate VI fields -> intermediates).
     bool frame_interp{false};
+    // Preferred Vulkan physical device UUID (hex). Empty = auto-select.
+    std::string vulkan_device{};
 };
 
 } // namespace N64System

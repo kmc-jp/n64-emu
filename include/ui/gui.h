@@ -3,6 +3,8 @@
 #include "n64_system/config.h"
 #include "ui/config_cli.h"
 #include "wsi.hpp"
+#include <string>
+#include <vector>
 
 namespace N64 {
 namespace Ui {
@@ -20,6 +22,9 @@ struct GuiState {
     UiSettings *ui_settings{nullptr};
     Vulkan::WSI *wsi{nullptr};
     uint8_t *rdram{nullptr};
+    // vulkan_device value that was used for this process's WSI init.
+    std::string applied_vulkan_device{};
+    std::vector<std::string> recent_roms{};
 };
 
 void gui_draw(GuiState &state);

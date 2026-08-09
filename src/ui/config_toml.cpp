@@ -4,27 +4,105 @@
 #include <filesystem>
 #include <fstream>
 #include <toml++/toml.hpp>
+#include <vector>
+#ifdef _WIN32
+#include <windows.h>
+#include <shellapi.h>
+#endif
 
 namespace N64 {
 namespace Ui {
 
-std::string settings_toml_path() {
-    if (SDL_WasInit(SDL_INIT_VIDEO) || SDL_WasInit(SDL_INIT_EVENTS)) {
-        if (char *base = SDL_GetBasePath()) {
-            std::string path = std::string(base) + "n64-emu.toml";
-            SDL_free(base);
-            return path;
-        }
-    }
-    std::error_code ec;
-    auto cwd = std::filesystem::current_path(ec);
-    if (!ec)
-        return (cwd / "n64-emu.toml").string();
-    return "n64-emu.toml";
+namespace {
+
+namespace fs = std::filesystem;
+
+constexpr const char *kSettingsFileName = "n64-emu.toml";
+
+std::string join_dir_file(const std::string &dir, const char *file) {
+    if (dir.empty())
+        return file;
+    if (dir.back() == '/' || dir.back() == '\\')
+        return dir + file;
+    return dir + '/' + file;
 }
 
-bool load_toml(N64System::Config &config, UiSettings &ui) {
-    const std::string path = settings_toml_path();
+// SDL_GetPrefPath always makes org/app/; we only want a single n64-emu folder.
+// Windows: %APPDATA%/n64-emu/
+// Linux:   ~/.local/share/n64-emu/
+// macOS:   ~/Library/Application Support/n64-emu/
+std::string pref_settings_dir() {
+    if (char *pref = SDL_GetPrefPath("n64-emu", "n64-emu")) {
+        fs::path nested(pref); // .../n64-emu/n64-emu/
+        SDL_free(pref);
+        fs::path dir = nested.parent_path(); // .../n64-emu/
+        std::error_code ec;
+        fs::create_directories(dir, ec);
+        // Drop the empty inner directory SDL created, if unused.
+        fs::remove(nested, ec);
+        return dir.string();
+    }
+    return {};
+}
+
+std::string pref_settings_path() {
+    const std::string dir = pref_settings_dir();
+    if (dir.empty())
+        return {};
+    return join_dir_file(dir, kSettingsFileName);
+}
+
+// Older locations we may migrate from.
+std::vector<std::string> legacy_settings_paths() {
+    std::vector<std::string> out;
+    if (char *pref = SDL_GetPrefPath("n64-emu", "n64-emu")) {
+        // Previous double-nested path.
+        out.push_back(join_dir_file(pref, kSettingsFileName));
+        SDL_free(pref);
+    }
+    if (char *base = SDL_GetBasePath()) {
+        out.push_back(join_dir_file(base, kSettingsFileName));
+        SDL_free(base);
+    }
+    std::error_code ec;
+    auto cwd = fs::current_path(ec);
+    if (!ec)
+        out.push_back((cwd / kSettingsFileName).string());
+    return out;
+}
+
+bool file_exists(const std::string &path) {
+    std::error_code ec;
+    return !path.empty() && fs::is_regular_file(path, ec);
+}
+
+bool migrate_legacy_settings(const std::string &pref_path) {
+    if (file_exists(pref_path))
+        return false;
+
+    for (const std::string &legacy : legacy_settings_paths()) {
+        if (legacy.empty() || legacy == pref_path || !file_exists(legacy))
+            continue;
+
+        std::error_code ec;
+        fs::create_directories(fs::path(pref_path).parent_path(), ec);
+        fs::copy_file(legacy, pref_path, fs::copy_options::none, ec);
+        if (ec) {
+            Utils::warn("Failed to migrate settings {} -> {}: {}", legacy,
+                        pref_path, ec.message());
+            continue;
+        }
+        fs::remove(legacy, ec);
+        // Also drop an empty nested pref dir left from the old layout.
+        fs::remove(fs::path(legacy).parent_path(), ec);
+        Utils::info("Migrated settings from {} to {}", legacy, pref_path);
+        return true;
+    }
+    return false;
+}
+
+bool parse_toml_file(const std::string &path, N64System::Config &config,
+                     UiSettings &ui) {
     try {
         auto tbl = toml::parse_file(path);
         if (auto *video = tbl["video"].as_table()) {
@@ -35,6 +113,8 @@ bool load_toml(N64System::Config &config, UiSettings &ui) {
             }
             if (auto v = (*video)["frame_interp"].value<bool>())
                 config.frame_interp = *v;
+            if (auto v = (*video)["vulkan_device"].value<std::string>())
+                config.vulkan_device = *v;
         }
         if (auto *cpu = tbl["cpu"].as_table()) {
             if (auto v = (*cpu)["jit"].value<bool>()) {
@@ -63,10 +143,64 @@ bool load_toml(N64System::Config &config, UiSettings &ui) {
     }
 }
 
+} // namespace
+
+std::string settings_toml_path() {
+    if (std::string pref = pref_settings_path(); !pref.empty())
+        return pref;
+    const auto legacy = legacy_settings_paths();
+    return legacy.empty() ? kSettingsFileName : legacy.back();
+}
+
+std::string settings_dir_path() {
+    const fs::path toml = settings_toml_path();
+    fs::path dir = toml.has_parent_path() ? toml.parent_path() : fs::path(".");
+    std::error_code ec;
+    fs::create_directories(dir, ec);
+    return dir.string();
+}
+
+bool open_settings_dir() {
+    const std::string dir = settings_dir_path();
+    if (dir.empty())
+        return false;
+#ifdef _WIN32
+    const int n = MultiByteToWideChar(CP_UTF8, 0, dir.c_str(), -1, nullptr, 0);
+    if (n <= 1)
+        return false;
+    std::wstring wdir(static_cast<size_t>(n - 1), L'\0');
+    MultiByteToWideChar(CP_UTF8, 0, dir.c_str(), -1, wdir.data(), n);
+    const INT_PTR rc =
+        reinterpret_cast<INT_PTR>(ShellExecuteW(nullptr, L"open", wdir.c_str(),
+                                                nullptr, nullptr, SW_SHOWNORMAL));
+    if (rc <= 32) {
+        Utils::warn("Failed to open settings folder {}", dir);
+        return false;
+    }
+    return true;
+#else
+    const std::string url = std::string("file://") + dir;
+    if (SDL_OpenURL(url.c_str()) != 0) {
+        Utils::warn("Failed to open settings folder {}: {}", dir, SDL_GetError());
+        return false;
+    }
+    return true;
+#endif
+}
+
+bool load_toml(N64System::Config &config, UiSettings &ui) {
+    const std::string path = settings_toml_path();
+    migrate_legacy_settings(path);
+    if (!file_exists(path))
+        return false;
+    return parse_toml_file(path, config, ui);
+}
+
 bool save_toml(const N64System::Config &config, const UiSettings &ui) {
     toml::table video;
     video.insert_or_assign("upscale", static_cast<int64_t>(config.upscale));
     video.insert_or_assign("frame_interp", config.frame_interp);
+    video.insert_or_assign("vulkan_device", config.vulkan_device);
 
     toml::table cpu;
     cpu.insert_or_assign("jit",
@@ -84,6 +218,8 @@ bool save_toml(const N64System::Config &config, const UiSettings &ui) {
     tbl.insert_or_assign("ui", std::move(ui_tbl));
 
     const std::string path = settings_toml_path();
+    std::error_code ec;
+    fs::create_directories(fs::path(path).parent_path(), ec);
     std::ofstream out(path, std::ios::trunc);
     if (!out) {
         Utils::warn("Failed to write {}", path);

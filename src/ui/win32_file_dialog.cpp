@@ -4,6 +4,9 @@
 #include "ui/win32_file_dialog.h"
 #include "ui/config_toml.h"
 #include "ui/gui.h"
+#include "ui/sdl_platform.h"
+#include <SDL.h>
+#include <SDL_syswm.h>
 #include <string>
 
 #pragma comment(lib, "comdlg32.lib")
@@ -35,16 +38,31 @@ std::string wide_to_utf8(const std::wstring &s) {
     return out;
 }
 
+HWND sdl_window_hwnd(SDL_Window *window) {
+    if (!window)
+        return nullptr;
+    SDL_SysWMinfo info{};
+    SDL_VERSION(&info.version);
+    if (!SDL_GetWindowWMInfo(window, &info))
+        return nullptr;
+    return info.info.win.window;
+}
+
 } // namespace
 
 bool win32_open_rom_dialog(GuiState &state) {
     if (!state.config || !state.ui_settings)
         return false;
 
+    SDL_Window *window = nullptr;
+    if (state.wsi)
+        window =
+            static_cast<SDL2Platform &>(state.wsi->get_platform()).get_window();
+
     wchar_t file[MAX_PATH]{};
     OPENFILENAMEW ofn{};
     ofn.lStructSize = sizeof(ofn);
-    ofn.hwndOwner = nullptr;
+    ofn.hwndOwner = sdl_window_hwnd(window);
     ofn.lpstrFile = file;
     ofn.nMaxFile = MAX_PATH;
     ofn.lpstrFilter = L"N64 ROM (*.z64)\0*.z64\0All Files (*.*)\0*.*\0";

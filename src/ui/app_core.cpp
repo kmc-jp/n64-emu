@@ -6,6 +6,7 @@
 #include "ui/audio_sdl.h"
 #include "ui/input_sdl.h"
 #include "ui/sdl_platform.h"
+#include "ui/vulkan_devices.h"
 #include "utils/log.h"
 #include "video/present.h"
 #include <SDL.h>
@@ -98,7 +99,8 @@ void AppCore::run_windowed() {
                 present_mode_name(present_mode));
 
     Vulkan::Context::SystemHandles system_handles;
-    if (!wsi.init_simple(wsi_threads, system_handles)) {
+    if (!init_wsi_with_device(wsi, wsi_threads, system_handles,
+                             config.vulkan_device)) {
         Utils::critical("Failed to initialize WSI");
         exit(-1);
     }
