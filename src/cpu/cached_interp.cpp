@@ -1,5 +1,6 @@
 #include "cpu/cached_interp.h"
 #include "cpu/cpu.h"
+#include "cpu/idle_skip.h"
 #include "cpu_instruction_impl.h"
 #include "fpu_instruction_impl.h"
 #include "cpu/jit/invalidate_hook.h"
@@ -500,20 +501,37 @@ int run(int budget, bool rsp_thread) {
     auto &cpu = g_cpu();
     int total = 0;
     int pending = 0;
+    idle_skip_begin_slice(budget, rsp_thread);
+
+    const auto flush_pending = [&]() {
+        if (pending < 1)
+            return;
+        cpu.add_count(static_cast<uint32_t>(pending));
+        N64System::advance_after_cpu(pending, rsp_thread);
+        pending = 0;
+    };
+
     while (total < budget) {
         step_one_core(/*do_count=*/false);
         ++total;
         ++pending;
-        if (pending >= kAdvanceEveryCycles) {
-            cpu.add_count(static_cast<uint32_t>(pending));
-            N64System::advance_after_cpu(pending, rsp_thread);
-            pending = 0;
+        idle_skip_consume(1);
+        if (pending >= kAdvanceEveryCycles)
+            flush_pending();
+        if (idle_skip_pending()) {
+            flush_pending();
+            const int skipped = idle_skip_apply_pending();
+            if (skipped > 0)
+                total += skipped;
         }
     }
-    if (pending > 0) {
-        cpu.add_count(static_cast<uint32_t>(pending));
-        N64System::advance_after_cpu(pending, rsp_thread);
+    if (idle_skip_pending()) {
+        flush_pending();
+        const int skipped = idle_skip_apply_pending();
+        if (skipped > 0)
+            total += skipped;
     }
+    flush_pending();
     return total;
 }
 

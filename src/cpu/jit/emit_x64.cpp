@@ -485,6 +485,10 @@ class BlockEmitter : public CodeGenerator {
             if (op.kind == IrOpKind::Beql || op.kind == IrOpKind::Bnel) {
                 mov(JIT_ARG2d, off);
                 call_fn(reinterpret_cast<const void *>(&do_branch_likely_offset));
+            } else if (off == -1) {
+                // Self-branch: go through helper so idle-loop skip can fire.
+                mov(JIT_ARG2d, off);
+                call_fn(reinterpret_cast<const void *>(&do_branch_offset));
             } else {
                 emit_branch_offset_inline(off);
             }
@@ -504,6 +508,9 @@ class BlockEmitter : public CodeGenerator {
             if (op.kind == IrOpKind::Blezl || op.kind == IrOpKind::Bgtzl) {
                 mov(JIT_ARG2d, off);
                 call_fn(reinterpret_cast<const void *>(&do_branch_likely_offset));
+            } else if (off == -1) {
+                mov(JIT_ARG2d, off);
+                call_fn(reinterpret_cast<const void *>(&do_branch_offset));
             } else {
                 emit_branch_offset_inline(off);
             }
@@ -528,6 +535,9 @@ class BlockEmitter : public CodeGenerator {
             if (likely) {
                 mov(JIT_ARG2d, off);
                 call_fn(reinterpret_cast<const void *>(&do_branch_likely_offset));
+            } else if (off == -1) {
+                mov(JIT_ARG2d, off);
+                call_fn(reinterpret_cast<const void *>(&do_branch_offset));
             } else {
                 emit_branch_offset_inline(off);
             }

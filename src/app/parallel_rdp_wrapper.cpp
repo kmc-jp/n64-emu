@@ -123,6 +123,8 @@ void fini_prdp() {
 constexpr RDP::ScanoutOptions get_prdp_scanout_options() {
     RDP::ScanoutOptions opts;
     opts.persist_frame_on_invalid_input = true;
+    // Progressive window: upscale-deinterlace (defaults). Do not weave just
+    // because the game set SERRATE — that is a display-mode choice in simple64.
     opts.vi.aa = true;
     opts.vi.scale = true;
     opts.vi.dither_filter = true;
@@ -267,10 +269,12 @@ void update_screen(Vulkan::WSI &wsi, N64::Mmio::VI::VI &vi) {
     //  FIXME: quarks?
     // https://github.com/simple64/simple64/blob/1e4ab555054a659c6e6a91db16ce46714be7ac00/parallel-rdp-standalone/parallel_imp.cpp#L257C7-L257C7
 
+    // Do NOT call CommandProcessor::begin_frame_context() here. That path does
+    // flush + drain + next_frame_context, and wsi.begin_frame() already advances
+    // the frame context.
     RDP::ScanoutOptions opts = get_prdp_scanout_options();
     Util::IntrusivePtr<Vulkan::Image> image = command_processor->scanout(opts);
 
-    command_processor->begin_frame_context();
     wsi.begin_frame();
     if (image) {
         auto depth = g_depth_capture.take(vi.reg_origin);

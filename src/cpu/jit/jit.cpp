@@ -1,6 +1,7 @@
 ﻿#include "cpu/jit/jit.h"
 #include "cpu/cached_interp.h"
 #include "cpu/cpu.h"
+#include "cpu/idle_skip.h"
 #include "cpu/jit/helpers.h"
 #include "cpu/jit/invalidate_hook.h"
 #include "memory/memory_map.h"
@@ -41,6 +42,9 @@ struct JitProf {
     uint64_t tlb_slow = 0;
     uint64_t invalidates = 0;
     uint64_t advances = 0;
+    uint64_t idle_warps = 0;
+    uint64_t idle_cycles = 0;
+    uint64_t chain_links = 0;
 };
 
 JitProf &prof() {
@@ -83,21 +87,25 @@ void jit_profile_dump() {
             "jit profile (1s): native={:.2f}ms({:.0f}%) fallback={:.2f}ms({:.0f}%) "
             "compile={:.2f}ms({:.0f}%) advance={:.2f}ms({:.0f}%) "
             "dispatch={:.2f}ms({:.0f}%) | calls native={} fb={} compile={} "
-            "cache hit/miss={}/{} tlb_slow={} inval={} adv={} | "
+            "cache hit/miss={}/{} tlb_slow={} inval={} adv={} idle={}/{}c "
+            "chain={} | "
             "cyc native={} fb={} avg_blk={:.1f}",
             p.native_ms, p.native_ms * inv, p.fallback_ms, p.fallback_ms * inv,
             p.compile_ms, p.compile_ms * inv, p.advance_ms, p.advance_ms * inv,
             p.dispatch_ms, p.dispatch_ms * inv, p.native_calls, p.fallback_calls,
             p.compiles, p.cache_hits, p.cache_misses, p.tlb_slow, p.invalidates,
-            p.advances, p.native_cycles, p.fallback_cycles, avg_cyc);
+            p.advances, p.idle_warps, p.idle_cycles, p.chain_links,
+            p.native_cycles, p.fallback_cycles, avg_cyc);
     } else {
         Utils::info(
             "jit profile (1s): calls native={} fb={} compile={} "
-            "cache hit/miss={}/{} tlb_slow={} inval={} adv={} | "
+            "cache hit/miss={}/{} tlb_slow={} inval={} adv={} idle={}/{}c "
+            "chain={} | "
             "cyc native={} fb={} avg_blk={:.1f}",
             p.native_calls, p.fallback_calls, p.compiles, p.cache_hits,
-            p.cache_misses, p.tlb_slow, p.invalidates, p.advances,
-            p.native_cycles, p.fallback_cycles, avg_cyc);
+            p.cache_misses, p.tlb_slow, p.invalidates, p.advances, p.idle_warps,
+            p.idle_cycles, p.chain_links, p.native_cycles, p.fallback_cycles,
+            avg_cyc);
     }
     p.native_ms = p.fallback_ms = p.compile_ms = p.advance_ms = p.dispatch_ms =
         0;
@@ -105,6 +113,8 @@ void jit_profile_dump() {
     p.fallback_calls = p.fallback_cycles = 0;
     p.compiles = p.cache_hits = p.cache_misses = 0;
     p.tlb_slow = p.invalidates = p.advances = 0;
+    p.idle_warps = p.idle_cycles = 0;
+    p.chain_links = 0;
 }
 
 Dynarec Dynarec::instance_{};
@@ -246,12 +256,31 @@ int Dynarec::run(int budget, bool rsp_thread) {
         pending = 0;
     };
 
+    const auto apply_idle_if_pending = [&]() {
+        if (!idle_skip_pending())
+            return;
+        // Soft-chain COUNT is ahead of the scheduler; catch up before warping.
+        flush_pending();
+        const int skipped = idle_skip_apply_pending();
+        if (skipped > 0) {
+            total += skipped;
+            if (prof_on) {
+                ++p.idle_warps;
+                p.idle_cycles += static_cast<uint64_t>(skipped);
+            }
+        }
+    };
+
     const auto credit = [&](int got) {
         total += got;
         pending += got;
+        idle_skip_consume(got);
         if (pending >= kAdvanceEveryCycles)
             flush_pending();
+        apply_idle_if_pending();
     };
+
+    idle_skip_begin_slice(budget, rsp_thread);
 
     // Soft-chain within the half-line budget. Batch RSP + scheduler every
     // kAdvanceEveryCycles (and on overdue events / abort / exit).
@@ -355,32 +384,86 @@ int Dynarec::run(int budget, bool rsp_thread) {
         if (prof_times)
             p.dispatch_ms += ms_since(loop_t0);
 
-        exec->aborted = false;
-        exec->annul_delay_slot = false;
-        int got;
-        if (prof_on) {
-            if (prof_times) {
-                const auto t0 = clock::now();
-                const int taken = block->fn();
-                p.native_ms += ms_since(t0);
-                got = taken > 0 ? taken : 1;
+        // Block linking: re-enter compiled code for the next PC without the
+        // full outer dispatcher (scheduler/TLB/compile) when possible.
+        for (;;) {
+            exec->aborted = false;
+            exec->annul_delay_slot = false;
+            int got;
+            if (prof_on) {
+                if (prof_times) {
+                    const auto t0 = clock::now();
+                    const int taken = block->fn();
+                    p.native_ms += ms_since(t0);
+                    got = taken > 0 ? taken : 1;
+                } else {
+                    const int taken = block->fn();
+                    got = taken > 0 ? taken : 1;
+                }
+                ++p.native_calls;
+                p.native_cycles += static_cast<uint64_t>(got);
             } else {
                 const int taken = block->fn();
                 got = taken > 0 ? taken : 1;
             }
-            ++p.native_calls;
-            p.native_cycles += static_cast<uint64_t>(got);
-        } else {
-            const int taken = block->fn();
-            got = taken > 0 ? taken : 1;
+
+            const int total_before = total;
+            credit(got);
+            if (exec->aborted) {
+                flush_pending();
+                break; // leave chain + outer; final flush below
+            }
+            if (total >= budget)
+                break;
+            // Idle warp (or any extra credit) — re-check events in outer loop.
+            if (total > total_before + got)
+                break;
+            if (cpu.delay_slot)
+                break;
+
+            uint64_t until_next = g_scheduler().cycles_until_next_event();
+            if (until_next != UINT64_MAX &&
+                until_next <= static_cast<uint64_t>(pending))
+                break;
+
+            cpu.prev_delay_slot = cpu.delay_slot;
+            cpu.delay_slot = false;
+            if (cpu.should_service_interrupt()) {
+                cpu.handle_exception(ExceptionCode::INTERRUPT, 0, false);
+                credit(static_cast<int>(CPU_CYCLES_PER_INST));
+                flush_pending();
+                break;
+            }
+
+            const uint32_t next_pc = static_cast<uint32_t>(cpu.get_pc64());
+            uint32_t next_paddr;
+            if (auto direct = Mmu::try_direct_map(next_pc)) {
+                next_paddr = *direct;
+            } else {
+                auto resolved = Mmu::resolve_vaddr_slow(next_pc);
+                if (!resolved.has_value())
+                    break;
+                if (prof_on)
+                    ++p.tlb_slow;
+                next_paddr = *resolved;
+            }
+            if (should_interpret_paddr(next_paddr))
+                break;
+
+            CompiledBlock *next = cache_.lookup(next_paddr);
+            if (!next)
+                break;
+            if (prof_on) {
+                ++p.cache_hits;
+                ++p.chain_links;
+            }
+            block = next;
         }
-        credit(got);
-        if (exec->aborted) {
-            flush_pending();
+        if (exec->aborted)
             break;
-        }
     }
 
+    apply_idle_if_pending();
     flush_pending();
 
     if (total < 1) {

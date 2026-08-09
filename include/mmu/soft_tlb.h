@@ -15,7 +15,7 @@ struct SoftTlbEntry {
     uint32_t pa_page{0};       // paddr & ~0xFFFu
 };
 
-constexpr uint32_t SOFT_TLB_BITS = 10;
+constexpr uint32_t SOFT_TLB_BITS = 12;
 constexpr uint32_t SOFT_TLB_SIZE = 1u << SOFT_TLB_BITS;
 constexpr uint32_t SOFT_TLB_MASK = SOFT_TLB_SIZE - 1;
 

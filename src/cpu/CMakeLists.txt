@@ -6,6 +6,7 @@ target_sources(cpu PRIVATE
     cpu.cpp
     cpu_instruction_impl.cpp
     fpu_instruction_impl.cpp
+    idle_skip.cpp
 )
 
 if(CMAKE_SYSTEM_PROCESSOR MATCHES "x86_64|AMD64|amd64")

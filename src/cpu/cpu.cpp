@@ -1,5 +1,6 @@
 ﻿#include "cpu/cpu.h"
 #include "cpu/cached_interp.h"
+#include "cpu/idle_skip.h"
 #include "debugger/debugger.h"
 #include "mmu/tlb.h"
 #include "n64_system/interrupt.h"
@@ -111,6 +112,7 @@ void Cpu::branch_likely_addr64(Cpu &cpu, bool cond, uint64_t vaddr) {
     if (cond) {
         // Utils::trace("branch likely taken");
         cpu.next_pc = vaddr;
+        idle_skip_check_absolute(cpu, vaddr);
     } else {
         // Utils::trace("branch likely not taken");
         cpu.set_pc64(cpu.pc + 4);
@@ -122,6 +124,7 @@ void Cpu::branch_addr64(Cpu &cpu, bool cond, uint64_t vaddr) {
     if (cond) {
         // Utils::trace("branch taken");
         cpu.next_pc = vaddr;
+        idle_skip_check_absolute(cpu, vaddr);
     } else {
         // Utils::trace("branch not taken");
     }
