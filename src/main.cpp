@@ -1,3 +1,4 @@
+#include "memory/memory.h"
 #include "n64_system/config.h"
 #include "ui/app.h"
 #include "ui/config_cli.h"
@@ -45,6 +46,9 @@ int main(int argc, char *argv[]) {
     if (!config.log_filepath.empty())
         Utils::set_log_file(config.log_filepath);
     Utils::set_log_level(config.log_level);
+
+    // Cart saves: <settings_dir>/save/<header image name>/save.sra
+    N64::g_memory().set_data_dir(N64::Ui::settings_dir_path());
 
     N64::Ui::App app(config, ui_settings);
     app.run();

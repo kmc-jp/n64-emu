@@ -12,6 +12,7 @@
 #include <SDL.h>
 #include <SDL_vulkan.h>
 #include <cstdlib>
+#include <filesystem>
 
 namespace N64 {
 namespace Ui {
@@ -22,6 +23,19 @@ constexpr int kWindowWidth = 1600;
 constexpr int kWindowHeight = kWindowWidth * 3 / 4;
 
 Vulkan::WSI *g_wsi = nullptr;
+
+// Same root as GUI settings: .../n64-emu/ (not the nested .../n64-emu/n64-emu/).
+void init_cart_save_data_dir() {
+    if (char *pref = SDL_GetPrefPath("n64-emu", "n64-emu")) {
+        std::filesystem::path nested(pref);
+        SDL_free(pref);
+        const auto dir = nested.parent_path();
+        std::error_code ec;
+        std::filesystem::create_directories(dir, ec);
+        std::filesystem::remove(nested, ec);
+        N64::g_memory().set_data_dir(dir.string());
+    }
+}
 
 void on_field_present(N64::Mmio::VI::VI &vi) {
     if (!g_wsi)
@@ -38,6 +52,14 @@ N64System::PresentCounters on_present_stats() {
 
 AppCore::AppCore(N64System::Config &config_)
     : config(config_), window(nullptr) {
+    // SDL_GetPrefPath needs SDL; Init is cheap enough for headless too.
+    if (SDL_Init(SDL_INIT_EVENTS) != 0) {
+        Utils::warn("SDL_Init failed (save path may fall back): {}",
+                    SDL_GetError());
+    } else {
+        init_cart_save_data_dir();
+    }
+
     if (config.headless)
         return;
 

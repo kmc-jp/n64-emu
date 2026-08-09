@@ -13,6 +13,8 @@ namespace Memory {
 class Memory {
     std::vector<uint8_t> rdram;
     std::vector<uint8_t> sram;
+    std::string data_dir{"."};
+    std::string sram_path;
 
   public:
     RI ri;
@@ -22,7 +24,13 @@ class Memory {
 
     void reset();
 
+    // Root app folder (e.g. ~/.local/share/n64-emu). Saves go under save/.
+    void set_data_dir(const std::string &dir);
+
     void load_rom(const std::string &rom_filepath);
+
+    // Write cartridge SRAM to disk if allocated (no-op otherwise).
+    void persist_sram();
 
     static Memory &get_instance();
 
@@ -32,6 +40,8 @@ class Memory {
 
   private:
     void allocate_sram();
+    void load_sram_file();
+    std::string cart_save_path(const char *filename) const;
 
     static Memory instance;
 };

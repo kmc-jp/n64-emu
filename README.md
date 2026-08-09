@@ -29,7 +29,7 @@ We support Windows, macOS, and Linux.
 ### Linux
 
 ```bash
-sudo apt install cmake g++ libsdl2-dev libvulkan-dev zenity
+sudo apt install cmake g++ libsdl2-dev libvulkan-dev glslc zenity
 
 git clone --recursive git@github.com:kmc-jp/n64-emu.git
 cd n64-emu

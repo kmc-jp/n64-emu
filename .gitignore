@@ -58,6 +58,12 @@ test/test_runner
 **/*.z64
 !tests/**/*.z64
 
+## Cartridge / controller saves
+*.sra
+*.eep
+*.fla
+*.mpk
+
 *.txt
 !roms/**/*
 !**/CMakeLists.txt

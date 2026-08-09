@@ -85,6 +85,7 @@ void set_up(Config &config) {
 
 void shutdown() {
     Utils::info("Stopping N64 system");
+    N64::g_memory().persist_sram();
     Rsp::g_rsp_thread().shutdown();
 }
 
