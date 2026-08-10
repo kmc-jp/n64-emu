@@ -8,7 +8,15 @@ namespace Input {
 namespace {
 std::mutex g_mu;
 std::array<Mmio::N64ControllerState, kMaxControllers> g_states{};
+HostPollFn g_host_poll = nullptr;
 } // namespace
+
+void set_host_poll(HostPollFn fn) { g_host_poll = fn; }
+
+void poll_host() {
+    if (g_host_poll)
+        g_host_poll();
+}
 
 void set_controller_state(int channel, const Mmio::N64ControllerState &state) {
     if (channel < 0 || channel >= kMaxControllers)

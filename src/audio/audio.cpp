@@ -19,11 +19,11 @@ constexpr int DEFAULT_GUEST_FREQUENCY = 44100;
 constexpr int CHANNELS = 2;
 constexpr size_t RING_FRAMES = 48000;
 
-constexpr double TARGET_SEC = 0.200;
-constexpr double LOW_WATER_SEC = 0.050;
-constexpr double RESUME_SEC = 0.100;
-constexpr int MAX_HIGH_WATER_WAIT_MS = 200;
-constexpr int MAX_FULL_RING_WAIT_MS = 250;
+constexpr double TARGET_SEC = 0.080;
+constexpr double LOW_WATER_SEC = 0.030;
+constexpr double RESUME_SEC = 0.050;
+constexpr int MAX_HIGH_WATER_WAIT_MS = 80;
+constexpr int MAX_FULL_RING_WAIT_MS = 100;
 
 bool g_enabled = false;
 Sink *g_sink = nullptr;
@@ -32,6 +32,7 @@ int g_guest_frequency = DEFAULT_GUEST_FREQUENCY;
 double g_resample_pos = 0.0;
 bool g_output_paused = false;
 size_t g_callback_frames = 1024;
+float g_volume = 1.0f;
 
 std::mutex g_mutex;
 std::condition_variable g_space_cv;
@@ -157,8 +158,27 @@ void set_sink(Sink *sink) { g_sink = sink; }
 
 size_t pull_frames(int16_t *out_interleaved, size_t frame_count) {
     std::lock_guard lock(g_mutex);
-    return ring_read_locked(out_interleaved, frame_count);
+    const size_t n = ring_read_locked(out_interleaved, frame_count);
+    if (n == 0)
+        return 0;
+    if (g_volume <= 0.0f) {
+        std::memset(out_interleaved, 0, n * CHANNELS * sizeof(int16_t));
+    } else if (g_volume < 1.0f) {
+        const float vol = g_volume;
+        for (size_t i = 0; i < n * CHANNELS; ++i) {
+            const float s = static_cast<float>(out_interleaved[i]) * vol;
+            out_interleaved[i] = static_cast<int16_t>(
+                std::clamp(s, -32768.0f, 32767.0f));
+        }
+    }
+    return n;
 }
+
+void set_volume(float volume) {
+    g_volume = std::clamp(volume, 0.0f, 1.0f);
+}
+
+float volume() { return g_volume; }
 
 void notify_space() { g_space_cv.notify_all(); }
 

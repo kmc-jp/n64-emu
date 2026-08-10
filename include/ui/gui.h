@@ -15,6 +15,8 @@ struct GuiState {
     AppMode mode{AppMode::Menu};
     bool show_video_settings{false};
     bool show_emu_settings{false};
+    bool show_audio_settings{false};
+    bool show_controller_settings{false};
     bool show_about{false};
     bool request_start{false};
     bool request_stop{false};

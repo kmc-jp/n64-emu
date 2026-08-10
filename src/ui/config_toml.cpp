@@ -1,6 +1,9 @@
 #include "ui/config_toml.h"
+#include "ui/input_sdl.h"
 #include "utils/log.h"
 #include <SDL.h>
+#include <algorithm>
+#include <cstdio>
 #include <filesystem>
 #include <fstream>
 #include <toml++/toml.hpp>
@@ -134,6 +137,33 @@ bool parse_toml_file(const std::string &path, N64System::Config &config,
                     ui.theme = UiTheme::Dark;
             }
         }
+        if (auto *audio = tbl["audio"].as_table()) {
+            if (auto v = (*audio)["volume"].value<double>())
+                ui.audio_volume =
+                    std::clamp(static_cast<float>(*v), 0.0f, 1.0f);
+        }
+        if (auto *input = tbl["input"].as_table()) {
+            for (int i = 0; i < kN64KeyBindCount; ++i) {
+                const auto bind = static_cast<N64KeyBind>(i);
+                if (auto v =
+                        (*input)[n64_key_bind_toml_key(bind)].value<std::string>()) {
+                    const SDL_Scancode sc = SDL_GetScancodeFromName(v->c_str());
+                    if (sc != SDL_SCANCODE_UNKNOWN)
+                        ui.key_binds[i] = static_cast<int>(sc);
+                }
+            }
+        }
+        if (auto *pad = tbl["input_pad"].as_table()) {
+            for (int i = 0; i < kN64KeyBindCount; ++i) {
+                const auto bind = static_cast<N64KeyBind>(i);
+                if (auto v =
+                        (*pad)[n64_key_bind_toml_key(bind)].value<std::string>()) {
+                    PadBind pb{};
+                    if (pad_bind_from_string(v->c_str(), pb))
+                        ui.pad_binds[i] = pb;
+                }
+            }
+        }
         Utils::info("Loaded settings from {}", path);
         return true;
     } catch (const toml::parse_error &) {
@@ -212,10 +242,34 @@ bool save_toml(const N64System::Config &config, const UiSettings &ui) {
     ui_tbl.insert_or_assign(
         "theme", ui.theme == UiTheme::Light ? "light" : "dark");
 
+    toml::table audio;
+    audio.insert_or_assign("volume", static_cast<double>(ui.audio_volume));
+
+    toml::table input;
+    for (int i = 0; i < kN64KeyBindCount; ++i) {
+        const auto bind = static_cast<N64KeyBind>(i);
+        const char *name =
+            SDL_GetScancodeName(static_cast<SDL_Scancode>(ui.key_binds[i]));
+        input.insert_or_assign(n64_key_bind_toml_key(bind),
+                               name && name[0] ? name : "Unknown");
+    }
+
+    toml::table input_pad;
+    for (int i = 0; i < kN64KeyBindCount; ++i) {
+        const auto bind = static_cast<N64KeyBind>(i);
+        char buf[64];
+        if (!pad_bind_to_string(ui.pad_binds[i], buf, sizeof(buf)))
+            std::snprintf(buf, sizeof(buf), "none");
+        input_pad.insert_or_assign(n64_key_bind_toml_key(bind), buf);
+    }
+
     toml::table tbl;
     tbl.insert_or_assign("video", std::move(video));
     tbl.insert_or_assign("cpu", std::move(cpu));
     tbl.insert_or_assign("ui", std::move(ui_tbl));
+    tbl.insert_or_assign("audio", std::move(audio));
+    tbl.insert_or_assign("input", std::move(input));
+    tbl.insert_or_assign("input_pad", std::move(input_pad));
 
     const std::string path = settings_toml_path();
     std::error_code ec;

@@ -1,5 +1,6 @@
 #include "ui/app_core.h"
 #include "memory/memory.h"
+#include "mmio/controller_input.h"
 #include "mmio/vi.h"
 #include "n64_system/n64_system.h"
 #include "rcp/rsp_thread.h"
@@ -44,6 +45,8 @@ void on_field_present(N64::Mmio::VI::VI &vi) {
     Video::present_field(*g_wsi, vi, false);
 }
 
+void host_controller_poll() { poll_and_inject_controller(false); }
+
 N64System::PresentCounters on_present_stats() {
     const auto s = Video::take_present_stats();
     return {s.presented, s.skipped};
@@ -69,6 +72,8 @@ AppCore::AppCore(N64System::Config &config_)
     }
     Audio::set_sink(&sdl_audio_sink());
     Audio::init();
+    input_init();
+    Input::set_host_poll(&host_controller_poll);
 
     window = create_main_window(kWindowTitle, kWindowWidth, kWindowHeight);
     if (!window) {
@@ -88,7 +93,9 @@ AppCore::AppCore(N64System::Config &config_)
 }
 
 AppCore::~AppCore() {
+    Input::set_host_poll(nullptr);
     N64::Rsp::g_rsp_thread().shutdown();
+    input_shutdown();
     Audio::shutdown();
     if (window) {
         SDL_DestroyWindow(window);

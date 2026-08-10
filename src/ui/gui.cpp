@@ -1,16 +1,22 @@
 #include "ui/gui.h"
 #include "about_info.h"
+#include "audio/audio.h"
 #include "imgui.h"
 #include "rdp/rdp_core.h"
 #include "ui/config_toml.h"
+#include "ui/file_dialog.h"
 #include "ui/imgui_layer.h"
+#include "ui/input_sdl.h"
 #include "ui/sdl_platform.h"
 #include "ui/vulkan_devices.h"
-#include "ui/file_dialog.h"
 #include "video/present.h"
 #include <SDL.h>
+#include <algorithm>
+#include <cstring>
 #include <filesystem>
+#include <initializer_list>
 #include <string>
+#include <utility>
 
 namespace N64 {
 namespace Ui {
@@ -277,6 +283,326 @@ void draw_emu_settings(GuiState &state) {
     ImGui::End();
 }
 
+void draw_audio_settings(GuiState &state) {
+    if (!state.show_audio_settings || !state.ui_settings)
+        return;
+
+    ImGui::SetNextWindowSize(ImVec2(400, 120), ImGuiCond_FirstUseEver);
+    if (!ImGui::Begin("Audio Settings", &state.show_audio_settings,
+                      ImGuiWindowFlags_NoCollapse)) {
+        ImGui::End();
+        return;
+    }
+
+    auto &ui = *state.ui_settings;
+    if (ImGui::BeginTable("##audio_settings", 2,
+                          ImGuiTableFlags_SizingStretchProp |
+                              ImGuiTableFlags_NoSavedSettings)) {
+        ImGui::TableSetupColumn("label", ImGuiTableColumnFlags_WidthFixed);
+        ImGui::TableSetupColumn("control", ImGuiTableColumnFlags_WidthStretch);
+
+        ImGui::TableNextRow();
+        ImGui::TableSetColumnIndex(0);
+        ImGui::AlignTextToFramePadding();
+        ImGui::TextUnformatted("Volume:");
+        ImGui::TableSetColumnIndex(1);
+        float vol = ui.audio_volume * 100.0f;
+        ImGui::SetNextItemWidth(-FLT_MIN);
+        if (ImGui::SliderFloat("##volume", &vol, 0.0f, 100.0f, "%.0f%%")) {
+            ui.audio_volume = std::clamp(vol / 100.0f, 0.0f, 1.0f);
+            Audio::set_volume(ui.audio_volume);
+        }
+        if (ImGui::IsItemDeactivatedAfterEdit())
+            save_settings(state);
+
+        ImGui::EndTable();
+    }
+
+    ImGui::End();
+}
+
+void draw_input_test_chip(const char *label, bool on) {
+    const ImGuiStyle &style = ImGui::GetStyle();
+    const ImVec4 base = style.Colors[ImGuiCol_Button];
+    const ImVec4 active = style.Colors[ImGuiCol_ButtonActive];
+    const ImVec4 col = on ? active
+                          : ImVec4(base.x * 0.55f, base.y * 0.55f, base.z * 0.55f,
+                                   base.w);
+    ImGui::PushStyleColor(ImGuiCol_Button, col);
+    ImGui::PushStyleColor(ImGuiCol_ButtonHovered, col);
+    ImGui::PushStyleColor(ImGuiCol_ButtonActive, col);
+    ImGui::PushStyleVar(ImGuiStyleVar_DisabledAlpha, 1.0f);
+    ImGui::BeginDisabled();
+    ImGui::Button(label, ImVec2(0.0f, 0.0f));
+    ImGui::EndDisabled();
+    ImGui::PopStyleVar();
+    ImGui::PopStyleColor(3);
+}
+
+bool n64_bind_active(const Mmio::N64ControllerState &s, N64KeyBind bind) {
+    using namespace Mmio;
+    constexpr int kStickThresh = 40;
+    switch (bind) {
+    case N64KeyBind::A:
+        return (s.byte1 & N64ControllerByte1::A) != 0;
+    case N64KeyBind::B:
+        return (s.byte1 & N64ControllerByte1::B) != 0;
+    case N64KeyBind::Z:
+        return (s.byte1 & N64ControllerByte1::Z) != 0;
+    case N64KeyBind::Start:
+        return (s.byte1 & N64ControllerByte1::START) != 0;
+    case N64KeyBind::DPadUp:
+        return (s.byte1 & N64ControllerByte1::DP_UP) != 0;
+    case N64KeyBind::DPadDown:
+        return (s.byte1 & N64ControllerByte1::DP_DOWN) != 0;
+    case N64KeyBind::DPadLeft:
+        return (s.byte1 & N64ControllerByte1::DP_LEFT) != 0;
+    case N64KeyBind::DPadRight:
+        return (s.byte1 & N64ControllerByte1::DP_RIGHT) != 0;
+    case N64KeyBind::L:
+        return (s.byte2 & N64ControllerByte2::L) != 0;
+    case N64KeyBind::R:
+        return (s.byte2 & N64ControllerByte2::R) != 0;
+    case N64KeyBind::CUp:
+        return (s.byte2 & N64ControllerByte2::C_UP) != 0;
+    case N64KeyBind::CDown:
+        return (s.byte2 & N64ControllerByte2::C_DOWN) != 0;
+    case N64KeyBind::CLeft:
+        return (s.byte2 & N64ControllerByte2::C_LEFT) != 0;
+    case N64KeyBind::CRight:
+        return (s.byte2 & N64ControllerByte2::C_RIGHT) != 0;
+    case N64KeyBind::StickUp:
+        return s.joy_y >= kStickThresh;
+    case N64KeyBind::StickDown:
+        return s.joy_y <= -kStickThresh;
+    case N64KeyBind::StickLeft:
+        return s.joy_x <= -kStickThresh;
+    case N64KeyBind::StickRight:
+        return s.joy_x >= kStickThresh;
+    case N64KeyBind::Count:
+        break;
+    }
+    return false;
+}
+
+void draw_controller_input_test(const Mmio::N64ControllerState &s) {
+    ImGui::Separator();
+    ImGui::TextUnformatted("Input Test");
+    ImGui::TextDisabled("Press bound keys / gamepad controls to verify.");
+    ImGui::Spacing();
+
+    auto chip_row = [&](std::initializer_list<std::pair<const char *, N64KeyBind>> items) {
+        bool first = true;
+        for (const auto &it : items) {
+            if (!first)
+                ImGui::SameLine();
+            first = false;
+            draw_input_test_chip(it.first, n64_bind_active(s, it.second));
+        }
+    };
+
+    chip_row({{"A", N64KeyBind::A},
+              {"B", N64KeyBind::B},
+              {"Z", N64KeyBind::Z},
+              {"Start", N64KeyBind::Start},
+              {"L", N64KeyBind::L},
+              {"R", N64KeyBind::R}});
+
+    ImGui::AlignTextToFramePadding();
+    ImGui::TextUnformatted("D-Pad");
+    ImGui::SameLine();
+    chip_row({{"Up", N64KeyBind::DPadUp},
+              {"Down", N64KeyBind::DPadDown},
+              {"Left", N64KeyBind::DPadLeft},
+              {"Right", N64KeyBind::DPadRight}});
+
+    ImGui::AlignTextToFramePadding();
+    ImGui::TextUnformatted("C");
+    ImGui::SameLine();
+    chip_row({{"Up", N64KeyBind::CUp},
+              {"Down", N64KeyBind::CDown},
+              {"Left", N64KeyBind::CLeft},
+              {"Right", N64KeyBind::CRight}});
+
+    ImGui::Spacing();
+    const float box = ImGui::GetFrameHeight() * 4.0f;
+    const ImVec2 origin = ImGui::GetCursorScreenPos();
+    ImDrawList *dl = ImGui::GetWindowDrawList();
+    const ImU32 border = ImGui::GetColorU32(ImGuiCol_Border);
+    const ImU32 fill = ImGui::GetColorU32(ImGuiCol_FrameBg);
+    const ImU32 accent = ImGui::GetColorU32(ImGuiCol_ButtonActive);
+    const ImU32 cross = ImGui::GetColorU32(ImGuiCol_TextDisabled);
+    dl->AddRectFilled(origin, ImVec2(origin.x + box, origin.y + box), fill);
+    dl->AddRect(origin, ImVec2(origin.x + box, origin.y + box), border);
+    const ImVec2 center(origin.x + box * 0.5f, origin.y + box * 0.5f);
+    dl->AddLine(ImVec2(center.x, origin.y + 4.0f),
+                ImVec2(center.x, origin.y + box - 4.0f), cross);
+    dl->AddLine(ImVec2(origin.x + 4.0f, center.y),
+                ImVec2(origin.x + box - 4.0f, center.y), cross);
+    const float nx = static_cast<float>(s.joy_x) / 127.0f;
+    const float ny = static_cast<float>(-s.joy_y) / 127.0f; // screen +Y is down
+    const float radius = box * 0.5f - 8.0f;
+    const ImVec2 knob(center.x + nx * radius, center.y + ny * radius);
+    dl->AddCircleFilled(knob, 5.0f, accent);
+    ImGui::Dummy(ImVec2(box, box));
+    ImGui::SameLine();
+    ImGui::BeginGroup();
+    ImGui::AlignTextToFramePadding();
+    ImGui::Text("Stick  X: %d", static_cast<int>(s.joy_x));
+    ImGui::Text("       Y: %d", static_cast<int>(s.joy_y));
+    ImGui::EndGroup();
+}
+
+void draw_controller_settings(GuiState &state) {
+    if (!state.ui_settings)
+        return;
+
+    enum class WaitKind { None, Key, Pad };
+    static WaitKind waiting = WaitKind::None;
+    static int waiting_index = -1;
+    static uint8_t prev_keys[SDL_NUM_SCANCODES]{};
+
+    if (!state.show_controller_settings) {
+        waiting = WaitKind::None;
+        waiting_index = -1;
+        return;
+    }
+
+    ImGui::SetNextWindowSize(ImVec2(560, 680), ImGuiCond_FirstUseEver);
+    if (!ImGui::Begin("Controller Settings", &state.show_controller_settings,
+                      ImGuiWindowFlags_NoCollapse)) {
+        if (!state.show_controller_settings) {
+            waiting = WaitKind::None;
+            waiting_index = -1;
+        }
+        ImGui::End();
+        return;
+    }
+
+    auto &ui = *state.ui_settings;
+    const Mmio::N64ControllerState live = sample_controller_state();
+
+    SDL_PumpEvents();
+    const uint8_t *keys = SDL_GetKeyboardState(nullptr);
+
+    if (waiting == WaitKind::Key && waiting_index >= 0) {
+        for (int sc = SDL_SCANCODE_UNKNOWN + 1; sc < SDL_NUM_SCANCODES; ++sc) {
+            if (!keys[sc] || prev_keys[sc])
+                continue;
+            if (sc == SDL_SCANCODE_ESCAPE) {
+                waiting = WaitKind::None;
+                waiting_index = -1;
+                break;
+            }
+            for (int i = 0; i < kN64KeyBindCount; ++i) {
+                if (i != waiting_index && ui.key_binds[i] == sc)
+                    ui.key_binds[i] = SDL_SCANCODE_UNKNOWN;
+            }
+            ui.key_binds[waiting_index] = sc;
+            set_key_binds(ui.key_binds);
+            save_settings(state);
+            waiting = WaitKind::None;
+            waiting_index = -1;
+            break;
+        }
+    } else if (waiting == WaitKind::Pad && waiting_index >= 0) {
+        if (keys[SDL_SCANCODE_ESCAPE] && !prev_keys[SDL_SCANCODE_ESCAPE]) {
+            waiting = WaitKind::None;
+            waiting_index = -1;
+        } else {
+            const PadBind edge = poll_pad_bind_edge();
+            if (edge.kind != PadBindKind::None) {
+                for (int i = 0; i < kN64KeyBindCount; ++i) {
+                    if (i != waiting_index && ui.pad_binds[i] == edge)
+                        ui.pad_binds[i] = {};
+                }
+                ui.pad_binds[waiting_index] = edge;
+                set_pad_binds(ui.pad_binds);
+                save_settings(state);
+                waiting = WaitKind::None;
+                waiting_index = -1;
+            }
+        }
+    }
+    std::memcpy(prev_keys, keys, sizeof(prev_keys));
+
+    if (ImGui::BeginTable("##controller_binds", 3,
+                          ImGuiTableFlags_SizingStretchProp |
+                              ImGuiTableFlags_NoSavedSettings |
+                              ImGuiTableFlags_RowBg |
+                              ImGuiTableFlags_BordersInnerV)) {
+        ImGui::TableSetupColumn("Action", ImGuiTableColumnFlags_WidthFixed);
+        ImGui::TableSetupColumn("Keyboard", ImGuiTableColumnFlags_WidthStretch);
+        ImGui::TableSetupColumn("Gamepad", ImGuiTableColumnFlags_WidthStretch);
+        ImGui::TableHeadersRow();
+
+        for (int i = 0; i < kN64KeyBindCount; ++i) {
+            const auto bind = static_cast<N64KeyBind>(i);
+            const bool active = n64_bind_active(live, bind);
+            ImGui::TableNextRow();
+            ImGui::TableSetColumnIndex(0);
+            ImGui::AlignTextToFramePadding();
+            if (active)
+                ImGui::PushStyleColor(ImGuiCol_Text,
+                                     ImGui::GetStyleColorVec4(ImGuiCol_ButtonActive));
+            ImGui::TextUnformatted(n64_key_bind_label(bind));
+            if (active)
+                ImGui::PopStyleColor();
+
+            ImGui::TableSetColumnIndex(1);
+            const char *key_name = "-";
+            if (waiting == WaitKind::Key && waiting_index == i) {
+                key_name = "Press key... (Esc)";
+            } else if (ui.key_binds[i] > SDL_SCANCODE_UNKNOWN) {
+                const char *n = SDL_GetScancodeName(
+                    static_cast<SDL_Scancode>(ui.key_binds[i]));
+                if (n && n[0])
+                    key_name = n;
+            }
+            ImGui::PushID(i * 2);
+            if (ImGui::Button(key_name, ImVec2(-FLT_MIN, 0.0f))) {
+                waiting = WaitKind::Key;
+                waiting_index = i;
+                std::memcpy(prev_keys, keys, sizeof(prev_keys));
+            }
+            ImGui::PopID();
+
+            ImGui::TableSetColumnIndex(2);
+            char pad_label[64];
+            const char *pad_name = pad_bind_label(ui.pad_binds[i], pad_label,
+                                                  sizeof(pad_label));
+            if (waiting == WaitKind::Pad && waiting_index == i)
+                pad_name = "Press button... (Esc)";
+            ImGui::PushID(i * 2 + 1);
+            if (ImGui::Button(pad_name, ImVec2(-FLT_MIN, 0.0f))) {
+                waiting = WaitKind::Pad;
+                waiting_index = i;
+                // Warm edge detector so currently-held inputs are ignored.
+                (void)poll_pad_bind_edge();
+                std::memcpy(prev_keys, keys, sizeof(prev_keys));
+            }
+            ImGui::PopID();
+        }
+
+        ImGui::EndTable();
+    }
+
+    ImGui::Spacing();
+    if (ImGui::Button("Reset to defaults")) {
+        default_key_binds(ui.key_binds);
+        default_pad_binds(ui.pad_binds);
+        set_key_binds(ui.key_binds);
+        set_pad_binds(ui.pad_binds);
+        waiting = WaitKind::None;
+        waiting_index = -1;
+        save_settings(state);
+    }
+
+    draw_controller_input_test(live);
+
+    ImGui::End();
+}
+
 void draw_about(GuiState &state) {
     if (!state.show_about)
         return;
@@ -346,6 +672,10 @@ void gui_draw(GuiState &state) {
                 state.show_video_settings = true;
             if (ImGui::MenuItem("Emulation Settings"))
                 state.show_emu_settings = true;
+            if (ImGui::MenuItem("Audio Settings"))
+                state.show_audio_settings = true;
+            if (ImGui::MenuItem("Controller Settings"))
+                state.show_controller_settings = true;
             ImGui::EndMenu();
         }
 
@@ -382,6 +712,8 @@ void gui_draw(GuiState &state) {
 
     draw_video_settings(state);
     draw_emu_settings(state);
+    draw_audio_settings(state);
+    draw_controller_settings(state);
     draw_about(state);
 }
 

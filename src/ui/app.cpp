@@ -1,5 +1,6 @@
 #include "ui/app.h"
 #include "memory/memory.h"
+#include "mmio/controller_input.h"
 #include "mmio/vi.h"
 #include "n64_system/n64_system.h"
 #include "rcp/rsp_thread.h"
@@ -42,10 +43,15 @@ void on_field_present(N64::Mmio::VI::VI &vi) {
     if (!g_wsi)
         return;
     g_wsi->get_platform().poll_input();
+    // Also refresh here so ImGui / title path stays responsive between PIF polls.
     poll_and_inject_controller(imgui_want_capture_keyboard());
     prepare_imgui();
     // Always present so the ImGui menu bar refreshes even on duplicate VI.
     Video::present_field(*g_wsi, vi, true);
+}
+
+void host_controller_poll() {
+    poll_and_inject_controller(imgui_want_capture_keyboard());
 }
 
 N64System::PresentCounters on_present_stats() {
@@ -93,6 +99,7 @@ bool switch_present_window(Vulkan::WSI &wsi, SDL2Platform &platform,
 
 bool event_hook(const SDL_Event &e) {
     imgui_process_event(e);
+    input_handle_event(e);
 
     if (e.type == SDL_WINDOWEVENT &&
         e.window.event == SDL_WINDOWEVENT_CLOSE) {
@@ -190,6 +197,11 @@ App::App(N64System::Config &config_, UiSettings &ui_settings_)
     }
     Audio::set_sink(&sdl_audio_sink());
     Audio::init();
+    Audio::set_volume(ui_settings.audio_volume);
+    set_key_binds(ui_settings.key_binds);
+    set_pad_binds(ui_settings.pad_binds);
+    input_init();
+    Input::set_host_poll(&host_controller_poll);
 
     window = create_main_window(kWindowTitle, kWindowWidth, kWindowHeight);
     if (!window) {
@@ -210,8 +222,10 @@ App::App(N64System::Config &config_, UiSettings &ui_settings_)
 }
 
 App::~App() {
+    Input::set_host_poll(nullptr);
     imgui_shutdown();
     N64::Rsp::g_rsp_thread().shutdown();
+    input_shutdown();
     Audio::shutdown();
     if (game_window) {
         SDL_DestroyWindow(game_window);

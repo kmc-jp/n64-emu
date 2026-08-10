@@ -525,7 +525,9 @@ void Pif::process_controller_command(int channel, uint8_t *cmd) {
 }
 
 N64ControllerState Pif::poll_n64_controller() const {
-    // Host keyboard/gamepad mapping lives in ui; core only reads injected state.
+    // Refresh host input at Joybus read time so we are not stuck with the
+    // previous VI field's snapshot (noticeable lag even without frame interp).
+    Input::poll_host();
     // TODO: Support multiple controllers (channel).
     const N64ControllerState ret = Input::get_controller_state(0);
     Utils::debug("byte1 {:#10b}", ret.byte1);

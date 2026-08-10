@@ -15,6 +15,10 @@ bool enabled();
 void set_frequency_from_dacrate(uint32_t dacrate);
 void set_frequency(int hz);
 
+// Output gain in [0, 1]. Applied when the host pulls frames.
+void set_volume(float volume);
+float volume();
+
 // Interleaved stereo s16 guest samples (L,R,L,R,...).
 void push_samples(std::span<const int16_t> interleaved_stereo);
 
