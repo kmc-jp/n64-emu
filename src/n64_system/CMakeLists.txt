@@ -6,6 +6,7 @@ target_sources(n64_system PRIVATE
     scheduler.cpp
 )
 target_link_libraries(n64_system PUBLIC
+    audio
     common
     cpu
     debugger

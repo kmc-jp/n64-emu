@@ -1,6 +1,7 @@
 #include "audio/audio.h"
 #include "utils/log.h"
 #include <algorithm>
+#include <atomic>
 #include <chrono>
 #include <cmath>
 #include <condition_variable>
@@ -36,6 +37,7 @@ float g_volume = 1.0f;
 
 std::mutex g_mutex;
 std::condition_variable g_space_cv;
+std::atomic<uint64_t> g_sync_wait_ns{0};
 std::vector<int16_t> g_ring;
 size_t g_ring_cap_frames = 0;
 size_t g_read_frame = 0;
@@ -138,12 +140,21 @@ void apply_sync_policy() {
         }
 
         // Pace the emu thread to real-time by waiting when audio is ahead.
-        const auto deadline = std::chrono::steady_clock::now() +
-                              std::chrono::milliseconds(MAX_HIGH_WATER_WAIT_MS);
-        while (g_enabled && g_frames_avail > target) {
-            if (g_space_cv.wait_until(lock, deadline) ==
-                std::cv_status::timeout)
-                break;
+        if (g_enabled && g_frames_avail > target) {
+            const auto wait_t0 = std::chrono::steady_clock::now();
+            const auto deadline =
+                wait_t0 + std::chrono::milliseconds(MAX_HIGH_WATER_WAIT_MS);
+            while (g_enabled && g_frames_avail > target) {
+                if (g_space_cv.wait_until(lock, deadline) ==
+                    std::cv_status::timeout)
+                    break;
+            }
+            g_sync_wait_ns.fetch_add(
+                static_cast<uint64_t>(
+                    std::chrono::duration_cast<std::chrono::nanoseconds>(
+                        std::chrono::steady_clock::now() - wait_t0)
+                        .count()),
+                std::memory_order_relaxed);
         }
     }
 
@@ -182,6 +193,11 @@ void set_volume(float volume) {
 float volume() { return g_volume; }
 
 void notify_space() { g_space_cv.notify_all(); }
+
+double take_sync_wait_ms() {
+    const uint64_t ns = g_sync_wait_ns.exchange(0, std::memory_order_relaxed);
+    return static_cast<double>(ns) / 1e6;
+}
 
 void init() {
     if (g_enabled)

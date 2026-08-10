@@ -37,6 +37,11 @@ void set_sink(Sink *sink);
 size_t pull_frames(int16_t *out_interleaved, size_t frame_count);
 void notify_space();
 
+// Time the emu thread spent blocked pacing against the audio ring. This runs
+// inside the CPU execution path, so profilers must subtract it to see real CPU
+// cost. Reading drains the accumulator.
+double take_sync_wait_ms();
+
 } // namespace Audio
 } // namespace N64
 

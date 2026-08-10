@@ -83,7 +83,8 @@ void on_field_present(N64::Mmio::VI::VI &vi) {
     const bool force_ui =
         g_gui.mode != AppMode::Running || g_gui.show_video_settings ||
         g_gui.show_emu_settings || g_gui.show_audio_settings ||
-        g_gui.show_controller_settings || g_gui.show_about;
+        g_gui.show_controller_settings || g_gui.show_about ||
+        g_gui.menu_bar_active;
     const uint32_t origin = vi.reg_origin;
     if (!Video::present_field(*g_wsi, vi, force_ui)) {
         imgui_abandon_frame();

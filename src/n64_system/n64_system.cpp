@@ -1,4 +1,5 @@
 #include "n64_system/n64_system.h"
+#include "audio/audio.h"
 #include "cpu/cached_interp.h"
 #if defined(N64_JIT_X64)
 #include "cpu/jit/jit.h"
@@ -20,6 +21,7 @@
 #include "rcp/rsp_thread.h"
 #include "rcp/vu_profile.h"
 #include "utils/log.h"
+#include <algorithm>
 #include <chrono>
 #include <cstdlib>
 
@@ -128,6 +130,7 @@ void step(Config &config) {
     static double prof_cpu_ms = 0.0;
     static double prof_rsp_ms = 0.0;
     static double prof_rdp_ms = 0.0;
+    static double prof_audio_ms = 0.0;
     static auto prof_last_log = std::chrono::steady_clock::now();
 
     for (int field = 0; field < g_vi().get_num_fields(); field++) {
@@ -242,26 +245,32 @@ void step(Config &config) {
                     .count();
             prof_rdp_ms +=
                 std::chrono::duration<double, std::milli>(t1 - rdp_t0).count();
+            prof_audio_ms += Audio::take_sync_wait_ms();
             ++prof_fields;
             if (std::chrono::duration<double>(t1 - prof_last_log).count() >=
                 1.0) {
                 const double inv = prof_fields ? 1.0 / prof_fields : 0.0;
                 const double emu = prof_emu_ms * inv;
-                const double cpu = prof_cpu_ms * inv;
+                const double audio = prof_audio_ms * inv;
+                // Audio pacing blocks inside the CPU execution path.
+                const double cpu = std::max(prof_cpu_ms * inv - audio, 0.0);
                 const double rsp = prof_rsp_ms * inv;
                 const double rdp = prof_rdp_ms * inv;
                 const PresentCounters present =
                     g_present_stats ? g_present_stats() : PresentCounters{};
                 Utils::info(
                     "frame profile: fields/s={} presents/s={} skipped/s={} "
-                    "avg cpu={:.2f}ms rsp={:.2f}ms rdp={:.2f}ms total={:.2f}ms "
-                    "(cpu {:.0f}% / rsp {:.0f}% / rdp {:.0f}%) budget60={:.2f}ms",
+                    "avg cpu={:.2f}ms rsp={:.2f}ms rdp={:.2f}ms "
+                    "audio={:.2f}ms total={:.2f}ms "
+                    "(cpu {:.0f}% / rsp {:.0f}% / rdp {:.0f}% / audio {:.0f}%) "
+                    "work={:.2f}ms budget60={:.2f}ms",
                     prof_fields, present.presented, present.skipped, cpu, rsp,
-                    rdp, emu + rdp,
+                    rdp, audio, emu + rdp,
                     (emu + rdp) > 0 ? 100.0 * cpu / (emu + rdp) : 0.0,
                     (emu + rdp) > 0 ? 100.0 * rsp / (emu + rdp) : 0.0,
                     (emu + rdp) > 0 ? 100.0 * rdp / (emu + rdp) : 0.0,
-                    1000.0 / 60.0);
+                    (emu + rdp) > 0 ? 100.0 * audio / (emu + rdp) : 0.0,
+                    cpu + rsp + rdp, 1000.0 / 60.0);
                 Rsp::vu_profile_dump();
 #if defined(N64_JIT_X64)
                 if (config.cpu_backend == CpuBackend::Jit)
@@ -272,6 +281,7 @@ void step(Config &config) {
                 prof_cpu_ms = 0.0;
                 prof_rsp_ms = 0.0;
                 prof_rdp_ms = 0.0;
+                prof_audio_ms = 0.0;
                 prof_last_log = t1;
             }
         }

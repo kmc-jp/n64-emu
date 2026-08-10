@@ -92,6 +92,25 @@ void set_fullscreen(GuiState &state, bool fullscreen) {
                             fullscreen ? SDL_WINDOW_FULLSCREEN_DESKTOP : 0);
 }
 
+// While a game is running the menu bar stays hidden until the mouse touches the
+// top edge of the window, and remains up while one of its menus is open.
+bool menu_bar_visible(bool auto_hide, bool menu_open) {
+    if (!auto_hide)
+        return true;
+    if (menu_open)
+        return true;
+
+    const ImGuiIO &io = ImGui::GetIO();
+    if (!ImGui::IsMousePosValid(&io.MousePos))
+        return false;
+
+    const ImGuiViewport *vp = ImGui::GetMainViewport();
+    const float reveal_height = ImGui::GetFrameHeight();
+    return io.MousePos.y >= vp->Pos.y &&
+           io.MousePos.y <= vp->Pos.y + reveal_height &&
+           io.MousePos.x >= vp->Pos.x && io.MousePos.x < vp->Pos.x + vp->Size.x;
+}
+
 void set_theme(GuiState &state, UiTheme theme) {
     if (!state.ui_settings || state.ui_settings->theme == theme)
         return;
@@ -755,8 +774,20 @@ void draw_about(GuiState &state) {
 } // namespace
 
 void gui_draw(GuiState &state) {
-    if (ImGui::BeginMainMenuBar()) {
-        if (ImGui::BeginMenu("File")) {
+    static bool menu_open = false;
+    const bool fullscreen = window_is_fullscreen(current_window(state));
+    bool any_menu_open = false;
+    auto begin_menu = [&any_menu_open](const char *label) {
+        const bool open = ImGui::BeginMenu(label);
+        any_menu_open |= open;
+        return open;
+    };
+
+    const bool show_menu_bar = menu_bar_visible(fullscreen, menu_open);
+    state.menu_bar_active = menu_open || (fullscreen && show_menu_bar);
+
+    if (show_menu_bar && ImGui::BeginMainMenuBar()) {
+        if (begin_menu("File")) {
             if (ImGui::MenuItem("Open ROM...", "Ctrl+O"))
                 open_rom_dialog(state);
             draw_recents_menu(state);
@@ -768,7 +799,7 @@ void gui_draw(GuiState &state) {
             ImGui::EndMenu();
         }
 
-        if (ImGui::BeginMenu("Emulation")) {
+        if (begin_menu("Emulation")) {
             const bool running = state.mode == AppMode::Running;
             if (ImGui::MenuItem("Stop", nullptr, false, running))
                 state.request_stop = true;
@@ -784,12 +815,10 @@ void gui_draw(GuiState &state) {
             ImGui::EndMenu();
         }
 
-        if (ImGui::BeginMenu("View")) {
-            SDL_Window *window = current_window(state);
-            const bool fs = window_is_fullscreen(window);
-            if (ImGui::MenuItem("Fullscreen", "F11", fs))
+        if (begin_menu("View")) {
+            if (ImGui::MenuItem("Fullscreen", "F11", fullscreen))
                 set_fullscreen(state, true);
-            if (ImGui::MenuItem("Window", nullptr, !fs))
+            if (ImGui::MenuItem("Window", nullptr, !fullscreen))
                 set_fullscreen(state, false);
             ImGui::Separator();
             if (ImGui::BeginMenu("Theme")) {
@@ -806,7 +835,7 @@ void gui_draw(GuiState &state) {
             ImGui::EndMenu();
         }
 
-        if (ImGui::BeginMenu("Help")) {
+        if (begin_menu("Help")) {
             if (ImGui::MenuItem("About n64-emu"))
                 state.show_about = true;
             ImGui::EndMenu();
@@ -814,6 +843,8 @@ void gui_draw(GuiState &state) {
 
         ImGui::EndMainMenuBar();
     }
+    menu_open = any_menu_open;
+    state.menu_bar_active = state.menu_bar_active || any_menu_open;
 
     draw_video_settings(state);
     draw_emu_settings(state);
