@@ -1,5 +1,5 @@
 #include "ui/gui.h"
-#include "about_info.h"
+#include "app_identity.h"
 #include "audio/audio.h"
 #include "imgui.h"
 #include "rdp/rdp_core.h"
@@ -806,7 +806,7 @@ void draw_about(GuiState &state) {
     const ImGuiStyle &style = ImGui::GetStyle();
 
     ImGui::PushFont(nullptr, style.FontSizeBase * 1.45f);
-    ImGui::TextUnformatted("n64-emu");
+    ImGui::TextUnformatted(kAppDisplayName);
     ImGui::PopFont();
 
     ImGui::PushStyleColor(ImGuiCol_Text, style.Colors[ImGuiCol_TextDisabled]);
@@ -822,14 +822,13 @@ void draw_about(GuiState &state) {
 
     ImGui::TextUnformatted("Website:");
     ImGui::SameLine();
-    ImGui::TextLinkOpenURL("github.com/kmc-jp/n64-emu",
-                           "https://github.com/kmc-jp/n64-emu");
+    ImGui::TextLinkOpenURL(kAppGithubDisplay, kAppGithubUrl);
 
     ImGui::Spacing();
     ImGui::Spacing();
 
     ImGui::PushFont(nullptr, style.FontSizeBase * 0.85f);
-    ImGui::TextDisabled("Copyright (c) 2023-2026 n64-emu contributors");
+    ImGui::TextDisabled("%s", kAppCopyright);
     ImGui::PopFont();
 
     ImGui::End();
@@ -859,7 +858,7 @@ void gui_draw(GuiState &state) {
             if (ImGui::MenuItem("Open ROM...", "Ctrl+O"))
                 open_rom_dialog(state);
             draw_recents_menu(state);
-            if (ImGui::MenuItem("Open n64-emu folder"))
+            if (ImGui::MenuItem(kMenuOpenFolder))
                 open_settings_dir();
             ImGui::Separator();
             if (ImGui::MenuItem("Exit"))
@@ -912,7 +911,7 @@ void gui_draw(GuiState &state) {
         }
 
         if (begin_menu("Help")) {
-            if (ImGui::MenuItem("About n64-emu"))
+            if (ImGui::MenuItem(kMenuAbout))
                 state.show_about = true;
             ImGui::EndMenu();
         }

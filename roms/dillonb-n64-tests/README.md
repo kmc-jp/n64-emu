@@ -1,11 +1,11 @@
 Pre-build binary from https://github.com/Dillonb/n64-tests
 
-## License note (n64-emu)
+## License note (Kamo64)
 
 Upstream [Dillonb/n64-tests](https://github.com/Dillonb/n64-tests) does not
-publish a license. These binaries are included in n64-emu only with personal
+publish a license. These binaries are included in Kamo64 only with personal
 permission from the author for use with this emulator. They are **not**
-covered by n64-emu's MIT License. Do not redistribute or reuse them outside
+covered by Kamo64's MIT License. Do not redistribute or reuse them outside
 that understanding without separate permission.
 
 # Dillon's n64 tests

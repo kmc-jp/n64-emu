@@ -1,4 +1,4 @@
-# Shared frontend pieces (no ImGui) used by n64-core and n64.
+# Shared frontend pieces (no ImGui) used by kamo64-core and kamo64.
 add_library(ui STATIC)
 target_sources(ui PRIVATE
     app_core.cpp
@@ -9,7 +9,7 @@ target_sources(ui PRIVATE
     vulkan_devices.cpp
 )
 
-# ImGui GUI layer (binary: n64)
+# ImGui GUI layer (binary: kamo64)
 add_library(ui_gui STATIC)
 target_sources(ui_gui PRIVATE
     app.cpp
@@ -20,38 +20,41 @@ target_sources(ui_gui PRIVATE
     recent_roms.cpp
 )
 
-set(N64_ABOUT_INFO_DIR "${CMAKE_CURRENT_BINARY_DIR}/generated")
-set(N64_ABOUT_INFO_H "${N64_ABOUT_INFO_DIR}/about_info.h")
-set(N64_ABOUT_INFO_SCRIPT "${CMAKE_SOURCE_DIR}/cmake/GenerateAboutInfo.cmake")
+set(APPID_IDENTITY_DIR "${CMAKE_CURRENT_BINARY_DIR}/generated")
+set(APPID_IDENTITY_H "${APPID_IDENTITY_DIR}/app_identity.h")
+set(APPID_IDENTITY_SCRIPT "${CMAKE_SOURCE_DIR}/cmake/GenerateAboutInfo.cmake")
 
 # Regenerate on every build so the embedded git hash stays current.
-add_custom_target(generate_about_info
+add_custom_target(generate_app_identity
     COMMAND ${CMAKE_COMMAND}
         -DSOURCE_DIR=${CMAKE_SOURCE_DIR}
-        -DOUTPUT_DIR=${N64_ABOUT_INFO_DIR}
-        -P ${N64_ABOUT_INFO_SCRIPT}
-    BYPRODUCTS ${N64_ABOUT_INFO_H}
-    DEPENDS ${N64_ABOUT_INFO_SCRIPT}
-    COMMENT "Generating about_info (git hash)"
+        -DOUTPUT_DIR=${APPID_IDENTITY_DIR}
+        -P ${APPID_IDENTITY_SCRIPT}
+    BYPRODUCTS ${APPID_IDENTITY_H}
+    DEPENDS ${APPID_IDENTITY_SCRIPT}
+            "${CMAKE_SOURCE_DIR}/cmake/AppIdentity.cmake"
+    COMMENT "Generating app_identity (name + git hash)"
     VERBATIM
 )
 
 # Ensure the header exists at configure/generate time for IDEs and first build.
-if(NOT EXISTS "${N64_ABOUT_INFO_H}")
+if(NOT EXISTS "${APPID_IDENTITY_H}")
     execute_process(
         COMMAND ${CMAKE_COMMAND}
             -DSOURCE_DIR=${CMAKE_SOURCE_DIR}
-            -DOUTPUT_DIR=${N64_ABOUT_INFO_DIR}
-            -P ${N64_ABOUT_INFO_SCRIPT}
-        RESULT_VARIABLE _n64_about_gen_result
+            -DOUTPUT_DIR=${APPID_IDENTITY_DIR}
+            -P ${APPID_IDENTITY_SCRIPT}
+        RESULT_VARIABLE _appid_identity_gen_result
     )
-    if(NOT _n64_about_gen_result EQUAL 0)
-        message(FATAL_ERROR "Failed to generate about_info")
+    if(NOT _appid_identity_gen_result EQUAL 0)
+        message(FATAL_ERROR "Failed to generate app_identity")
     endif()
 endif()
 
-target_include_directories(ui_gui PRIVATE ${N64_ABOUT_INFO_DIR})
-add_dependencies(ui_gui generate_about_info)
+target_include_directories(ui PRIVATE ${APPID_IDENTITY_DIR})
+target_include_directories(ui_gui PRIVATE ${APPID_IDENTITY_DIR})
+add_dependencies(ui generate_app_identity)
+add_dependencies(ui_gui generate_app_identity)
 target_link_libraries(ui PUBLIC
     audio
     common

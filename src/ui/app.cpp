@@ -1,4 +1,5 @@
 #include "ui/app.h"
+#include "app_identity.h"
 #include "memory/memory.h"
 #include "mmio/controller_input.h"
 #include "mmio/vi.h"
@@ -26,8 +27,6 @@ namespace N64 {
 namespace Ui {
 
 namespace {
-constexpr const char *kWindowTitle = "n64-emu";
-constexpr const char *kGameWindowTitle = "n64-emu - Game";
 constexpr int kWindowWidth = 1600;
 constexpr int kWindowHeight = kWindowWidth * 3 / 4;
 

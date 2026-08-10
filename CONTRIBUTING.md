@@ -28,7 +28,7 @@ If you are using VS Code on Windows, create `.vscode/launch.json` with the follo
       "name": "C++ Launch (Windows)",
       "type": "cppvsdbg",
       "request": "launch",
-      "program": "${workspaceFolder}\\build\\src\\Debug\\n64-core.exe",
+      "program": "${workspaceFolder}\\build\\src\\Debug\\kamo64-core.exe",
       "args": ["${workspaceFolder}\\<your-rom.z64>"],
       "externalConsole": true,
       "logging": {
@@ -41,7 +41,7 @@ If you are using VS Code on Windows, create `.vscode/launch.json` with the follo
       "name": "C++ Launch GUI (Windows)",
       "type": "cppvsdbg",
       "request": "launch",
-      "program": "${workspaceFolder}\\build\\src\\Debug\\n64.exe",
+      "program": "${workspaceFolder}\\build\\src\\Debug\\kamo64.exe",
       "args": [],
       "externalConsole": true,
       "logging": {
@@ -113,5 +113,5 @@ Information about this emulator is available on Scrapbox:
 https://scrapbox.io/kmc-n64/
 
 For questions, please contact tamaron on KMC Slack.
-Slack channel: #n64-emu
+Slack channel: #kamo64
 

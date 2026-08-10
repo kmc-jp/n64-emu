@@ -24,7 +24,7 @@ class Memory {
 
     void reset();
 
-    // Root app folder (e.g. ~/.local/share/n64-emu). Saves go under save/.
+    // Root app folder (e.g. ~/.local/share/kamo64). Saves go under save/.
     void set_data_dir(const std::string &dir);
 
     void load_rom(const std::string &rom_filepath);

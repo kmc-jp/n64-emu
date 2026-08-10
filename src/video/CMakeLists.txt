@@ -28,7 +28,7 @@ endif()
 
 if(NOT N64_GLSLC)
     message(FATAL_ERROR
-        "[n64-emu] glslc not found. Install the Vulkan SDK and ensure "
+        "${APPID_LOG_PREFIX} glslc not found. Install the Vulkan SDK and ensure "
         "VULKAN_SDK is set (needed to compile src/video/shaders).")
 endif()
 
@@ -89,8 +89,8 @@ add_dependencies(video video_shaders)
 target_include_directories(video PRIVATE "${_shader_gen_dir}")
 
 target_compile_definitions(video PUBLIC N64_FRAME_INTERP=1)
-message(STATUS "[n64-emu] Shaders: glslc=${N64_GLSLC}")
-message(STATUS "[n64-emu] Frame interpolation: ON")
+message(STATUS "${APPID_LOG_PREFIX} Shaders: glslc=${N64_GLSLC}")
+message(STATUS "${APPID_LOG_PREFIX} Frame interpolation: ON")
 
 target_link_libraries(video PUBLIC
     common

@@ -1,9 +1,9 @@
 # CLI / windowed frontend without ImGui (tests, scripting, old workflow)
-add_executable(n64-core)
-target_sources(n64-core PRIVATE
+add_executable(kamo64-core)
+target_sources(kamo64-core PRIVATE
     main_core.cpp
 )
-target_link_libraries(n64-core PRIVATE
+target_link_libraries(kamo64-core PRIVATE
     ui
     common
     n64_system
@@ -11,11 +11,11 @@ target_link_libraries(n64-core PRIVATE
 )
 
 # ImGui GUI frontend
-add_executable(n64)
-target_sources(n64 PRIVATE
+add_executable(kamo64)
+target_sources(kamo64 PRIVATE
     main.cpp
 )
-target_link_libraries(n64 PRIVATE
+target_link_libraries(kamo64 PRIVATE
     ui_gui
     common
     n64_system

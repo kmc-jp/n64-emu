@@ -25,7 +25,7 @@ Scalar fallback: VCL/VCR, reserved ops, LHV/LFV/LTV and SPV/SUV/SHV/SFV/SWV/STV.
 ## Profiling
 
 ```bash
-N64_PROFILE_VU=1 N64_PROFILE_FRAME=1 ./src/n64 --jit rom.z64
+N64_PROFILE_VU=1 N64_PROFILE_FRAME=1 ./src/kamo64 --jit rom.z64
 ```
 
 Dumps top COP2 compute ops (with scalar_fallback counts), LWC2/SWC2 majors, and COP2 moves about once per second with the frame profiler.

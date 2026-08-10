@@ -1,5 +1,6 @@
 cmake_minimum_required(VERSION 3.16)
-project(n64-emu)
+include("${CMAKE_CURRENT_SOURCE_DIR}/cmake/AppIdentity.cmake")
+project(${APPID_SLUG})
 enable_language(CXX)
 
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)

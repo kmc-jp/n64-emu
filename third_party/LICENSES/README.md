@@ -1,3 +1,3 @@
 # Third-party license texts
 
-License texts for dependencies used by n64-emu.
+License texts for dependencies used by Kamo64.

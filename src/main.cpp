@@ -7,7 +7,7 @@
 #include <iostream>
 
 constexpr std::string_view USAGE =
-    "Usage: n64 [options] [ROM.z64]\n"
+    "Usage: kamo64 [options] [ROM.z64]\n"
     "ImGui GUI frontend (menu bar + file dialog).\n"
     "Options:\n"
     "--log <file>\tspecify output log file(default to stdout)\n"
@@ -25,7 +25,7 @@ constexpr std::string_view USAGE =
     "--break-after=N\tbreak after N scheduler cycles (implies --debug)\n"
     "--watch=PADDR\twatch physical bus access (implies --debug)\n"
     "\nWithout a ROM path, opens the GUI menu.\n"
-    "For headless/CI tests use n64-core instead.\n";
+    "For headless/CI tests use kamo64-core instead.\n";
 
 int main(int argc, char *argv[]) {
     N64::N64System::Config config{};
@@ -39,7 +39,7 @@ int main(int argc, char *argv[]) {
         return -1;
     }
     if (config.headless || config.test_mode) {
-        std::cerr << "Error: --headless/--test are for n64-core, not n64\n";
+        std::cerr << "Error: --headless/--test are for kamo64-core, not kamo64\n";
         return -1;
     }
 

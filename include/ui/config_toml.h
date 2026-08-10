@@ -7,7 +7,7 @@
 namespace N64 {
 namespace Ui {
 
-// OS app-data path, e.g. %APPDATA%/n64-emu/n64-emu.toml
+// OS app-data path.
 std::string settings_toml_path();
 
 // Directory containing settings_toml_path() (created if missing).

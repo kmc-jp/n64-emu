@@ -1,4 +1,5 @@
 #include "ui/config_toml.h"
+#include "app_identity.h"
 #include "ui/input_sdl.h"
 #include "utils/log.h"
 #include <SDL.h>
@@ -20,8 +21,6 @@ namespace {
 
 namespace fs = std::filesystem;
 
-constexpr const char *kSettingsFileName = "n64-emu.toml";
-
 std::string join_dir_file(const std::string &dir, const char *file) {
     if (dir.empty())
         return file;
@@ -30,15 +29,15 @@ std::string join_dir_file(const std::string &dir, const char *file) {
     return dir + '/' + file;
 }
 
-// SDL_GetPrefPath always makes org/app/; we only want a single n64-emu folder.
-// Windows: %APPDATA%/n64-emu/
-// Linux:   ~/.local/share/n64-emu/
-// macOS:   ~/Library/Application Support/n64-emu/
+// SDL_GetPrefPath always makes org/app/; we only want a single kamo64 folder.
+// Windows: %APPDATA%/kamo64/
+// Linux:   ~/.local/share/kamo64/
+// macOS:   ~/Library/Application Support/kamo64/
 std::string pref_settings_dir() {
-    if (char *pref = SDL_GetPrefPath("n64-emu", "n64-emu")) {
-        fs::path nested(pref); // .../n64-emu/n64-emu/
+    if (char *pref = SDL_GetPrefPath(kAppSlug, kAppSlug)) {
+        fs::path nested(pref); // .../kamo64/kamo64/
         SDL_free(pref);
-        fs::path dir = nested.parent_path(); // .../n64-emu/
+        fs::path dir = nested.parent_path(); // .../kamo64/
         std::error_code ec;
         fs::create_directories(dir, ec);
         // Drop the empty inner directory SDL created, if unused.
@@ -58,19 +57,41 @@ std::string pref_settings_path() {
 // Older locations we may migrate from.
 std::vector<std::string> legacy_settings_paths() {
     std::vector<std::string> out;
-    if (char *pref = SDL_GetPrefPath("n64-emu", "n64-emu")) {
-        // Previous double-nested path.
-        out.push_back(join_dir_file(pref, kSettingsFileName));
+    constexpr const char *kLegacySlug = "n64-emu";
+    constexpr const char *kLegacySettingsFile = "n64-emu.toml";
+    constexpr const char *kLegacySlugSettingsFile = "kamo64.toml";
+
+    // Previous project name (flat pref dir).
+    if (char *pref = SDL_GetPrefPath(kLegacySlug, kLegacySlug)) {
+        fs::path nested(pref); // .../n64-emu/n64-emu/
         SDL_free(pref);
+        const fs::path legacy_dir = nested.parent_path(); // .../n64-emu/
+        out.push_back(join_dir_file(legacy_dir.string(), kLegacySettingsFile));
+        // Previous double-nested path.
+        out.push_back(join_dir_file(nested.string(), kLegacySettingsFile));
+    }
+    // Current slug: old filename or double-nested layout.
+    if (char *pref = SDL_GetPrefPath(kAppSlug, kAppSlug)) {
+        fs::path nested(pref); // .../kamo64/kamo64/
+        SDL_free(pref);
+        const fs::path dir = nested.parent_path(); // .../kamo64/
+        out.push_back(join_dir_file(dir.string(), kLegacySlugSettingsFile));
+        out.push_back(join_dir_file(nested.string(), kSettingsFileName));
+        out.push_back(join_dir_file(nested.string(), kLegacySlugSettingsFile));
     }
     if (char *base = SDL_GetBasePath()) {
         out.push_back(join_dir_file(base, kSettingsFileName));
+        out.push_back(join_dir_file(base, kLegacySlugSettingsFile));
+        out.push_back(join_dir_file(base, kLegacySettingsFile));
         SDL_free(base);
     }
     std::error_code ec;
     auto cwd = fs::current_path(ec);
-    if (!ec)
+    if (!ec) {
         out.push_back((cwd / kSettingsFileName).string());
+        out.push_back((cwd / kLegacySlugSettingsFile).string());
+        out.push_back((cwd / kLegacySettingsFile).string());
+    }
     return out;
 }
 

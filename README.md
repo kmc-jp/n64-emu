@@ -1,6 +1,6 @@
-# n64-emu
+# Kamo64
 
-n64-emu is an experimental Nintendo 64 emulator with low-level emulation (LLE) and dynamic recompilation (JIT).
+Kamo64 is an experimental Nintendo 64 emulator with low-level emulation (LLE) and dynamic recompilation (JIT).
 
 ![screenshot](screenshot.png)
 
@@ -33,8 +33,8 @@ We support Windows, macOS, and Linux.
 ```bash
 sudo apt install cmake g++ libsdl2-dev libvulkan-dev glslc zenity
 
-git clone --recursive git@github.com:kmc-jp/n64-emu.git
-cd n64-emu
+git clone --recursive git@github.com:kmc-jp/kamo64.git
+cd kamo64
 mkdir build
 cd build
 cmake -DCMAKE_BUILD_TYPE=Release ..
@@ -51,8 +51,8 @@ cmake --build . --parallel
 4. Run the following commands:
 
 ```bash
-git clone --recursive git@github.com:kmc-jp/n64-emu.git
-cd n64-emu
+git clone --recursive git@github.com:kmc-jp/kamo64.git
+cd kamo64
 mkdir build
 cd build
 cmake -DCMAKE_BUILD_TYPE=Release ..
@@ -70,8 +70,8 @@ brew install cmake sdl2 molten-vk
 2. Clone and build:
 
 ```bash
-git clone --recursive git@github.com:kmc-jp/n64-emu.git
-cd n64-emu
+git clone --recursive git@github.com:kmc-jp/kamo64.git
+cd kamo64
 mkdir build
 cd build
 cmake -DCMAKE_BUILD_TYPE=Release ..
@@ -94,7 +94,7 @@ Notes:
 Only the z64 format (big-endian) is supported.
 
 ```bash
-./n64[.exe] [options] <rom_file.z64>
+./kamo64[.exe] [options] <rom_file.z64>
 ```
 
 ### Options
@@ -114,7 +114,7 @@ Only the z64 format (big-endian) is supported.
 Example:
 
 ```bash
-./n64 --log-level=debug rom.z64
+./kamo64 --log-level=debug rom.z64
 ```
 
 ## Test

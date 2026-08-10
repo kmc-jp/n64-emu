@@ -1,4 +1,5 @@
 #include "ui/app_core.h"
+#include "app_identity.h"
 #include "memory/memory.h"
 #include "mmio/controller_input.h"
 #include "mmio/vi.h"
@@ -19,15 +20,14 @@ namespace N64 {
 namespace Ui {
 
 namespace {
-constexpr const char *kWindowTitle = "n64-core";
 constexpr int kWindowWidth = 1600;
 constexpr int kWindowHeight = kWindowWidth * 3 / 4;
 
 Vulkan::WSI *g_wsi = nullptr;
 
-// Same root as GUI settings: .../n64-emu/ (not the nested .../n64-emu/n64-emu/).
+// Same root as GUI settings: .../kamo64/ (not the nested .../kamo64/kamo64/).
 void init_cart_save_data_dir() {
-    if (char *pref = SDL_GetPrefPath("n64-emu", "n64-emu")) {
+    if (char *pref = SDL_GetPrefPath(kAppSlug, kAppSlug)) {
         std::filesystem::path nested(pref);
         SDL_free(pref);
         const auto dir = nested.parent_path();
@@ -75,7 +75,7 @@ AppCore::AppCore(N64System::Config &config_)
     input_init();
     Input::set_host_poll(&host_controller_poll);
 
-    window = create_main_window(kWindowTitle, kWindowWidth, kWindowHeight);
+    window = create_main_window(kCoreWindowTitle, kWindowWidth, kWindowHeight);
     if (!window) {
         Utils::critical("Failed to open Window");
         exit(-1);

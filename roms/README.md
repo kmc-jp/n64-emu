@@ -1,7 +1,7 @@
 ## Third-party ROMs
 
 This folder contains Nintendo 64 ROM images used for development, demos, and
-tests. They are **not** part of the n64-emu MIT license; keep each author's
+tests. They are **not** part of the Kamo64 MIT license; keep each author's
 terms.
 
 - `zophar/` — Downloaded from https://www.zophar.net/pdroms/n64.html

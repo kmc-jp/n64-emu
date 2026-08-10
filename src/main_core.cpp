@@ -5,7 +5,7 @@
 #include <iostream>
 
 constexpr std::string_view USAGE =
-    "Usage: n64-core [options] <ROM.z64>\n"
+    "Usage: kamo64-core [options] <ROM.z64>\n"
     "CLI / windowed frontend without ImGui (for tests and scripting).\n"
     "Options:\n"
     "--log <file>\tspecify output log file(default to stdout)\n"

@@ -1,4 +1,4 @@
-The n64-emu source code (outside the exceptions below) is licensed under the
+The Kamo64 source code (outside the exceptions below) is licensed under the
 MIT License.
 
 Exceptions (not covered by this MIT license):
@@ -6,7 +6,7 @@ Exceptions (not covered by this MIT license):
   - roms/
       Third-party ROM images and accompanying materials. See roms/README.md
       and any files packaged with each ROM for authorship and terms. These
-      are not licensed as part of n64-emu.
+      are not licensed as part of Kamo64.
 
       Special case — roms/dillonb-n64-tests/:
       Pre-built binaries from Dillon's n64-tests
@@ -23,7 +23,7 @@ Exceptions (not covered by this MIT license):
 
 MIT License
 
-Copyright (c) 2023-2026 n64-emu contributors
+Copyright (c) 2023-2026 Kamo64 contributors
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
