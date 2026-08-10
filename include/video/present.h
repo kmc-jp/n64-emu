@@ -1,5 +1,6 @@
 #pragma once
 
+#include "video/frame_interpolate.h"
 #include "wsi.hpp"
 #include <cstdint>
 
@@ -26,6 +27,8 @@ void reinit_rdp(Vulkan::WSI &wsi, uint8_t *rdram, unsigned upscale,
 
 void set_frame_interp_enabled(bool enabled);
 bool frame_interp_enabled();
+void set_frame_interp_mode(FrameInterpMode mode);
+FrameInterpMode frame_interp_mode();
 
 bool present_field(Vulkan::WSI &wsi, N64::Mmio::VI::VI &vi,
                    bool force_present = false);

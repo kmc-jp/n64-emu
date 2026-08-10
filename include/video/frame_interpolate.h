@@ -9,9 +9,18 @@
 namespace N64 {
 namespace Video {
 
+// How optical-flow intermediates are generated when frame interp is enabled.
+enum class FrameInterpMode {
+    // Wait for the next novel frame, then fill the gap by warping both ends
+    // toward each other. Best quality; adds ~1 source-frame of display delay.
+    Bidirectional = 0,
+    // Show each novel frame immediately; fill duplicate fields by extrapolating
+    // the latest frame forward with the previous pair's flow. Lower latency.
+    Extrapolate = 1,
+};
+
 // Optical-flow frame interpolator for VI duplicate-field replacement.
-// When enabled, delays output by one game frame and fills held fields with
-// warped intermediates between consecutive novel frames.
+// Bidirectional mode delays output by one game frame; Extrapolate does not.
 // Novel frames: content fingerprint (primary) with VI_ORIGIN as cold-start aid.
 class FrameInterpolator {
   public:
@@ -23,6 +32,9 @@ class FrameInterpolator {
 
     void set_enabled(bool enabled) { enabled_ = enabled; }
     bool enabled() const { return enabled_; }
+
+    void set_mode(FrameInterpMode mode) { mode_ = mode; }
+    FrameInterpMode mode() const { return mode_; }
 
     // Process one VI-field scanout. Returns the image to present (may be a
     // warped intermediate, a delayed novel frame, or the input passthrough).
@@ -36,7 +48,6 @@ class FrameInterpolator {
 
   private:
     static constexpr unsigned kMaxLevels = 5;
-    // Cap matching resolution  E512 was quality-heavy for realtime.
     static constexpr unsigned kTargetLumaWidth = 320;
     static constexpr unsigned kCoarsestSize = 20;
     static constexpr unsigned kFingerprintSize = 16;
@@ -56,6 +67,7 @@ class FrameInterpolator {
     };
 
     bool enabled_ = false;
+    FrameInterpMode mode_ = FrameInterpMode::Bidirectional;
     bool debug_ = false;
     bool stats_ = false;
     bool flag_subpixel_ = false;
@@ -68,13 +80,14 @@ class FrameInterpolator {
     bool flag_depth_occl_ = true;
     bool flag_content_hash_ = true;
     bool flag_global_motion_ = false;
-    bool flag_flow_smooth_ = true; // median smooth; skip on finest level always
+    bool flag_flow_smooth_ = true;
+    bool have_flow_ = false;
 
     uint32_t last_origin_ = 0;
     bool have_origin_ = false;
     unsigned hold_count_ = 0;
     unsigned consecutive_k1_ = 0;
-    unsigned pair_k_ = 1; // fields spanned by the current prev→curr pair
+    unsigned pair_k_ = 1;
 
     Vulkan::ImageHandle prev_novel_;
     Vulkan::ImageHandle curr_novel_;
@@ -95,14 +108,12 @@ class FrameInterpolator {
     Vulkan::ImageHandle flow_tmp_;
     Vulkan::ImageHandle flow_seed_ab_;
     Vulkan::ImageHandle flow_seed_ba_;
-    // Temporal store: per-field velocity (luma px / field), not full displacement.
     Vulkan::ImageHandle prev_flow_ab_;
     Vulkan::ImageHandle prev_flow_ba_;
     bool have_prev_flow_ = false;
     Vulkan::ImageHandle output_;
     Vulkan::BufferHandle scene_buf_;
 
-    // Content fingerprint (16x16) for novel-frame detection (async, 1-field lag).
     Vulkan::ImageHandle fp_prev_;
     Vulkan::ImageHandle fp_curr_;
     Vulkan::BufferHandle content_buf_;
@@ -112,8 +123,8 @@ class FrameInterpolator {
     bool content_pending_ = false;
     bool content_changed_latched_ = true;
 
-    Vulkan::BufferHandle global_buf_;   // Q8 accumulators (AB+BA)
-    Vulkan::BufferHandle global_out_;   // float4 for warp (GPU-only, no readback)
+    Vulkan::BufferHandle global_buf_;
+    Vulkan::BufferHandle global_out_;
     bool have_global_ = false;
 
     Vulkan::Program *prog_luma_ = nullptr;
@@ -137,7 +148,6 @@ class FrameInterpolator {
 
     std::deque<QueueItem> queue_;
 
-    // Latency stats (N64_FRAME_INTERP_STATS=1).
     std::chrono::steady_clock::time_point last_novel_t_{};
     bool have_novel_t_ = false;
     unsigned stats_pairs_ = 0;
@@ -160,7 +170,9 @@ class FrameInterpolator {
     bool poll_content_novel(Vulkan::Device &device);
     void clear_temporal_flow();
     void note_latency_stats(unsigned k);
-    Vulkan::ImageHandle warp(Vulkan::Device &device, float phase);
+    bool build_pair_flow(Vulkan::Device &device, unsigned k);
+    Vulkan::ImageHandle warp(Vulkan::Device &device, float phase,
+                             bool extrapolate = false);
     static void dispatch_2d(Vulkan::CommandBuffer &cmd, unsigned w,
                             unsigned h);
 };

@@ -33,6 +33,7 @@ layout(push_constant) uniform Push {
     float blend_fallback; // 1 = crossfade when unsure (ghosty), 0 = frame hold
     float have_depth;  // 1 = depth textures valid
     float have_global; // 1 = global_motion buffer valid
+    float extrapolate; // 1 = forward-warp frame B only (low-latency mode)
 } push;
 
 const float PI = 3.14159265;
@@ -103,6 +104,33 @@ void main() {
 
     if (scene.scene_cut != 0u) {
         imageStore(uOut, p, b0);
+        return;
+    }
+
+    // Experimental low-latency path: tiny forward nudge of frame B only.
+    if (push.extrapolate > 0.5) {
+        float dt = max(push.phase, 0.0);
+        float conf_ab = smooth_conf(uFlowAB, uv);
+        float atten_a = smoothstep(0.12, 0.45, conf_ab);
+        vec2 fallback_ab = vec2(0.0);
+        if (push.have_global > 0.5)
+            fallback_ab = vec2(global_motion.ab_x, global_motion.ab_y);
+        vec2 f_ab = mix(fallback_ab,
+                        textureLod(uFlowAB, uv, 0.0).xy * push.flow_scale,
+                        atten_a);
+        float motion = length(f_ab);
+        // Skip unreliable / huge vectors — they shimmer field-to-field.
+        if (atten_a < 0.35 || motion > 20.0) {
+            imageStore(uOut, p, b0);
+            return;
+        }
+        vec2 from_b = uv - (dt * f_ab) / vec2(push.out_size);
+        vec4 warped = textureLod(uFrameB, from_b, 0.0);
+        float keep = atten_a * 0.55;
+        vec4 outc = mix(b0, warped, keep);
+        if (push.debug > 0.5)
+            outc = vec4(0.5 + f_ab.x * 0.05, 0.5 + f_ab.y * 0.05, keep, 1.0);
+        imageStore(uOut, p, outc);
         return;
     }
 

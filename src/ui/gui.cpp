@@ -207,13 +207,68 @@ void draw_video_settings(GuiState &state) {
         ImGui::AlignTextToFramePadding();
         ImGui::TextUnformatted("Frame interpolation:");
         ImGui::TableSetColumnIndex(1);
-        bool fi = cfg.frame_interp;
-        if (ImGui::Checkbox("##frame_interp", &fi)) {
-            cfg.frame_interp = fi;
-            if (Rdp::ready())
-                Video::set_frame_interp_enabled(fi);
-            save_settings(state);
+        const char *fi_label = "None";
+        if (cfg.frame_interp) {
+            fi_label =
+                cfg.frame_interp_mode == N64System::FrameInterpMode::Extrapolate
+                    ? "Extrapolation (experimental)"
+                    : "Interpolation";
         }
+        ImGui::SetNextItemWidth(-FLT_MIN);
+        if (ImGui::BeginCombo("##frame_interp", fi_label)) {
+            const bool none_sel = !cfg.frame_interp;
+            if (ImGui::Selectable("None", none_sel) && !none_sel) {
+                cfg.frame_interp = false;
+                if (Rdp::ready())
+                    Video::set_frame_interp_enabled(false);
+                save_settings(state);
+            }
+            if (none_sel)
+                ImGui::SetItemDefaultFocus();
+
+            const bool both_sel =
+                cfg.frame_interp &&
+                cfg.frame_interp_mode ==
+                    N64System::FrameInterpMode::Bidirectional;
+            if (ImGui::Selectable("Interpolation", both_sel) && !both_sel) {
+                cfg.frame_interp = true;
+                cfg.frame_interp_mode =
+                    N64System::FrameInterpMode::Bidirectional;
+                if (Rdp::ready()) {
+                    Video::set_frame_interp_mode(
+                        Video::FrameInterpMode::Bidirectional);
+                    Video::set_frame_interp_enabled(true);
+                }
+                save_settings(state);
+            }
+            if (both_sel)
+                ImGui::SetItemDefaultFocus();
+
+            const bool one_sel =
+                cfg.frame_interp &&
+                cfg.frame_interp_mode == N64System::FrameInterpMode::Extrapolate;
+            if (ImGui::Selectable("Extrapolation (experimental)", one_sel) &&
+                !one_sel) {
+                cfg.frame_interp = true;
+                cfg.frame_interp_mode = N64System::FrameInterpMode::Extrapolate;
+                if (Rdp::ready()) {
+                    Video::set_frame_interp_mode(
+                        Video::FrameInterpMode::Extrapolate);
+                    Video::set_frame_interp_enabled(true);
+                }
+                save_settings(state);
+            }
+            if (one_sel)
+                ImGui::SetItemDefaultFocus();
+            ImGui::EndCombo();
+        }
+        if (ImGui::IsItemHovered(ImGuiHoveredFlags_DelayNormal))
+            ImGui::SetTooltip(
+                "None: no extra frames.\n"
+                "Interpolation: blend between previous and next (~1 frame "
+                "delay).\n"
+                "Extrapolation (experimental): lower latency; may look "
+                "unstable on moving objects.");
 
         ImGui::EndTable();
     }

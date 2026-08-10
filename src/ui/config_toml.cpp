@@ -116,6 +116,14 @@ bool parse_toml_file(const std::string &path, N64System::Config &config,
             }
             if (auto v = (*video)["frame_interp"].value<bool>())
                 config.frame_interp = *v;
+            if (auto v = (*video)["frame_interp_mode"].value<std::string>()) {
+                if (*v == "extrapolate" || *v == "onesided" || *v == "one-sided")
+                    config.frame_interp_mode =
+                        N64System::FrameInterpMode::Extrapolate;
+                else
+                    config.frame_interp_mode =
+                        N64System::FrameInterpMode::Bidirectional;
+            }
             if (auto v = (*video)["vulkan_device"].value<std::string>())
                 config.vulkan_device = *v;
         }
@@ -230,6 +238,11 @@ bool save_toml(const N64System::Config &config, const UiSettings &ui) {
     toml::table video;
     video.insert_or_assign("upscale", static_cast<int64_t>(config.upscale));
     video.insert_or_assign("frame_interp", config.frame_interp);
+    video.insert_or_assign(
+        "frame_interp_mode",
+        config.frame_interp_mode == N64System::FrameInterpMode::Extrapolate
+            ? "extrapolate"
+            : "bidirectional");
     video.insert_or_assign("vulkan_device", config.vulkan_device);
 
     toml::table cpu;

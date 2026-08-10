@@ -187,6 +187,12 @@ void set_frame_interp_enabled(bool enabled) {
 
 bool frame_interp_enabled() { return g_frame_interp.enabled(); }
 
+void set_frame_interp_mode(FrameInterpMode mode) {
+    g_frame_interp.set_mode(mode);
+}
+
+FrameInterpMode frame_interp_mode() { return g_frame_interp.mode(); }
+
 bool present_field(Vulkan::WSI &wsi, N64::Mmio::VI::VI &vi,
                    bool force_present) {
     std::lock_guard lock(Rdp::mutex());

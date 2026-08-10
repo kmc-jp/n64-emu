@@ -116,6 +116,7 @@ void FrameInterpolator::reset() {
     prev_flow_ab_.reset();
     prev_flow_ba_.reset();
     have_prev_flow_ = false;
+    have_flow_ = false;
     output_.reset();
     scene_buf_.reset();
     fp_prev_.reset();
@@ -137,6 +138,7 @@ void FrameInterpolator::reset() {
 
 void FrameInterpolator::clear_temporal_flow() {
     have_prev_flow_ = false;
+    have_flow_ = false;
 }
 
 void FrameInterpolator::dispatch_2d(Vulkan::CommandBuffer &cmd, unsigned w,
@@ -818,10 +820,11 @@ void FrameInterpolator::note_latency_stats(unsigned k) {
 }
 
 Vulkan::ImageHandle FrameInterpolator::warp(Vulkan::Device &device,
-                                            float phase) {
+                                            float phase, bool extrapolate) {
 #if !N64_FRAME_INTERP
     (void)device;
     (void)phase;
+    (void)extrapolate;
     return curr_novel_;
 #else
     auto cmd = device.request_command_buffer();
@@ -851,6 +854,7 @@ Vulkan::ImageHandle FrameInterpolator::warp(Vulkan::Device &device,
         float blend_fallback;
         float have_depth;
         float have_global;
+        float extrapolate;
     } push{};
     push.out_w = scan_w_;
     push.out_h = scan_h_;
@@ -865,6 +869,7 @@ Vulkan::ImageHandle FrameInterpolator::warp(Vulkan::Device &device,
     push.blend_fallback = flag_blend_fallback_ ? 1.f : 0.f;
     push.have_depth = use_depth ? 1.f : 0.f;
     push.have_global = (flag_global_motion_ && have_global_) ? 1.f : 0.f;
+    push.extrapolate = extrapolate ? 1.f : 0.f;
 
     cmd->set_program(prog_warp_);
     cmd->set_texture(0, 0, prev_novel_->get_view(),
@@ -891,6 +896,29 @@ Vulkan::ImageHandle FrameInterpolator::warp(Vulkan::Device &device,
 
     device.submit(cmd);
     return output_;
+#endif
+}
+
+bool FrameInterpolator::build_pair_flow(Vulkan::Device &device, unsigned k) {
+#if !N64_FRAME_INTERP
+    (void)device;
+    (void)k;
+    return false;
+#else
+    if (!prev_novel_ || !curr_novel_ || k < 2)
+        return false;
+    auto cmd = device.request_command_buffer();
+    build_pyramid(*cmd, *prev_novel_, luma_a_);
+    build_pyramid(*cmd, *curr_novel_, luma_b_);
+    reduce_scene(*cmd);
+    estimate_flow(*cmd);
+    apply_consistency(*cmd);
+    normalize_and_blend_temporal(*cmd, k);
+    save_temporal_velocity(*cmd, k);
+    append_global_motion(*cmd);
+    device.submit(cmd);
+    have_flow_ = true;
+    return true;
 #endif
 }
 
@@ -936,6 +964,14 @@ Vulkan::ImageHandle FrameInterpolator::process(Vulkan::Device &device,
     flag_global_motion_ = env_flag("N64_FLOW_GLOBAL_MOTION", false);
     flag_flow_smooth_ = env_flag("N64_FLOW_SMOOTH", true);
 
+    // Env override for quick A/B of modes without rebuilding settings.
+    if (const char *e = getenv("N64_FRAME_INTERP_MODE")) {
+        if (e[0] == 'e' || e[0] == 'E' || e[0] == '1')
+            mode_ = FrameInterpMode::Extrapolate;
+        else if (e[0] == 'b' || e[0] == 'B' || e[0] == '0')
+            mode_ = FrameInterpMode::Bidirectional;
+    }
+
     ensure_programs(device);
     if (!programs_ready_)
         return scanout;
@@ -945,14 +981,13 @@ Vulkan::ImageHandle FrameInterpolator::process(Vulkan::Device &device,
     const bool origin_changed = !have_origin_ || origin != last_origin_;
     bool novel = origin_changed;
     if (flag_content_hash_) {
-        // Poll last field's async result (usually already done). Origin change
-        // is still treated as novel; content catch single-buffer rewrites.
         const bool content_novel = poll_content_novel(device);
         novel = origin_changed || content_novel;
-        // Kick next fingerprint without waiting. Compare only when holding the
-        // same origin (the single-buffer case that origin cannot see).
         kick_content_fingerprint(device, *scanout, !origin_changed);
     }
+
+    const bool extrapolate_mode = mode_ == FrameInterpMode::Extrapolate;
+
     if (novel) {
         if (!queue_.empty())
             queue_.clear();
@@ -972,34 +1007,29 @@ Vulkan::ImageHandle FrameInterpolator::process(Vulkan::Device &device,
             prev_depth_ = curr_depth_;
             curr_depth_ = depth;
 
-            if (consecutive_k1_ < kBypassStreak && k >= 2 && prev_novel_) {
-                auto cmd = device.request_command_buffer();
-                build_pyramid(*cmd, *prev_novel_, luma_a_);
-                build_pyramid(*cmd, *curr_novel_, luma_b_);
-                reduce_scene(*cmd);
-                estimate_flow(*cmd);
-                apply_consistency(*cmd);
-                normalize_and_blend_temporal(*cmd, k);
-                save_temporal_velocity(*cmd, k);
-                append_global_motion(*cmd);
-                device.submit(cmd);
-
-                for (unsigned i = 1; i < k; ++i) {
-                    QueueItem item;
-                    item.phase = float(i) / float(k);
-                    queue_.push_back(item);
+            const bool can_flow =
+                consecutive_k1_ < kBypassStreak && k >= 2 && prev_novel_;
+            if (can_flow && build_pair_flow(device, k)) {
+                if (!extrapolate_mode) {
+                    for (unsigned i = 1; i < k; ++i) {
+                        QueueItem item;
+                        item.phase = float(i) / float(k);
+                        queue_.push_back(item);
+                    }
+                    QueueItem end;
+                    end.phase = -1.f;
+                    end.frame = curr_novel_;
+                    queue_.push_back(end);
                 }
-                QueueItem end;
-                end.phase = -1.f;
-                end.frame = curr_novel_;
-                queue_.push_back(end);
             } else {
                 clear_temporal_flow();
                 have_global_ = false;
-                QueueItem end;
-                end.phase = -1.f;
-                end.frame = curr_novel_;
-                queue_.push_back(end);
+                if (!extrapolate_mode) {
+                    QueueItem end;
+                    end.phase = -1.f;
+                    end.frame = curr_novel_;
+                    queue_.push_back(end);
+                }
             }
         } else {
             curr_novel_ = scanout;
@@ -1010,6 +1040,9 @@ Vulkan::ImageHandle FrameInterpolator::process(Vulkan::Device &device,
         last_origin_ = origin;
         have_origin_ = true;
         hold_count_ = 1;
+
+        if (extrapolate_mode)
+            return scanout; // present novel immediately (no +1 frame delay)
     } else {
         if (hold_count_ < kMaxHold)
             ++hold_count_;
@@ -1021,6 +1054,15 @@ Vulkan::ImageHandle FrameInterpolator::process(Vulkan::Device &device,
         return scanout;
     }
 
+    if (extrapolate_mode) {
+        // Experimental: present novels immediately. Only a single small nudge
+        // on the first duplicate field, then freeze — ramping extrapolation
+        // every hold chatters, and overshoot snaps when the next novel arrives.
+        if (!have_flow_ || !curr_novel_ || !prev_novel_ || hold_count_ != 2)
+            return hold_count_ > 1 && curr_novel_ ? curr_novel_ : scanout;
+        return warp(device, 0.12f, true);
+    }
+
     if (queue_.empty())
         return scanout;
 
@@ -1028,7 +1070,7 @@ Vulkan::ImageHandle FrameInterpolator::process(Vulkan::Device &device,
     queue_.pop_front();
     if (item.phase < 0.f)
         return item.frame ? item.frame : scanout;
-    return warp(device, item.phase);
+    return warp(device, item.phase, false);
 #endif
 }
 

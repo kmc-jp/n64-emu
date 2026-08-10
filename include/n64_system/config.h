@@ -14,6 +14,12 @@ enum class CpuBackend {
     Jit,
 };
 
+// Optical-flow frame interpolation strategy (when frame_interp is on).
+enum class FrameInterpMode {
+    Bidirectional = 0, // both frames; ~1 frame display delay
+    Extrapolate = 1,   // latest frame only; lower latency
+};
+
 struct Config {
     std::string rom_filepath{};
     std::string log_filepath{};
@@ -37,6 +43,7 @@ struct Config {
     unsigned upscale{4};
     // Optical-flow frame interpolation (duplicate VI fields -> intermediates).
     bool frame_interp{false};
+    FrameInterpMode frame_interp_mode{FrameInterpMode::Bidirectional};
     // Preferred Vulkan physical device UUID (hex). Empty = auto-select.
     std::string vulkan_device{};
 };
