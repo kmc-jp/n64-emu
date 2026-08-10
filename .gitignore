@@ -64,6 +64,8 @@ test/test_runner
 *.fla
 *.mpk
 
+*.log
+
 *.txt
 !roms/**/*
 !third_party/LICENSES/**
