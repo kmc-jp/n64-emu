@@ -21,6 +21,8 @@ struct GuiState {
     bool request_start{false};
     bool request_stop{false};
     bool request_quit{false};
+    // Set by gui_draw: the menu bar is up and needs live redraws.
+    bool menu_bar_active{false};
     N64System::Config *config{nullptr};
     UiSettings *ui_settings{nullptr};
     Vulkan::WSI *wsi{nullptr};

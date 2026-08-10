@@ -776,6 +776,10 @@ void draw_about(GuiState &state) {
 void gui_draw(GuiState &state) {
     static bool menu_open = false;
     const bool fullscreen = window_is_fullscreen(current_window(state));
+    const bool hide_menu_bar =
+        state.ui_settings && state.ui_settings->hide_menu_bar;
+    const bool auto_hide =
+        hide_menu_bar && state.mode == AppMode::Running;
     bool any_menu_open = false;
     auto begin_menu = [&any_menu_open](const char *label) {
         const bool open = ImGui::BeginMenu(label);
@@ -783,8 +787,8 @@ void gui_draw(GuiState &state) {
         return open;
     };
 
-    const bool show_menu_bar = menu_bar_visible(fullscreen, menu_open);
-    state.menu_bar_active = menu_open || (fullscreen && show_menu_bar);
+    const bool show_menu_bar = menu_bar_visible(auto_hide, menu_open);
+    state.menu_bar_active = menu_open || (auto_hide && show_menu_bar);
 
     if (show_menu_bar && ImGui::BeginMainMenuBar()) {
         if (begin_menu("File")) {
@@ -820,6 +824,14 @@ void gui_draw(GuiState &state) {
                 set_fullscreen(state, true);
             if (ImGui::MenuItem("Window", nullptr, !fullscreen))
                 set_fullscreen(state, false);
+            ImGui::Separator();
+            if (state.ui_settings) {
+                bool hide = state.ui_settings->hide_menu_bar;
+                if (ImGui::MenuItem("Hide Menu Bar", nullptr, hide)) {
+                    state.ui_settings->hide_menu_bar = !hide;
+                    save_settings(state);
+                }
+            }
             ImGui::Separator();
             if (ImGui::BeginMenu("Theme")) {
                 const UiTheme theme = state.ui_settings

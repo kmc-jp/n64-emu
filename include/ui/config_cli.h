@@ -15,6 +15,8 @@ struct UiSettings {
     // Linear output gain in [0, 1].
     float audio_volume{1.0f};
     bool show_fps{false};
+    // While a game is running, hide the menu bar until the mouse hits the top.
+    bool hide_menu_bar{false};
     // SDL_Scancode values indexed by N64KeyBind.
     int key_binds[kN64KeyBindCount]{};
     // XInput / SDL GameController bindings indexed by N64KeyBind.
