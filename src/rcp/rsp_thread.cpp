@@ -18,7 +18,7 @@ void RspThread::configure(bool enabled) {
 void RspThread::start() {
     if (!enabled_ || thr_.joinable())
         return;
-    stop_ = false;
+    stop_.store(false, std::memory_order_relaxed);
     kick_pending_ = false;
     running_ = false;
     irq_pending_ = false;
@@ -28,7 +28,7 @@ void RspThread::start() {
 void RspThread::shutdown() {
     {
         std::lock_guard<std::mutex> lock(mu_);
-        stop_ = true;
+        stop_.store(true, std::memory_order_release);
         kick_pending_ = false;
         cv_kick_.notify_all();
     }
@@ -45,7 +45,7 @@ void RspThread::kick_until_halt() {
         return;
     {
         std::lock_guard<std::mutex> lock(mu_);
-        if (stop_)
+        if (stop_.load(std::memory_order_relaxed))
             return;
         kick_pending_ = true;
     }
@@ -59,7 +59,10 @@ void RspThread::wait_idle() {
         return;
 
     std::unique_lock<std::mutex> lock(mu_);
-    cv_idle_.wait(lock, [&] { return stop_ || (!running_ && !kick_pending_); });
+    cv_idle_.wait(lock, [&] {
+        return stop_.load(std::memory_order_relaxed) ||
+               (!running_ && !kick_pending_);
+    });
 
     if (irq_pending_) {
         irq_pending_ = false;
@@ -86,8 +89,10 @@ void RspThread::worker_main() {
     for (;;) {
         {
             std::unique_lock<std::mutex> lock(mu_);
-            cv_kick_.wait(lock, [&] { return stop_ || kick_pending_; });
-            if (stop_)
+            cv_kick_.wait(lock, [&] {
+                return stop_.load(std::memory_order_relaxed) || kick_pending_;
+            });
+            if (stop_.load(std::memory_order_relaxed))
                 break;
             kick_pending_ = false;
             running_ = true;
@@ -106,12 +111,12 @@ void RspThread::worker_main() {
 void RspThread::run_quantum() {
     Rsp &rsp = g_rsp();
     uint32_t ran = 0;
+    // Avoid locking the worker mutex on every instruction — that dominated
+    // RSP wall time on games with long DSP/GFX tasks (e.g. Kirby 64).
     while (!rsp.halted() && ran < kQuantumInsns) {
-        {
-            std::lock_guard<std::mutex> lock(mu_);
-            if (stop_)
-                return;
-        }
+        if ((ran & 0x3FFu) == 0 &&
+            stop_.load(std::memory_order_acquire))
+            return;
         rsp.step();
         ++ran;
     }

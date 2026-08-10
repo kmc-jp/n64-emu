@@ -1,6 +1,7 @@
 #ifndef RCP_RSP_THREAD_H
 #define RCP_RSP_THREAD_H
 
+#include <atomic>
 #include <condition_variable>
 #include <cstdint>
 #include <mutex>
@@ -34,7 +35,7 @@ class RspThread {
     void run_quantum();
 
     bool enabled_{false};
-    bool stop_{false};
+    std::atomic<bool> stop_{false};
     bool running_{false};
     bool kick_pending_{false};
     bool irq_pending_{false};

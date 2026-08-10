@@ -280,12 +280,12 @@ void on_full_sync() {
 }
 
 void check_framebuffers(uint32_t address, uint32_t length) {
+    // Hot path: every RDRAM load/store after FULL_SYNC. Acquire on the signal
+    // synchronizes with on_full_sync's release, so dirty bits written earlier
+    // under the RDP mutex are visible without taking the lock on misses.
     if (g_sync_signal.load(std::memory_order_acquire) == 0)
         return;
-
-    std::lock_guard lock(mutex());
-    const uint64_t signal = g_sync_signal.load(std::memory_order_relaxed);
-    if (!signal || !g_command_processor || g_rdram_dirty.empty() || length == 0)
+    if (length == 0 || g_rdram_dirty.empty())
         return;
 
     uint32_t start = address >> 3;
@@ -300,6 +300,10 @@ void check_framebuffers(uint32_t address, uint32_t length) {
     if (it == g_rdram_dirty.begin() + end)
         return;
 
+    std::lock_guard lock(mutex());
+    if (g_sync_signal.load(std::memory_order_relaxed) == 0 ||
+        !g_command_processor)
+        return;
     flush_pending_sync_locked();
 }
 
