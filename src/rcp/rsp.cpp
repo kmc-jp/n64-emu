@@ -8,6 +8,7 @@
 #include "rcp/dpc.h"
 #include "rcp/rsp_thread.h"
 #include "rcp/vu_profile.h"
+#include "rdp/rdp_core.h"
 #include "utils/byte_array.h"
 #include "utils/log.h"
 
@@ -621,6 +622,11 @@ void Rsp::dma_read() {
     auto &rdram = g_memory().get_rdram();
     auto &mem = to_imem ? sp_imem : sp_dmem;
 
+    const uint32_t check_len =
+        dma.count == 0 ? length
+                       : (dma.count + 1) * length + dma.count * dma.skip;
+    Rdp::check_framebuffers(dram_address, check_len);
+
     for (uint32_t i = 0; i < dma.count + 1; i++) {
         for (uint32_t j = 0; j < length; j++) {
             uint16_t addr = (mem_address + j) & 0xFFF;
@@ -651,6 +657,11 @@ void Rsp::dma_write() {
     const bool from_imem = shadow_mem_addr.imem;
     auto &rdram = g_memory().get_rdram();
     auto &mem = from_imem ? sp_imem : sp_dmem;
+
+    const uint32_t check_len =
+        dma.count == 0 ? length
+                       : (dma.count + 1) * length + dma.count * dma.skip;
+    Rdp::check_framebuffers(dram_address, check_len);
 
     for (uint32_t i = 0; i < dma.count + 1; i++) {
         for (uint32_t j = 0; j < length; j++) {

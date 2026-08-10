@@ -21,6 +21,10 @@ bool ready();
 void enqueue_command(int command_length, const uint32_t *buffer);
 void on_full_sync();
 
+// Wait for pending SyncFull GPU writes if [address, address+length) overlaps a
+// dirtied 8-byte RDRAM granule.
+void check_framebuffers(uint32_t address, uint32_t length);
+
 using SyncFullCallback = void (*)(void *userdata,
                                   const RDP::Renderer::DepthBufferInfo &info,
                                   Vulkan::Device &device, Vulkan::Buffer &rdram,

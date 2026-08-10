@@ -192,6 +192,7 @@ void Dpc::process_list() {
             status.freeze = 0;
             return;
         }
+        Rdp::check_framebuffers(cur, static_cast<uint32_t>(display_list_length));
         auto &rdram = g_memory().get_rdram();
         for (int i = 0; i < display_list_length; i += 4) {
             cmd_buf[leftover + (i >> 2)] =

@@ -5,6 +5,7 @@
 #include "mmio/mi.h"
 #include "n64_system/interrupt.h"
 #include "n64_system/scheduler.h"
+#include "rdp/rdp_core.h"
 #include "utils/byte_array.h"
 #include "utils/log.h"
 
@@ -136,6 +137,8 @@ void PI::dma_write() {
     }
     reg_wr_len = length;
 
+    Rdp::check_framebuffers(dram_addr & RDRAM_SIZE_MASK, length);
+
     auto &rdram = g_memory().get_rdram();
     auto &sram = g_memory().get_sram();
 
@@ -199,6 +202,8 @@ void PI::dma_read() {
         length -= dram_addr & 0x7;
     }
     reg_rd_len = length;
+
+    Rdp::check_framebuffers(dram_addr & RDRAM_SIZE_MASK, length);
 
     auto &rdram = g_memory().get_rdram();
     auto &sram = g_memory().get_sram();

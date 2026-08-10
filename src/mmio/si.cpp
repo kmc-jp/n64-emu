@@ -2,6 +2,7 @@
 #include "memory/memory.h"
 #include "mmio/mi.h"
 #include "n64_system/interrupt.h"
+#include "rdp/rdp_core.h"
 #include "utils/byte_array.h"
 #include "utils/log.h"
 
@@ -29,6 +30,7 @@ void SI::dma_from_pif_to_dram() {
     // FIXME: Should use offset `SI_PIF_ADDR + i`?
     // Project64: just use i
     // Kaizen: use SI_PIF_ADDR + i
+    Rdp::check_framebuffers(reg_dram_addr, 64);
     for (int i = 0; i < 64; i++)
         Utils::write_to_byte_array8(g_memory().get_rdram(), reg_dram_addr + i,
                                    pif.ram[i]);
@@ -48,6 +50,7 @@ void SI::dma_from_dram_to_pif() {
     // FIXME: Should use offset `SI_PIF_ADDR + i`?
     // Project64: just use i
     // Kaizen: use SI_PIF_ADDR + i
+    Rdp::check_framebuffers(reg_dram_addr, 64);
     for (int i = 0; i < 64; i++) {
         // Utils::debug("i = {}", i);
         pif.ram[i] = Utils::read_from_byte_array8(g_memory().get_rdram(),

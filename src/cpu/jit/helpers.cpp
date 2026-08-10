@@ -9,6 +9,7 @@
 #include "mmu/soft_tlb.h"
 #include "mmu/tlb.h"
 #include "n64_system/interrupt.h"
+#include "rdp/rdp_core.h"
 #include "utils/byte_array.h"
 #include <optional>
 #include <span>
@@ -160,6 +161,7 @@ void do_load(uint8_t rt, uint8_t base, int16_t offset, uint32_t access_size,
     if (auto cached = soft_lookup(va32, access_size, false)) {
         const uint32_t p = cached.value();
         if (paddr_in_rdram(p, access_size)) {
+            Rdp::check_framebuffers(p, access_size);
             write_val(cpu, rt, read_rdram(p));
             return;
         }
@@ -169,6 +171,7 @@ void do_load(uint8_t rt, uint8_t base, int16_t offset, uint32_t access_size,
         const uint32_t p = paddr.value();
         if (paddr_in_rdram(p, access_size)) {
             Mmu::soft_tlb_note_load(va32, p);
+            Rdp::check_framebuffers(p, access_size);
             write_val(cpu, rt, read_rdram(p));
         } else {
             write_val(cpu, rt, read_bus(p));
@@ -190,6 +193,7 @@ void do_store(uint8_t rt, uint8_t base, int16_t offset, uint32_t access_size,
     if (auto cached = soft_lookup(va32, access_size, true)) {
         const uint32_t p = cached.value();
         if (paddr_in_rdram(p, access_size)) {
+            Rdp::check_framebuffers(p, access_size);
             store_rdram(p, v);
             return;
         }
@@ -200,6 +204,7 @@ void do_store(uint8_t rt, uint8_t base, int16_t offset, uint32_t access_size,
         const uint32_t p = paddr.value();
         if (paddr_in_rdram(p, access_size)) {
             Mmu::soft_tlb_note_store(va32, p);
+            Rdp::check_framebuffers(p, access_size);
             store_rdram(p, v);
         } else {
             store_bus(p, v);
@@ -311,6 +316,8 @@ void do_lwl(uint8_t rt, uint8_t base, int16_t offset) {
         const uint32_t shift = 8 * static_cast<uint32_t>((vaddr ^ 0) & 3);
         const uint32_t mask = 0xFFFFFFFFu << shift;
         const uint32_t aligned = paddr.value() & ~3u;
+        if (paddr_in_rdram(aligned, 4))
+            Rdp::check_framebuffers(aligned, 4);
         const uint32_t data =
             paddr_in_rdram(aligned, 4)
                 ? Utils::read_from_byte_array32(
@@ -337,6 +344,8 @@ void do_lwr(uint8_t rt, uint8_t base, int16_t offset) {
         const uint32_t shift = 8 * static_cast<uint32_t>((vaddr ^ 3) & 3);
         const uint32_t mask = 0xFFFFFFFFu >> shift;
         const uint32_t aligned = paddr.value() & ~3u;
+        if (paddr_in_rdram(aligned, 4))
+            Rdp::check_framebuffers(aligned, 4);
         const uint32_t data =
             paddr_in_rdram(aligned, 4)
                 ? Utils::read_from_byte_array32(
@@ -416,6 +425,8 @@ void do_swl(uint8_t rt, uint8_t base, int16_t offset) {
         const uint32_t shift = 8 * static_cast<uint32_t>((vaddr ^ 0) & 3);
         const uint32_t mask = 0xFFFFFFFFu >> shift;
         const uint32_t aligned = paddr.value() & ~3u;
+        if (paddr_in_rdram(aligned, 4))
+            Rdp::check_framebuffers(aligned, 4);
         const uint32_t data =
             paddr_in_rdram(aligned, 4)
                 ? Utils::read_from_byte_array32(
@@ -446,6 +457,8 @@ void do_swr(uint8_t rt, uint8_t base, int16_t offset) {
         const uint32_t shift = 8 * static_cast<uint32_t>((vaddr ^ 3) & 3);
         const uint32_t mask = 0xFFFFFFFFu << shift;
         const uint32_t aligned = paddr.value() & ~3u;
+        if (paddr_in_rdram(aligned, 4))
+            Rdp::check_framebuffers(aligned, 4);
         const uint32_t data =
             paddr_in_rdram(aligned, 4)
                 ? Utils::read_from_byte_array32(
