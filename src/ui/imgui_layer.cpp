@@ -161,6 +161,7 @@ bool imgui_init(SDL_Window *window, Vulkan::WSI &wsi, UiTheme theme) {
     IMGUI_CHECKVERSION();
     ImGui::CreateContext();
     ImGuiIO &io = ImGui::GetIO();
+    io.IniFilename = nullptr;
     io.ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard;
 
     const float dpi_scale =
