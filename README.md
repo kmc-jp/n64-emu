@@ -64,7 +64,7 @@ cmake --build . --config Release --parallel
 1. Install [Homebrew](https://brew.sh/) if needed, then:
 
 ```bash
-brew install cmake sdl2 molten-vk
+brew install cmake sdl2 molten-vk shaderc
 ```
 
 2. Clone and build:

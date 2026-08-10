@@ -39,7 +39,4 @@ if(N64_RSP_SIMD)
     add_executable(rsp_vu_diff_test rsp_vu_diff_test.cpp)
     target_link_libraries(rsp_vu_diff_test PRIVATE rcp common log)
     add_test(NAME rsp_vu_diff COMMAND rsp_vu_diff_test)
-
-    add_executable(rsp_vu_bench "${CMAKE_SOURCE_DIR}/tools/rsp_vu_bench.cpp")
-    target_link_libraries(rsp_vu_bench PRIVATE rcp common log)
 endif()
