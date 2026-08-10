@@ -229,16 +229,19 @@ bool try_start_game(Vulkan::WSI &wsi, SDL2Platform &platform, uint8_t *rdram) {
 
 void stop_game(Vulkan::WSI &wsi, SDL2Platform &platform) {
     N64System::shutdown();
-    Video::fini_video();
+    Video::fini_video(wsi.get_device());
     g_gui.mode = AppMode::Menu;
     g_gui.request_stop = false;
 
     if (g_game_window) {
         if (g_menu_window) {
-            if (!switch_present_window(wsi, platform, g_menu_window))
-                Utils::critical("Failed to restore menu window surface");
+            // Recreate the swapchain only after the menu HWND is visible.
+            // Binding Vulkan to a hidden window can yield zero extents /
+            // VK_ERROR_DEVICE_LOST on Windows.
             SDL_ShowWindow(g_menu_window);
             SDL_RaiseWindow(g_menu_window);
+            if (!switch_present_window(wsi, platform, g_menu_window))
+                Utils::critical("Failed to restore menu window surface");
         }
         SDL_DestroyWindow(g_game_window);
         g_game_window = nullptr;
@@ -364,7 +367,8 @@ void App::run() {
 
             poll_and_inject_controller(imgui_want_capture_keyboard());
             prepare_imgui();
-            Video::present_ui_only(wsi);
+            if (!Video::present_ui_only(wsi))
+                imgui_abandon_frame();
 
             try_start_game(wsi, platform, rdram);
             // Sync member used by destructor if start opened a game window.

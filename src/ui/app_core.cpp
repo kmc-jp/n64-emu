@@ -169,7 +169,7 @@ void AppCore::run_windowed() {
     N64System::shutdown();
     N64System::set_field_present(nullptr);
     N64System::set_present_stats_fn(nullptr);
-    Video::fini_video();
+    Video::fini_video(wsi.get_device());
     g_wsi = nullptr;
 }
 

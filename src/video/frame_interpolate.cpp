@@ -103,6 +103,10 @@ void submit_maybe_sync(Vulkan::Device &device, Vulkan::CommandBufferHandle &cmd,
 } // namespace
 
 void FrameInterpolator::reset() {
+    if (content_fence_) {
+        content_fence_->wait();
+        content_fence_.reset();
+    }
     have_origin_ = false;
     last_origin_ = 0;
     hold_count_ = 0;
@@ -138,7 +142,6 @@ void FrameInterpolator::reset() {
     fp_curr_.reset();
     content_buf_.reset();
     content_readback_.reset();
-    content_fence_.reset();
     have_fp_ = false;
     content_pending_ = false;
     content_changed_latched_ = true;
@@ -176,7 +179,10 @@ void FrameInterpolator::enter_fallback() {
     pair_k_ = 1;
     have_fp_ = false;
     content_pending_ = false;
-    content_fence_.reset();
+    if (content_fence_) {
+        content_fence_->wait();
+        content_fence_.reset();
+    }
     content_changed_latched_ = true;
 }
 

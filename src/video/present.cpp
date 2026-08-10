@@ -163,17 +163,20 @@ void init_video(Vulkan::WSI &wsi, uint8_t *rdram, unsigned upscale,
                                 &g_depth_capture);
 }
 
-void fini_video() {
+void fini_video(Vulkan::Device &device) {
+    // Drain RDP (and clear SyncFull callbacks) before dropping frame-interp /
+    // depth images that the command ring may still reference.
+    Rdp::fini();
+    device.wait_idle();
     g_frame_interp.reset();
     g_depth_capture.reset();
     g_have_presented_origin = false;
     g_last_presented_origin = 0;
-    Rdp::fini();
 }
 
 void reinit_rdp(Vulkan::WSI &wsi, uint8_t *rdram, unsigned upscale,
                 bool frame_interp) {
-    fini_video();
+    fini_video(wsi.get_device());
     init_video(wsi, rdram, upscale, frame_interp);
 }
 
@@ -248,7 +251,8 @@ bool present_field(Vulkan::WSI &wsi, N64::Mmio::VI::VI &vi,
 
     Util::IntrusivePtr<Vulkan::Image> image = result.image;
     const auto t_acquire = std::chrono::steady_clock::now();
-    wsi.begin_frame();
+    if (!wsi.begin_frame())
+        return false;
     const double acquire_ms = std::chrono::duration<double, std::milli>(
                                   std::chrono::steady_clock::now() - t_acquire)
                                   .count();
@@ -307,11 +311,13 @@ bool present_field(Vulkan::WSI &wsi, N64::Mmio::VI::VI &vi,
     return true;
 }
 
-void present_ui_only(Vulkan::WSI &wsi) {
-    wsi.begin_frame();
+bool present_ui_only(Vulkan::WSI &wsi) {
+    if (!wsi.begin_frame())
+        return false;
     render_screen(wsi, {});
     wsi.end_frame();
     ++g_presents;
+    return true;
 }
 
 void set_clear_color(float r, float g, float b, float a) {
