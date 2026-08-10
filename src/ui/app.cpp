@@ -290,7 +290,7 @@ App::~App() {
 
 void App::run() {
     ensure_prdp_vulkan_icd();
-    ensure_low_latency_swapchain();
+    ensure_swapchain_depth();
 
     SDL2Platform platform(window);
     platform.event_hook = &event_hook;

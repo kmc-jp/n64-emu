@@ -123,14 +123,14 @@ void ensure_prdp_vulkan_icd() {
         "native NVIDIA Vulkan is unavailable on WSL)");
 }
 
-void ensure_low_latency_swapchain() {
+void ensure_swapchain_depth() {
     if (getenv("GRANITE_VULKAN_SWAPCHAIN_IMAGES") &&
         getenv("GRANITE_VULKAN_SWAPCHAIN_IMAGES")[0])
         return;
 #ifdef _WIN32
-    _putenv_s("GRANITE_VULKAN_SWAPCHAIN_IMAGES", "2");
+    _putenv_s("GRANITE_VULKAN_SWAPCHAIN_IMAGES", "3");
 #else
-    setenv("GRANITE_VULKAN_SWAPCHAIN_IMAGES", "2", 0);
+    setenv("GRANITE_VULKAN_SWAPCHAIN_IMAGES", "3", 0);
 #endif
 }
 
