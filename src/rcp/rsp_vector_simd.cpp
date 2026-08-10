@@ -106,11 +106,7 @@ Vu16 simd_vmudl_vmadl(Vu16 vs, Vu16 vt, bool vmadl, Vu16 &acc_l, Vu16 &acc_m,
 
 Vu16 simd_vmudm_vmadm(Vi16 vs, Vu16 vt, bool vmadm, Vu16 &acc_l, Vu16 &acc_m,
                       Vu16 &acc_h) {
-    // vs signed, vt unsigned — start from u16*u16 then fix high.
-    Vu16 lo;
-    Vi16 unused;
-    mullo_mulhi_i16(vs, as_i16(vt), lo, unused); // mullo bits ignore signedness
-    (void)unused;
+    Vu16 lo = mullo_epi16(as_u16(vs), vt);
     Vu16 hi = mulhi_epu16(as_u16(vs), vt);
     Vu16 sign = as_u16(vs >> 15);
     Vu16 vt_if_neg = eve::bit_and(vt, sign);
@@ -133,10 +129,7 @@ Vu16 simd_vmudm_vmadm(Vi16 vs, Vu16 vt, bool vmadm, Vu16 &acc_l, Vu16 &acc_m,
 Vu16 simd_vmudn_vmadn(Vu16 vs_u, Vi16 vt, bool vmadn, Vu16 &acc_l, Vu16 &acc_m,
                       Vu16 &acc_h) {
     Vu16 vs = vs_u;
-    Vu16 lo;
-    Vi16 unused;
-    mullo_mulhi_i16(as_i16(vs), vt, lo, unused);
-    (void)unused;
+    Vu16 lo = mullo_epi16(vs, as_u16(vt));
     Vu16 hi = mulhi_epu16(vs, as_u16(vt));
     Vu16 sign = as_u16(vt >> 15);
     Vu16 vs_if_neg = eve::bit_and(vs, sign);

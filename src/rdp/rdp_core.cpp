@@ -3,6 +3,7 @@
 #include "mmio/vi.h"
 #include "rdp_device.hpp"
 #include "utils/log.h"
+#include "utils/work_profile.h"
 #include <algorithm>
 #include <atomic>
 #include <cstdint>
@@ -305,6 +306,7 @@ void check_framebuffers(uint32_t address, uint32_t length) {
     // under the RDP mutex are visible without taking the lock on misses.
     if (g_sync_signal.load(std::memory_order_acquire) == 0)
         return;
+    WorkProfile::add_fb_probe();
     if (length == 0 || g_rdram_dirty.empty())
         return;
 
@@ -321,6 +323,8 @@ void check_framebuffers(uint32_t address, uint32_t length) {
     if (span_min >= span_max || end <= span_min || start >= span_max)
         return;
 
+    // Time only the dirty scan + possible flush (not every probe).
+    WorkProfile::Scoped scan(WorkProfile::Bucket::FbCheck);
     const auto it =
         std::find(g_rdram_dirty.begin() + start, g_rdram_dirty.begin() + end,
                   uint8_t{1});
@@ -331,7 +335,10 @@ void check_framebuffers(uint32_t address, uint32_t length) {
     if (g_sync_signal.load(std::memory_order_relaxed) == 0 ||
         !g_command_processor)
         return;
-    flush_pending_sync_locked();
+    {
+        WorkProfile::Scoped flush(WorkProfile::Bucket::FbFlush);
+        flush_pending_sync_locked();
+    }
 }
 
 void maybe_mark_vi_fb_dirty(uint32_t address, uint32_t length) {

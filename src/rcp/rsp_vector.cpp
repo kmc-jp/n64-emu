@@ -2,6 +2,7 @@
 #include "rcp/rsp_rom.h"
 #include "rcp/vu_profile.h"
 #include "utils/log.h"
+#include "utils/work_profile.h"
 #include <algorithm>
 #include <array>
 #include <bit>
@@ -1034,6 +1035,8 @@ void vu_execute_compute_scalar(Rsp &rsp, uint32_t inst) {
 }
 
 void vu_execute_compute(Rsp &rsp, uint32_t inst) {
+    // Count only: per-op chrono here dwarfs real VU time at millions ops/s.
+    WorkProfile::add_vu_op();
 #if N64_RSP_SIMD
     vu_execute_compute_simd(rsp, inst);
 #else

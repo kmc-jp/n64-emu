@@ -11,6 +11,7 @@
 #include "rdp/rdp_core.h"
 #include "utils/byte_array.h"
 #include "utils/log.h"
+#include "utils/work_profile.h"
 
 namespace N64 {
 namespace Rsp {
@@ -54,7 +55,94 @@ inline uint8_t funct(uint32_t i) { return static_cast<uint8_t>(i & 0x3F); }
 inline int16_t imm_se(uint32_t i) { return static_cast<int16_t>(i & 0xFFFF); }
 inline uint16_t imm_ze(uint32_t i) { return static_cast<uint16_t>(i & 0xFFFF); }
 inline uint32_t target(uint32_t i) { return (i & 0x03FFFFFF) << 2; }
+
+Rsp::ImemFn special_table[64] = {};
+Rsp::ImemFn primary_table[64] = {};
+bool decode_tables_ready = false;
 } // namespace
+
+void Rsp::init_decode_tables() {
+    if (decode_tables_ready)
+        return;
+    for (auto &e : special_table)
+        e = &Rsp::spec_reserved;
+    special_table[0x00] = &Rsp::spec_sll;
+    special_table[0x02] = &Rsp::spec_srl;
+    special_table[0x03] = &Rsp::spec_sra;
+    special_table[0x04] = &Rsp::spec_sllv;
+    special_table[0x06] = &Rsp::spec_srlv;
+    special_table[0x07] = &Rsp::spec_srav;
+    special_table[0x08] = &Rsp::spec_jr;
+    special_table[0x09] = &Rsp::spec_jalr;
+    special_table[0x0D] = &Rsp::spec_break;
+    special_table[0x20] = &Rsp::spec_add;
+    special_table[0x21] = &Rsp::spec_add;
+    special_table[0x22] = &Rsp::spec_sub;
+    special_table[0x23] = &Rsp::spec_sub;
+    special_table[0x24] = &Rsp::spec_and;
+    special_table[0x25] = &Rsp::spec_or;
+    special_table[0x26] = &Rsp::spec_xor;
+    special_table[0x27] = &Rsp::spec_nor;
+    special_table[0x2A] = &Rsp::spec_slt;
+    special_table[0x2B] = &Rsp::spec_sltu;
+
+    for (auto &e : primary_table)
+        e = &Rsp::op_reserved;
+    primary_table[OPC_REGIMM] = &Rsp::op_regimm;
+    primary_table[OPC_J] = &Rsp::op_j;
+    primary_table[OPC_JAL] = &Rsp::op_jal;
+    primary_table[OPC_BEQ] = &Rsp::op_beq;
+    primary_table[OPC_BNE] = &Rsp::op_bne;
+    primary_table[OPC_BLEZ] = &Rsp::op_blez;
+    primary_table[OPC_BGTZ] = &Rsp::op_bgtz;
+    primary_table[OPC_ADDI] = &Rsp::op_addi;
+    primary_table[OPC_ADDIU] = &Rsp::op_addi;
+    primary_table[OPC_SLTI] = &Rsp::op_slti;
+    primary_table[OPC_SLTIU] = &Rsp::op_sltiu;
+    primary_table[OPC_ANDI] = &Rsp::op_andi;
+    primary_table[OPC_ORI] = &Rsp::op_ori;
+    primary_table[OPC_XORI] = &Rsp::op_xori;
+    primary_table[OPC_LUI] = &Rsp::op_lui;
+    primary_table[OPC_COP0] = &Rsp::op_cop0;
+    primary_table[OPC_COP2] = &Rsp::op_cop2;
+    primary_table[OPC_LB] = &Rsp::op_lb;
+    primary_table[OPC_LH] = &Rsp::op_lh;
+    primary_table[OPC_LW] = &Rsp::op_lw;
+    primary_table[OPC_LBU] = &Rsp::op_lbu;
+    primary_table[OPC_LHU] = &Rsp::op_lhu;
+    primary_table[OPC_SB] = &Rsp::op_sb;
+    primary_table[OPC_SH] = &Rsp::op_sh;
+    primary_table[OPC_SW] = &Rsp::op_sw;
+    primary_table[OPC_LWC2] = &Rsp::op_lwc2;
+    primary_table[OPC_SWC2] = &Rsp::op_swc2;
+    decode_tables_ready = true;
+}
+
+Rsp::ImemFn Rsp::decode_opcode(uint32_t opcode) {
+    init_decode_tables();
+    const uint8_t primary = op(opcode);
+    if (primary == OPC_SPECIAL)
+        return special_table[funct(opcode)];
+    return primary_table[primary];
+}
+
+void Rsp::refresh_imem_word(uint16_t addr) {
+    const uint16_t a = addr & 0xFFC;
+    const uint32_t opcode = Utils::read_from_byte_array32(sp_imem, a);
+    imem_insns_[a >> 2] = ImemInsn{decode_opcode(opcode), opcode};
+}
+
+void Rsp::rebuild_imem_cache() {
+    for (uint16_t a = 0; a < SP_IMEM_SIZE; a += 4)
+        refresh_imem_word(a);
+}
+
+void Rsp::note_imem_written(uint16_t offset, uint32_t length) {
+    if (length == 0)
+        return;
+    for (uint32_t i = 0; i < length; i += 4)
+        refresh_imem_word(static_cast<uint16_t>((offset + i) & 0xFFF));
+}
 
 void Rsp::reset() {
     Utils::debug("Resetting RSP");
@@ -70,6 +158,7 @@ void Rsp::reset() {
     semaphore_held = false;
     sp_dmem.fill(0);
     sp_imem.fill(0);
+    rebuild_imem_cache();
     gpr_.fill(0);
     for (auto &v : vpr_)
         v.e.fill(0);
@@ -121,12 +210,14 @@ uint64_t Rsp::run_until_sync() {
         ++task_cycle_counter_;
     }
     running_task_ = false;
+    WorkProfile::add_rsp_insns(ran);
     if (ran >= kMaxInsns)
         Utils::warn("RSP run_until_sync hit instruction cap");
     return (task_cycle_counter_ * 3) / 2;
 }
 
 void Rsp::do_task() {
+    WorkProfile::Scoped timer(WorkProfile::Bucket::RspTask);
     sync_point_ = false;
     last_status_signals_ = 0;
     last_dpc_busy_ = 0;
@@ -134,9 +225,9 @@ void Rsp::do_task() {
         run_after_dma_ = true;
         return;
     }
-    const uint64_t timer = run_until_sync();
+    const uint64_t timer_cycles = run_until_sync();
     N64::g_scheduler().schedule_named(
-        N64System::NamedEventId::Sp, timer, [] { g_rsp().on_sp_event(); });
+        N64System::NamedEventId::Sp, timer_cycles, [] { g_rsp().on_sp_event(); });
 }
 
 void Rsp::on_sp_event() {
@@ -191,206 +282,174 @@ void Rsp::dmem_store32(uint32_t addr, uint32_t v) {
     sp_dmem[(a + 3) & 0xFFF] = static_cast<uint8_t>(v);
 }
 
-uint32_t Rsp::fetch_instruction() const {
-    const uint32_t a = pc & 0xFFC;
-    return Utils::read_from_byte_array32(sp_imem, a);
-}
-
 void Rsp::step() {
     if (status_reg.halt)
         return;
 
-    const uint32_t inst = fetch_instruction();
-    const uint16_t cur = pc;
+    const ImemInsn &insn = imem_insns_[(pc & 0xFFC) >> 2];
     pc = next_pc;
     next_pc = (pc + 4) & 0xffc;
     delay_slot_ = false;
 
-    execute(inst, cur);
+    insn.fn(*this, insn.opcode);
 
     if (status_reg.single_step) {
         status_reg.halt = 1;
     }
 }
 
-void Rsp::execute(uint32_t inst, uint16_t inst_pc) {
-    switch (op(inst)) {
-    case OPC_SPECIAL:
-        execute_special(inst);
-        break;
-    case OPC_REGIMM:
-        execute_regimm(inst);
-        break;
-    case OPC_J: {
-        delay_slot_ = true;
-        branch(static_cast<uint16_t>(target(inst)));
-    } break;
-    case OPC_JAL: {
-        delay_slot_ = true;
-        // Link = address of instruction after the delay slot.
-        set_gpr(31, (pc + 4) & 0xffc);
-        branch(static_cast<uint16_t>(target(inst)));
-    } break;
-    case OPC_BEQ: {
-        delay_slot_ = true;
-        if (gpr(rs(inst)) == gpr(rt(inst)))
-            branch(static_cast<uint16_t>(pc + (imm_se(inst) << 2)));
-    } break;
-    case OPC_BNE: {
-        delay_slot_ = true;
-        if (gpr(rs(inst)) != gpr(rt(inst)))
-            branch(static_cast<uint16_t>(pc + (imm_se(inst) << 2)));
-    } break;
-    case OPC_BLEZ: {
-        delay_slot_ = true;
-        if (static_cast<int32_t>(gpr(rs(inst))) <= 0)
-            branch(static_cast<uint16_t>(pc + (imm_se(inst) << 2)));
-    } break;
-    case OPC_BGTZ: {
-        delay_slot_ = true;
-        if (static_cast<int32_t>(gpr(rs(inst))) > 0)
-            branch(static_cast<uint16_t>(pc + (imm_se(inst) << 2)));
-    } break;
-    case OPC_ADDI:
-    case OPC_ADDIU:
-        set_gpr(rt(inst), gpr(rs(inst)) + static_cast<uint32_t>(imm_se(inst)));
-        break;
-    case OPC_SLTI:
-        set_gpr(rt(inst),
-                static_cast<int32_t>(gpr(rs(inst))) < imm_se(inst) ? 1 : 0);
-        break;
-    case OPC_SLTIU:
-        set_gpr(rt(inst),
-                gpr(rs(inst)) < static_cast<uint32_t>(imm_se(inst)) ? 1 : 0);
-        break;
-    case OPC_ANDI:
-        set_gpr(rt(inst), gpr(rs(inst)) & imm_ze(inst));
-        break;
-    case OPC_ORI:
-        set_gpr(rt(inst), gpr(rs(inst)) | imm_ze(inst));
-        break;
-    case OPC_XORI:
-        set_gpr(rt(inst), gpr(rs(inst)) ^ imm_ze(inst));
-        break;
-    case OPC_LUI:
-        set_gpr(rt(inst), static_cast<uint32_t>(imm_ze(inst)) << 16);
-        break;
-    case OPC_COP0:
-        execute_cop0(inst);
-        break;
-    case OPC_COP2:
-        execute_cop2(inst);
-        break;
-    case OPC_LB:
-        set_gpr(rt(inst), static_cast<int32_t>(static_cast<int8_t>(
-                              dmem_load8(gpr(rs(inst)) + imm_se(inst)))));
-        break;
-    case OPC_LBU:
-        set_gpr(rt(inst), dmem_load8(gpr(rs(inst)) + imm_se(inst)));
-        break;
-    case OPC_LH:
-        set_gpr(rt(inst), static_cast<int32_t>(static_cast<int16_t>(
-                              dmem_load16(gpr(rs(inst)) + imm_se(inst)))));
-        break;
-    case OPC_LHU:
-        set_gpr(rt(inst), dmem_load16(gpr(rs(inst)) + imm_se(inst)));
-        break;
-    case OPC_LW:
-        set_gpr(rt(inst), dmem_load32(gpr(rs(inst)) + imm_se(inst)));
-        break;
-    case OPC_SB:
-        dmem_store8(gpr(rs(inst)) + imm_se(inst),
-                    static_cast<uint8_t>(gpr(rt(inst))));
-        break;
-    case OPC_SH:
-        dmem_store16(gpr(rs(inst)) + imm_se(inst),
-                     static_cast<uint16_t>(gpr(rt(inst))));
-        break;
-    case OPC_SW:
-        dmem_store32(gpr(rs(inst)) + imm_se(inst), gpr(rt(inst)));
-        break;
-    case OPC_LWC2:
-        execute_lwc2(inst);
-        break;
-    case OPC_SWC2:
-        execute_swc2(inst);
-        break;
-    default:
-        Utils::warn("RSP unknown opcode {:#04x} inst={:#010x} pc={:#05x}",
-                    op(inst), inst, inst_pc);
-        break;
-    }
+void Rsp::op_regimm(Rsp &r, uint32_t inst) { r.execute_regimm(inst); }
+void Rsp::op_j(Rsp &r, uint32_t inst) {
+    r.delay_slot_ = true;
+    r.branch(static_cast<uint16_t>(target(inst)));
+}
+void Rsp::op_jal(Rsp &r, uint32_t inst) {
+    r.delay_slot_ = true;
+    r.set_gpr(31, (r.pc + 4) & 0xffc);
+    r.branch(static_cast<uint16_t>(target(inst)));
+}
+void Rsp::op_beq(Rsp &r, uint32_t inst) {
+    r.delay_slot_ = true;
+    if (r.gpr(rs(inst)) == r.gpr(rt(inst)))
+        r.branch(static_cast<uint16_t>(r.pc + (imm_se(inst) << 2)));
+}
+void Rsp::op_bne(Rsp &r, uint32_t inst) {
+    r.delay_slot_ = true;
+    if (r.gpr(rs(inst)) != r.gpr(rt(inst)))
+        r.branch(static_cast<uint16_t>(r.pc + (imm_se(inst) << 2)));
+}
+void Rsp::op_blez(Rsp &r, uint32_t inst) {
+    r.delay_slot_ = true;
+    if (static_cast<int32_t>(r.gpr(rs(inst))) <= 0)
+        r.branch(static_cast<uint16_t>(r.pc + (imm_se(inst) << 2)));
+}
+void Rsp::op_bgtz(Rsp &r, uint32_t inst) {
+    r.delay_slot_ = true;
+    if (static_cast<int32_t>(r.gpr(rs(inst))) > 0)
+        r.branch(static_cast<uint16_t>(r.pc + (imm_se(inst) << 2)));
+}
+void Rsp::op_addi(Rsp &r, uint32_t inst) {
+    r.set_gpr(rt(inst), r.gpr(rs(inst)) + static_cast<uint32_t>(imm_se(inst)));
+}
+void Rsp::op_slti(Rsp &r, uint32_t inst) {
+    r.set_gpr(rt(inst),
+              static_cast<int32_t>(r.gpr(rs(inst))) < imm_se(inst) ? 1 : 0);
+}
+void Rsp::op_sltiu(Rsp &r, uint32_t inst) {
+    r.set_gpr(rt(inst),
+              r.gpr(rs(inst)) < static_cast<uint32_t>(imm_se(inst)) ? 1 : 0);
+}
+void Rsp::op_andi(Rsp &r, uint32_t inst) {
+    r.set_gpr(rt(inst), r.gpr(rs(inst)) & imm_ze(inst));
+}
+void Rsp::op_ori(Rsp &r, uint32_t inst) {
+    r.set_gpr(rt(inst), r.gpr(rs(inst)) | imm_ze(inst));
+}
+void Rsp::op_xori(Rsp &r, uint32_t inst) {
+    r.set_gpr(rt(inst), r.gpr(rs(inst)) ^ imm_ze(inst));
+}
+void Rsp::op_lui(Rsp &r, uint32_t inst) {
+    r.set_gpr(rt(inst), static_cast<uint32_t>(imm_ze(inst)) << 16);
+}
+void Rsp::op_cop0(Rsp &r, uint32_t inst) { r.execute_cop0(inst); }
+void Rsp::op_cop2(Rsp &r, uint32_t inst) { r.execute_cop2(inst); }
+void Rsp::op_lb(Rsp &r, uint32_t inst) {
+    r.set_gpr(rt(inst), static_cast<int32_t>(static_cast<int8_t>(
+                            r.dmem_load8(r.gpr(rs(inst)) + imm_se(inst)))));
+}
+void Rsp::op_lbu(Rsp &r, uint32_t inst) {
+    r.set_gpr(rt(inst), r.dmem_load8(r.gpr(rs(inst)) + imm_se(inst)));
+}
+void Rsp::op_lh(Rsp &r, uint32_t inst) {
+    r.set_gpr(rt(inst), static_cast<int32_t>(static_cast<int16_t>(
+                            r.dmem_load16(r.gpr(rs(inst)) + imm_se(inst)))));
+}
+void Rsp::op_lhu(Rsp &r, uint32_t inst) {
+    r.set_gpr(rt(inst), r.dmem_load16(r.gpr(rs(inst)) + imm_se(inst)));
+}
+void Rsp::op_lw(Rsp &r, uint32_t inst) {
+    r.set_gpr(rt(inst), r.dmem_load32(r.gpr(rs(inst)) + imm_se(inst)));
+}
+void Rsp::op_sb(Rsp &r, uint32_t inst) {
+    r.dmem_store8(r.gpr(rs(inst)) + imm_se(inst),
+                  static_cast<uint8_t>(r.gpr(rt(inst))));
+}
+void Rsp::op_sh(Rsp &r, uint32_t inst) {
+    r.dmem_store16(r.gpr(rs(inst)) + imm_se(inst),
+                   static_cast<uint16_t>(r.gpr(rt(inst))));
+}
+void Rsp::op_sw(Rsp &r, uint32_t inst) {
+    r.dmem_store32(r.gpr(rs(inst)) + imm_se(inst), r.gpr(rt(inst)));
+}
+void Rsp::op_lwc2(Rsp &r, uint32_t inst) { r.execute_lwc2(inst); }
+void Rsp::op_swc2(Rsp &r, uint32_t inst) { r.execute_swc2(inst); }
+void Rsp::op_reserved(Rsp &r, uint32_t inst) {
+    Utils::warn("RSP unknown opcode {:#04x} inst={:#010x} pc={:#05x}", op(inst),
+                inst, (r.pc - 4) & 0xffc);
 }
 
-void Rsp::execute_special(uint32_t inst) {
-    switch (funct(inst)) {
-    case 0x00: // SLL
-        set_gpr(rd(inst), gpr(rt(inst)) << sa(inst));
-        break;
-    case 0x02: // SRL
-        set_gpr(rd(inst), gpr(rt(inst)) >> sa(inst));
-        break;
-    case 0x03: // SRA
-        set_gpr(rd(inst), static_cast<uint32_t>(
-                              static_cast<int32_t>(gpr(rt(inst))) >> sa(inst)));
-        break;
-    case 0x04: // SLLV
-        set_gpr(rd(inst), gpr(rt(inst)) << (gpr(rs(inst)) & 31));
-        break;
-    case 0x06: // SRLV
-        set_gpr(rd(inst), gpr(rt(inst)) >> (gpr(rs(inst)) & 31));
-        break;
-    case 0x07: // SRAV
-        set_gpr(rd(inst),
-                static_cast<uint32_t>(static_cast<int32_t>(gpr(rt(inst))) >>
-                                      (gpr(rs(inst)) & 31)));
-        break;
-    case 0x08: { // JR
-        delay_slot_ = true;
-        branch(static_cast<uint16_t>(gpr(rs(inst))));
-    } break;
-    case 0x09: { // JALR
-        delay_slot_ = true;
-        const uint32_t link = (pc + 4) & 0xffc;
-        branch(static_cast<uint16_t>(gpr(rs(inst))));
-        set_gpr(rd(inst), link); // rd==0 discards (r0)
-    } break;
-    case 0x0D: // BREAK
-        take_break();
-        break;
-    case 0x20: // ADD
-    case 0x21: // ADDU
-        set_gpr(rd(inst), gpr(rs(inst)) + gpr(rt(inst)));
-        break;
-    case 0x22: // SUB
-    case 0x23: // SUBU
-        set_gpr(rd(inst), gpr(rs(inst)) - gpr(rt(inst)));
-        break;
-    case 0x24: // AND
-        set_gpr(rd(inst), gpr(rs(inst)) & gpr(rt(inst)));
-        break;
-    case 0x25: // OR
-        set_gpr(rd(inst), gpr(rs(inst)) | gpr(rt(inst)));
-        break;
-    case 0x26: // XOR
-        set_gpr(rd(inst), gpr(rs(inst)) ^ gpr(rt(inst)));
-        break;
-    case 0x27: // NOR
-        set_gpr(rd(inst), ~(gpr(rs(inst)) | gpr(rt(inst))));
-        break;
-    case 0x2A: // SLT
-        set_gpr(rd(inst), static_cast<int32_t>(gpr(rs(inst))) <
-                                  static_cast<int32_t>(gpr(rt(inst)))
-                              ? 1
-                              : 0);
-        break;
-    case 0x2B: // SLTU
-        set_gpr(rd(inst), gpr(rs(inst)) < gpr(rt(inst)) ? 1 : 0);
-        break;
-    default:
-        Utils::warn("RSP SPECIAL funct={:#04x}", funct(inst));
-        break;
-    }
+void Rsp::spec_sll(Rsp &r, uint32_t inst) {
+    r.set_gpr(rd(inst), r.gpr(rt(inst)) << sa(inst));
+}
+void Rsp::spec_srl(Rsp &r, uint32_t inst) {
+    r.set_gpr(rd(inst), r.gpr(rt(inst)) >> sa(inst));
+}
+void Rsp::spec_sra(Rsp &r, uint32_t inst) {
+    r.set_gpr(rd(inst),
+              static_cast<uint32_t>(static_cast<int32_t>(r.gpr(rt(inst))) >>
+                                    sa(inst)));
+}
+void Rsp::spec_sllv(Rsp &r, uint32_t inst) {
+    r.set_gpr(rd(inst), r.gpr(rt(inst)) << (r.gpr(rs(inst)) & 31));
+}
+void Rsp::spec_srlv(Rsp &r, uint32_t inst) {
+    r.set_gpr(rd(inst), r.gpr(rt(inst)) >> (r.gpr(rs(inst)) & 31));
+}
+void Rsp::spec_srav(Rsp &r, uint32_t inst) {
+    r.set_gpr(rd(inst),
+              static_cast<uint32_t>(static_cast<int32_t>(r.gpr(rt(inst))) >>
+                                    (r.gpr(rs(inst)) & 31)));
+}
+void Rsp::spec_jr(Rsp &r, uint32_t inst) {
+    r.delay_slot_ = true;
+    r.branch(static_cast<uint16_t>(r.gpr(rs(inst))));
+}
+void Rsp::spec_jalr(Rsp &r, uint32_t inst) {
+    r.delay_slot_ = true;
+    const uint32_t link = (r.pc + 4) & 0xffc;
+    r.branch(static_cast<uint16_t>(r.gpr(rs(inst))));
+    r.set_gpr(rd(inst), link);
+}
+void Rsp::spec_break(Rsp &r, uint32_t) { r.take_break(); }
+void Rsp::spec_add(Rsp &r, uint32_t inst) {
+    r.set_gpr(rd(inst), r.gpr(rs(inst)) + r.gpr(rt(inst)));
+}
+void Rsp::spec_sub(Rsp &r, uint32_t inst) {
+    r.set_gpr(rd(inst), r.gpr(rs(inst)) - r.gpr(rt(inst)));
+}
+void Rsp::spec_and(Rsp &r, uint32_t inst) {
+    r.set_gpr(rd(inst), r.gpr(rs(inst)) & r.gpr(rt(inst)));
+}
+void Rsp::spec_or(Rsp &r, uint32_t inst) {
+    r.set_gpr(rd(inst), r.gpr(rs(inst)) | r.gpr(rt(inst)));
+}
+void Rsp::spec_xor(Rsp &r, uint32_t inst) {
+    r.set_gpr(rd(inst), r.gpr(rs(inst)) ^ r.gpr(rt(inst)));
+}
+void Rsp::spec_nor(Rsp &r, uint32_t inst) {
+    r.set_gpr(rd(inst), ~(r.gpr(rs(inst)) | r.gpr(rt(inst))));
+}
+void Rsp::spec_slt(Rsp &r, uint32_t inst) {
+    r.set_gpr(rd(inst), static_cast<int32_t>(r.gpr(rs(inst))) <
+                                static_cast<int32_t>(r.gpr(rt(inst)))
+                            ? 1
+                            : 0);
+}
+void Rsp::spec_sltu(Rsp &r, uint32_t inst) {
+    r.set_gpr(rd(inst), r.gpr(rs(inst)) < r.gpr(rt(inst)) ? 1 : 0);
+}
+void Rsp::spec_reserved(Rsp &, uint32_t inst) {
+    Utils::warn("RSP SPECIAL funct={:#04x}", funct(inst));
 }
 
 void Rsp::execute_regimm(uint32_t inst) {
@@ -705,6 +764,7 @@ void Rsp::dma_read() {
     Rdp::check_framebuffers(dram_address, check_len);
 
     for (uint32_t i = 0; i < dma.count + 1; i++) {
+        const uint32_t row_mem = mem_address;
         for (uint32_t j = 0; j < length; j++) {
             uint16_t addr = (mem_address + j) & 0xFFF;
             // IMEM matches RDRAM host-endian layout; DMEM is big-endian so
@@ -715,6 +775,8 @@ void Rsp::dma_read() {
             uint32_t dram_i = dram_address + j;
             mem[index] = (dram_i < RDRAM_SIZE) ? rdram[dram_i] : 0;
         }
+        if (to_imem)
+            note_imem_written(static_cast<uint16_t>(row_mem), length);
         uint32_t skip = (i == dma.count) ? 0 : dma.skip;
         dram_address = (dram_address + length + skip) & RSP_DRAM_ADDR_MASK;
         mem_address = (mem_address + length) & RSP_MEM_ADDR_MASK;

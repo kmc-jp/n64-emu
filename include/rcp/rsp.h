@@ -10,6 +10,7 @@ namespace Rsp {
 
 constexpr uint32_t SP_DMEM_SIZE = 0x1000;
 constexpr uint32_t SP_IMEM_SIZE = 0x1000;
+constexpr size_t SP_IMEM_WORDS = SP_IMEM_SIZE / 4;
 
 // https://n64brew.dev/wiki/Reality_Signal_Processor
 constexpr uint32_t PADDR_SP_MEM_ADDR = 0x04040000;
@@ -149,9 +150,18 @@ struct AccRegs {
 };
 
 class Rsp {
+  public:
+    using ImemFn = void (*)(Rsp &, uint32_t);
+
   private:
+    struct ImemInsn {
+        ImemFn fn;
+        uint32_t opcode;
+    };
+
     std::array<uint8_t, SP_DMEM_SIZE> sp_dmem{};
     std::array<uint8_t, SP_IMEM_SIZE> sp_imem{};
+    std::array<ImemInsn, SP_IMEM_WORDS> imem_insns_{};
 
     uint16_t pc{}, next_pc{};
     bool delay_slot_{false};
@@ -202,6 +212,9 @@ class Rsp {
 
     std::array<uint8_t, SP_DMEM_SIZE> &get_sp_dmem() { return sp_dmem; }
     std::array<uint8_t, SP_IMEM_SIZE> &get_sp_imem() { return sp_imem; }
+
+    // Re-decode IMEM words after CPU/DMA writes (offset within IMEM).
+    void note_imem_written(uint16_t offset, uint32_t length);
 
     uint32_t read_paddr32(uint32_t paddr) const;
     void write_paddr32(uint32_t paddr, uint32_t value);
@@ -265,14 +278,63 @@ class Rsp {
     void dma_write();
     uint64_t run_until_sync();
 
-    uint32_t fetch_instruction() const;
-    void execute(uint32_t inst, uint16_t inst_pc);
-    void execute_special(uint32_t inst);
+    void refresh_imem_word(uint16_t addr);
+    void rebuild_imem_cache();
+    static ImemFn decode_opcode(uint32_t opcode);
+    static void init_decode_tables();
+
     void execute_regimm(uint32_t inst);
     void execute_cop0(uint32_t inst);
     void execute_cop2(uint32_t inst);
     void execute_lwc2(uint32_t inst);
     void execute_swc2(uint32_t inst);
+
+    static void op_regimm(Rsp &r, uint32_t inst);
+    static void op_j(Rsp &r, uint32_t inst);
+    static void op_jal(Rsp &r, uint32_t inst);
+    static void op_beq(Rsp &r, uint32_t inst);
+    static void op_bne(Rsp &r, uint32_t inst);
+    static void op_blez(Rsp &r, uint32_t inst);
+    static void op_bgtz(Rsp &r, uint32_t inst);
+    static void op_addi(Rsp &r, uint32_t inst);
+    static void op_slti(Rsp &r, uint32_t inst);
+    static void op_sltiu(Rsp &r, uint32_t inst);
+    static void op_andi(Rsp &r, uint32_t inst);
+    static void op_ori(Rsp &r, uint32_t inst);
+    static void op_xori(Rsp &r, uint32_t inst);
+    static void op_lui(Rsp &r, uint32_t inst);
+    static void op_cop0(Rsp &r, uint32_t inst);
+    static void op_cop2(Rsp &r, uint32_t inst);
+    static void op_lb(Rsp &r, uint32_t inst);
+    static void op_lh(Rsp &r, uint32_t inst);
+    static void op_lw(Rsp &r, uint32_t inst);
+    static void op_lbu(Rsp &r, uint32_t inst);
+    static void op_lhu(Rsp &r, uint32_t inst);
+    static void op_sb(Rsp &r, uint32_t inst);
+    static void op_sh(Rsp &r, uint32_t inst);
+    static void op_sw(Rsp &r, uint32_t inst);
+    static void op_lwc2(Rsp &r, uint32_t inst);
+    static void op_swc2(Rsp &r, uint32_t inst);
+    static void op_reserved(Rsp &r, uint32_t inst);
+
+    static void spec_sll(Rsp &r, uint32_t inst);
+    static void spec_srl(Rsp &r, uint32_t inst);
+    static void spec_sra(Rsp &r, uint32_t inst);
+    static void spec_sllv(Rsp &r, uint32_t inst);
+    static void spec_srlv(Rsp &r, uint32_t inst);
+    static void spec_srav(Rsp &r, uint32_t inst);
+    static void spec_jr(Rsp &r, uint32_t inst);
+    static void spec_jalr(Rsp &r, uint32_t inst);
+    static void spec_break(Rsp &r, uint32_t inst);
+    static void spec_add(Rsp &r, uint32_t inst);
+    static void spec_sub(Rsp &r, uint32_t inst);
+    static void spec_and(Rsp &r, uint32_t inst);
+    static void spec_or(Rsp &r, uint32_t inst);
+    static void spec_xor(Rsp &r, uint32_t inst);
+    static void spec_nor(Rsp &r, uint32_t inst);
+    static void spec_slt(Rsp &r, uint32_t inst);
+    static void spec_sltu(Rsp &r, uint32_t inst);
+    static void spec_reserved(Rsp &r, uint32_t inst);
 
     void branch(uint16_t target);
 

@@ -20,6 +20,7 @@
 #include "rcp/rsp.h"
 #include "rcp/vu_profile.h"
 #include "utils/log.h"
+#include "utils/work_profile.h"
 #include <algorithm>
 #include <chrono>
 #include <cstdlib>
@@ -157,7 +158,6 @@ void step(Config &config) {
     static uint64_t prof_fields = 0;
     static double prof_emu_ms = 0.0;
     static double prof_cpu_ms = 0.0;
-    static double prof_rsp_ms = 0.0;
     static double prof_rdp_ms = 0.0;
     static double prof_audio_ms = 0.0;
     static auto prof_last_log = std::chrono::steady_clock::now();
@@ -247,28 +247,51 @@ void step(Config &config) {
                 const double inv = prof_fields ? 1.0 / prof_fields : 0.0;
                 const double emu = prof_emu_ms * inv;
                 const double pace = prof_audio_ms * inv;
-                const double cpu = std::max(prof_cpu_ms * inv, 0.0);
-                const double rsp = prof_rsp_ms * inv;
+                const double cpu_wall = std::max(prof_cpu_ms * inv, 0.0);
                 const double rdp = prof_rdp_ms * inv;
+                const WorkProfile::Totals wp = WorkProfile::take_and_reset();
+                const double rsp = WorkProfile::ms_of(wp, WorkProfile::Bucket::RspTask) * inv;
+                const double fb_scan =
+                    WorkProfile::ms_of(wp, WorkProfile::Bucket::FbCheck) * inv;
+                const double fb_flush =
+                    WorkProfile::ms_of(wp, WorkProfile::Bucket::FbFlush) * inv;
+                // RSP runs inside the CPU slice (scheduler / SP events).
+                const double cpu = std::max(cpu_wall - rsp, 0.0);
+                const double work = cpu + rsp + rdp;
+                const uint64_t vu_ops =
+                    WorkProfile::events_of(wp, WorkProfile::Bucket::VuCompute);
+                const double vu_frac =
+                    wp.rsp_insns ? 100.0 * static_cast<double>(vu_ops) /
+                                       static_cast<double>(wp.rsp_insns)
+                                 : 0.0;
                 const PresentCounters present =
                     g_present_stats ? g_present_stats() : PresentCounters{};
+                const double denom = work + pace;
                 Utils::info(
                     "frame profile: fields/s={} presents/s={} skipped/s={} "
-                    "avg cpu={:.2f}ms rsp={:.2f}ms rdp={:.2f}ms "
+                    "avg cpu={:.2f}ms rsp={:.2f}ms(vu_ops={:.0f}%) rdp={:.2f}ms "
                     "pace={:.2f}ms total={:.2f}ms "
                     "(cpu {:.0f}% / rsp {:.0f}% / rdp {:.0f}% / pace {:.0f}%) "
                     "work={:.2f}ms budget60={:.2f}ms",
                     prof_fields, present.presented, present.skipped, cpu, rsp,
-                    rdp, pace, emu + rdp + pace,
-                    (emu + rdp + pace) > 0 ? 100.0 * cpu / (emu + rdp + pace)
-                                          : 0.0,
-                    (emu + rdp + pace) > 0 ? 100.0 * rsp / (emu + rdp + pace)
-                                          : 0.0,
-                    (emu + rdp + pace) > 0 ? 100.0 * rdp / (emu + rdp + pace)
-                                          : 0.0,
-                    (emu + rdp + pace) > 0 ? 100.0 * pace / (emu + rdp + pace)
-                                          : 0.0,
-                    cpu + rsp + rdp, 1000.0 / 60.0);
+                    vu_frac, rdp, pace, emu + rdp + pace,
+                    denom > 0 ? 100.0 * cpu / denom : 0.0,
+                    denom > 0 ? 100.0 * rsp / denom : 0.0,
+                    denom > 0 ? 100.0 * rdp / denom : 0.0,
+                    denom > 0 ? 100.0 * pace / denom : 0.0, work,
+                    1000.0 / 60.0);
+                Utils::info(
+                    "work detail: cpu_wall={:.2f}ms rsp_tasks/s={} "
+                    "rsp_insns/s={} vu_ops/s={} fb_probes/s={} "
+                    "fb_scans/s={} fb_scan={:.2f}ms fb_flushes/s={} "
+                    "fb_flush={:.2f}ms",
+                    cpu_wall,
+                    WorkProfile::events_of(wp, WorkProfile::Bucket::RspTask),
+                    wp.rsp_insns, vu_ops, wp.fb_probes,
+                    WorkProfile::events_of(wp, WorkProfile::Bucket::FbCheck),
+                    fb_scan,
+                    WorkProfile::events_of(wp, WorkProfile::Bucket::FbFlush),
+                    fb_flush);
                 Rsp::vu_profile_dump();
 #if defined(N64_JIT_X64)
                 if (config.cpu_backend == CpuBackend::Jit)
@@ -277,7 +300,6 @@ void step(Config &config) {
                 prof_fields = 0;
                 prof_emu_ms = 0.0;
                 prof_cpu_ms = 0.0;
-                prof_rsp_ms = 0.0;
                 prof_rdp_ms = 0.0;
                 prof_audio_ms = 0.0;
                 prof_last_log = t1;

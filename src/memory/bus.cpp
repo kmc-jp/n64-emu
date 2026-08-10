@@ -378,15 +378,19 @@ template <typename Wire> void write_paddr(uint32_t paddr, Wire value) {
                 const uint32_t word =
                     static_cast<uint32_t>(value) << (8 * (3 - (offs & 3)));
                 Utils::write_to_byte_array32(imem, offs & ~3u, word);
+                g_rsp().note_imem_written(static_cast<uint16_t>(offs & ~3u), 4);
             } else if constexpr (wire16) {
                 uint32_t word = static_cast<uint32_t>(value);
                 if ((offs & 2) == 0)
                     word <<= 16;
                 Utils::write_to_byte_array32(imem, offs & ~3u, word);
+                g_rsp().note_imem_written(static_cast<uint16_t>(offs & ~3u), 4);
             } else if constexpr (wire32) {
                 Utils::write_to_byte_array32(imem, offs & ~3u, value);
+                g_rsp().note_imem_written(static_cast<uint16_t>(offs & ~3u), 4);
             } else if constexpr (wire64) {
                 Utils::write_to_byte_array64(imem, offs & ~7u, value);
+                g_rsp().note_imem_written(static_cast<uint16_t>(offs & ~7u), 8);
             } else {
                 static_assert(always_false<Wire>);
             }
