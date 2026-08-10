@@ -27,22 +27,6 @@ namespace {
 
 namespace fs = std::filesystem;
 
-bool apply_rom_selection(GuiState &state, const std::string &rom) {
-    if (!state.config || !state.ui_settings || rom.empty())
-        return false;
-
-    state.config->rom_filepath = rom;
-    const fs::path dir = fs::path(rom).parent_path();
-    if (!dir.empty())
-        state.ui_settings->last_rom_dir = dir.string();
-    save_toml(*state.config, *state.ui_settings);
-
-    state.request_start = true;
-    if (state.mode == AppMode::Running)
-        state.request_stop = true;
-    return true;
-}
-
 #ifdef _WIN32
 
 std::wstring utf8_to_wide(const std::string &s) {
@@ -234,6 +218,37 @@ bool pick_rom_path(GuiState &state, std::string &out_path) {
 
 } // namespace
 
+bool is_n64_rom_path(const std::string &path) {
+    if (path.empty())
+        return false;
+    std::string ext = std::filesystem::path(path).extension().string();
+    for (char &c : ext) {
+        if (c >= 'A' && c <= 'Z')
+            c = static_cast<char>(c - 'A' + 'a');
+    }
+    return ext == ".z64" || ext == ".n64" || ext == ".v64";
+}
+
+bool open_rom_file(GuiState &state, const std::string &path) {
+    if (!state.config || path.empty())
+        return false;
+
+    state.config->rom_filepath = path;
+    if (state.ui_settings) {
+        const std::filesystem::path dir =
+            std::filesystem::path(path).parent_path();
+        if (!dir.empty()) {
+            state.ui_settings->last_rom_dir = dir.string();
+            save_toml(*state.config, *state.ui_settings);
+        }
+    }
+
+    state.request_start = true;
+    if (state.mode == AppMode::Running)
+        state.request_stop = true;
+    return true;
+}
+
 bool open_rom_dialog(GuiState &state) {
     if (!state.config || !state.ui_settings)
         return false;
@@ -241,7 +256,7 @@ bool open_rom_dialog(GuiState &state) {
     std::string path;
     if (!pick_rom_path(state, path))
         return false;
-    return apply_rom_selection(state, path);
+    return open_rom_file(state, path);
 }
 
 } // namespace Ui

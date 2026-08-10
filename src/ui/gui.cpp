@@ -30,22 +30,6 @@ void save_settings(GuiState &state) {
         save_toml(*state.config, *state.ui_settings);
 }
 
-void open_rom_path(GuiState &state, const std::string &path) {
-    if (!state.config || path.empty())
-        return;
-    state.config->rom_filepath = path;
-    if (state.ui_settings) {
-        const auto dir = std::filesystem::path(path).parent_path();
-        if (!dir.empty()) {
-            state.ui_settings->last_rom_dir = dir.string();
-            save_settings(state);
-        }
-    }
-    state.request_start = true;
-    if (state.mode == AppMode::Running)
-        state.request_stop = true;
-}
-
 void draw_recents_menu(GuiState &state) {
     if (!ImGui::BeginMenu("Recents", !state.recent_roms.empty()))
         return;
@@ -59,7 +43,7 @@ void draw_recents_menu(GuiState &state) {
         if (!exists)
             ImGui::BeginDisabled();
         if (ImGui::MenuItem(label.c_str(), nullptr, false, exists))
-            open_rom_path(state, path);
+            open_rom_file(state, path);
         if (ImGui::IsItemHovered(ImGuiHoveredFlags_AllowWhenDisabled))
             ImGui::SetTooltip("%s", path.c_str());
         if (!exists)
@@ -727,6 +711,86 @@ void draw_controller_settings(GuiState &state) {
     ImGui::End();
 }
 
+void draw_folder_open_icon(ImDrawList *dl, ImVec2 center, float size) {
+    // Flat folder + green add badge (Dolphin-style empty state).
+    const float w = size;
+    const float h = size * 0.78f;
+    const ImVec2 o(center.x - w * 0.5f, center.y - h * 0.55f);
+
+    const ImU32 folder = IM_COL32(232, 176, 64, 255);
+    const ImU32 folder_dark = IM_COL32(196, 140, 40, 255);
+    const ImU32 badge = IM_COL32(76, 175, 80, 255);
+    const ImU32 badge_plus = IM_COL32(255, 255, 255, 255);
+
+    const float tab_w = w * 0.38f;
+    const float tab_h = h * 0.18f;
+    const float body_y = o.y + tab_h * 0.55f;
+    dl->AddRectFilled(ImVec2(o.x, o.y), ImVec2(o.x + tab_w, body_y + 2.0f),
+                      folder_dark, 3.0f);
+    dl->AddRectFilled(ImVec2(o.x, body_y), ImVec2(o.x + w, o.y + h), folder,
+                      5.0f);
+
+    const float r = size * 0.22f;
+    const ImVec2 badge_c(o.x + w - r * 0.15f, o.y + h - r * 0.15f);
+    dl->AddCircleFilled(badge_c, r, badge, 24);
+    const float arm = r * 0.45f;
+    const float thick = std::max(2.0f, r * 0.22f);
+    dl->AddRectFilled(ImVec2(badge_c.x - arm, badge_c.y - thick * 0.5f),
+                      ImVec2(badge_c.x + arm, badge_c.y + thick * 0.5f),
+                      badge_plus, 1.0f);
+    dl->AddRectFilled(ImVec2(badge_c.x - thick * 0.5f, badge_c.y - arm),
+                      ImVec2(badge_c.x + thick * 0.5f, badge_c.y + arm),
+                      badge_plus, 1.0f);
+}
+
+void draw_home(GuiState &state) {
+    if (state.mode != AppMode::Menu)
+        return;
+
+    const ImGuiViewport *vp = ImGui::GetMainViewport();
+    ImGui::SetNextWindowPos(vp->WorkPos);
+    ImGui::SetNextWindowSize(vp->WorkSize);
+
+    const ImGuiWindowFlags flags =
+        ImGuiWindowFlags_NoDecoration | ImGuiWindowFlags_NoMove |
+        ImGuiWindowFlags_NoSavedSettings | ImGuiWindowFlags_NoNav |
+        ImGuiWindowFlags_NoBringToFrontOnFocus |
+        ImGuiWindowFlags_NoFocusOnAppearing;
+
+    ImGui::PushStyleColor(ImGuiCol_WindowBg, ImVec4(0.0f, 0.0f, 0.0f, 0.0f));
+    ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(0.0f, 0.0f));
+    if (!ImGui::Begin("##home", nullptr, flags)) {
+        ImGui::End();
+        ImGui::PopStyleVar();
+        ImGui::PopStyleColor();
+        return;
+    }
+
+    if (ImGui::IsWindowHovered() &&
+        ImGui::IsMouseDoubleClicked(ImGuiMouseButton_Left))
+        open_rom_dialog(state);
+
+    const ImVec2 center(vp->WorkPos.x + vp->WorkSize.x * 0.5f,
+                        vp->WorkPos.y + vp->WorkSize.y * 0.5f);
+    const float icon_size = std::clamp(vp->WorkSize.y * 0.14f, 64.0f, 112.0f);
+    draw_folder_open_icon(ImGui::GetWindowDrawList(),
+                          ImVec2(center.x, center.y - icon_size * 0.15f),
+                          icon_size);
+
+    const char *hint = "Double-click to open a ROM";
+    ImFont *font = ImGui::GetFont();
+    const float font_size = ImGui::GetStyle().FontSizeBase * 2.25f;
+    const ImVec2 text_size = font->CalcTextSizeA(font_size, FLT_MAX, 0.0f, hint);
+    ImGui::GetWindowDrawList()->AddText(
+        font, font_size,
+        ImVec2(center.x - text_size.x * 0.5f, center.y + icon_size * 0.55f),
+        ImGui::GetColorU32(ImGuiCol_Text), hint);
+
+    ImGui::End();
+    ImGui::PopStyleVar();
+    ImGui::PopStyleColor();
+}
+
 void draw_about(GuiState &state) {
     if (!state.show_about)
         return;
@@ -858,6 +922,7 @@ void gui_draw(GuiState &state) {
     menu_open = any_menu_open;
     state.menu_bar_active = state.menu_bar_active || any_menu_open;
 
+    draw_home(state);
     draw_video_settings(state);
     draw_emu_settings(state);
     draw_audio_settings(state);

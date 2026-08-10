@@ -164,6 +164,20 @@ bool event_hook(const SDL_Event &e) {
         return true;
     }
 
+    if (e.type == SDL_DROPFILE) {
+        const char *dropped = e.drop.file;
+        if (dropped) {
+            const std::string path(dropped);
+            SDL_free(e.drop.file);
+            if (is_n64_rom_path(path) && std::filesystem::exists(path)) {
+                open_rom_file(g_gui, path);
+            } else {
+                Utils::warn("Ignored drop (not an N64 ROM): {}", path);
+            }
+        }
+        return true;
+    }
+
     if (e.type == SDL_KEYDOWN && e.key.keysym.sym == SDLK_F11 &&
         !e.key.repeat) {
         SDL_Window *target = g_game_window ? g_game_window : g_menu_window;
