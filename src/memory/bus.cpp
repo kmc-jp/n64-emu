@@ -334,7 +334,7 @@ template <typename Wire> void write_paddr(uint32_t paddr, Wire value) {
     static_assert(wire64 || wire32 || wire16 || wire8);
 
     if (paddr <= PHYS_RDRAM_MEM_END) {
-        Rdp::check_framebuffers(paddr, static_cast<uint32_t>(sizeof(Wire)));
+        Rdp::on_rdram_write(paddr, static_cast<uint32_t>(sizeof(Wire)));
         if constexpr (wire8) {
             Utils::write_to_byte_array8(g_memory().get_rdram(), paddr, value);
             maybe_invalidate_code(paddr, 1);

@@ -30,7 +30,7 @@ void SI::dma_from_pif_to_dram() {
     // FIXME: Should use offset `SI_PIF_ADDR + i`?
     // Project64: just use i
     // Kaizen: use SI_PIF_ADDR + i
-    Rdp::check_framebuffers(reg_dram_addr, 64);
+    Rdp::on_rdram_write(reg_dram_addr, 64);
     for (int i = 0; i < 64; i++)
         Utils::write_to_byte_array8(g_memory().get_rdram(), reg_dram_addr + i,
                                    pif.ram[i]);

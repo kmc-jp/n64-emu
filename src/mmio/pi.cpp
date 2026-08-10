@@ -137,7 +137,7 @@ void PI::dma_write() {
     }
     reg_wr_len = length;
 
-    Rdp::check_framebuffers(dram_addr & RDRAM_SIZE_MASK, length);
+    Rdp::on_rdram_write(dram_addr & RDRAM_SIZE_MASK, length);
 
     auto &rdram = g_memory().get_rdram();
     auto &sram = g_memory().get_sram();

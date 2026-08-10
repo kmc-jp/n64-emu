@@ -143,8 +143,9 @@ void VI::write_paddr32(uint32_t paddr, uint32_t value) {
                      cycles_per_half_line);
     } break;
     case PADDR_VI_H_SYNC: {
-        // TODO: support PAL. ignore leap for now
-        reg_hsync = value & 0x3FF;
+        // TODO: support PAL. hSync is 12 bits [11:0]; leap [20:16] ignored.
+        // https://n64brew.dev/wiki/Video_Interface#0x0440_001C_-_VI_H_SYNC
+        reg_hsync = value & 0xFFF;
         Utils::debug("VI: H_Sync set to {:#x}", reg_hsync);
     } break;
     case PADDR_VI_H_SYNC_LEAP: {

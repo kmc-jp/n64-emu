@@ -25,6 +25,10 @@ void on_full_sync();
 // dirtied 8-byte RDRAM granule.
 void check_framebuffers(uint32_t address, uint32_t length);
 
+// RDRAM store path: SyncFull coherency + mark present dirty if the write hits
+// the current VI framebuffer (CPU/software renderers keep a fixed ORIGIN).
+void on_rdram_write(uint32_t address, uint32_t length);
+
 using SyncFullCallback = void (*)(void *userdata,
                                   const RDP::Renderer::DepthBufferInfo &info,
                                   Vulkan::Device &device, Vulkan::Buffer &rdram,

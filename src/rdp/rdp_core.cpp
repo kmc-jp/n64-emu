@@ -1,5 +1,6 @@
 #include "rdp/rdp_core.h"
 #include "memory/memory_map.h"
+#include "mmio/vi.h"
 #include "rdp_device.hpp"
 #include "utils/log.h"
 #include <algorithm>
@@ -16,6 +17,9 @@ constexpr uint32_t HIDDEN_RDRAM_SIZE = 4 * 1024 * 1024;
 
 RDP::CommandProcessor *g_command_processor = nullptr;
 bool g_rdp_dirty = true;
+// Set when CPU/DMA writes hit the active VI framebuffer. Software renderers
+// keep a fixed VI_ORIGIN, so present must not treat those frames as duplicates.
+std::atomic<bool> g_cpu_fb_dirty{false};
 
 std::atomic<uint64_t> g_sync_signal{0};
 std::vector<uint8_t> g_rdram_dirty;
@@ -203,6 +207,7 @@ std::recursive_mutex &mutex() {
 void init(Vulkan::Device &device, uint8_t *rdram, unsigned upscale) {
     std::lock_guard lock(mutex());
     g_rdp_dirty = true;
+    g_cpu_fb_dirty.store(true, std::memory_order_relaxed);
     reset_deferred_sync_state();
 
     RDP::CommandProcessorFlags flags = 0;
@@ -250,6 +255,7 @@ void fini() {
     delete g_command_processor;
     g_command_processor = nullptr;
     g_rdp_dirty = true;
+    g_cpu_fb_dirty.store(true, std::memory_order_relaxed);
     reset_deferred_sync_state();
 }
 
@@ -297,6 +303,37 @@ void check_framebuffers(uint32_t address, uint32_t length) {
     flush_pending_sync_locked();
 }
 
+void maybe_mark_vi_fb_dirty(uint32_t address, uint32_t length) {
+    if (length == 0 || g_cpu_fb_dirty.load(std::memory_order_relaxed))
+        return;
+
+    const auto &vi = g_vi();
+    const uint32_t origin = vi.reg_origin & 0xFFFFFFu;
+    if (origin == 0 || origin == 0x280)
+        return;
+
+    const uint32_t type = vi.reg_status & 3u;
+    // 0 = blank, 1 = reserved, 2 = RGBA5551, 3 = RGBA8888
+    if (type < 2)
+        return;
+
+    const uint32_t width = vi.reg_width & 0xFFFu;
+    if (width == 0)
+        return;
+
+    const uint32_t bytes_per_pixel = (type == 3) ? 4u : 2u;
+    // Conservative NTSC bound; only used to detect CPU soft-FB traffic.
+    const uint32_t fb_bytes = width * 480u * bytes_per_pixel;
+    const uint32_t fb_end = origin + fb_bytes;
+    if (address < fb_end && (address + length) > origin)
+        g_cpu_fb_dirty.store(true, std::memory_order_relaxed);
+}
+
+void on_rdram_write(uint32_t address, uint32_t length) {
+    maybe_mark_vi_fb_dirty(address, length);
+    check_framebuffers(address, length);
+}
+
 void set_sync_full_callback(SyncFullCallback cb, void *userdata) {
     std::lock_guard lock(mutex());
     if (!g_command_processor)
@@ -305,6 +342,8 @@ void set_sync_full_callback(SyncFullCallback cb, void *userdata) {
 }
 
 bool is_dirty() {
+    if (g_cpu_fb_dirty.load(std::memory_order_relaxed))
+        return true;
     std::lock_guard lock(mutex());
     return g_rdp_dirty;
 }
@@ -312,6 +351,7 @@ bool is_dirty() {
 void clear_dirty() {
     std::lock_guard lock(mutex());
     g_rdp_dirty = false;
+    g_cpu_fb_dirty.store(false, std::memory_order_relaxed);
 }
 
 ScanoutResult scanout(const ViRegs &vi) {

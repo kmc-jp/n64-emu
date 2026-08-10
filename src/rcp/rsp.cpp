@@ -661,7 +661,7 @@ void Rsp::dma_write() {
     const uint32_t check_len =
         dma.count == 0 ? length
                        : (dma.count + 1) * length + dma.count * dma.skip;
-    Rdp::check_framebuffers(dram_address, check_len);
+    Rdp::on_rdram_write(dram_address, check_len);
 
     for (uint32_t i = 0; i < dma.count + 1; i++) {
         for (uint32_t j = 0; j < length; j++) {
