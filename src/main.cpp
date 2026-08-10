@@ -18,7 +18,7 @@ constexpr std::string_view USAGE =
     "--rsp-thread\trun RSP on a worker thread (default)\n"
     "--no-rsp-thread\tdisable RSP worker thread\n"
     "--upscale=[1|2|4|8]\tParallel-RDP resolution multiplier (default 4)\n"
-    "--frame-interp\tenable optical-flow frame interpolation\n"
+    "--frame-interp\tenable frame interpolation (default: optical flow)\n"
     "--no-frame-interp\tdisable frame interpolation (default)\n"
     "--debug\tenable interactive debugger\n"
     "--break=ADDR\tbreak when PC hits ADDR (implies --debug)\n"

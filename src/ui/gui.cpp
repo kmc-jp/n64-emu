@@ -217,10 +217,18 @@ void draw_video_settings(GuiState &state) {
         ImGui::TableSetColumnIndex(1);
         const char *fi_label = "None";
         if (cfg.frame_interp) {
-            fi_label =
-                cfg.frame_interp_mode == N64System::FrameInterpMode::Extrapolate
-                    ? "Extrapolation (experimental)"
-                    : "Interpolation";
+            switch (cfg.frame_interp_mode) {
+            case N64System::FrameInterpMode::LinearBlend:
+                fi_label = "Linear blend";
+                break;
+            case N64System::FrameInterpMode::Extrapolate:
+                fi_label = "Extrapolation (experimental)";
+                break;
+            case N64System::FrameInterpMode::OpticalFlow:
+            default:
+                fi_label = "Optical flow";
+                break;
+            }
         }
         ImGui::SetNextItemWidth(-FLT_MIN);
         if (ImGui::BeginCombo("##frame_interp", fi_label)) {
@@ -234,22 +242,36 @@ void draw_video_settings(GuiState &state) {
             if (none_sel)
                 ImGui::SetItemDefaultFocus();
 
-            const bool both_sel =
+            const bool linear_sel =
                 cfg.frame_interp &&
-                cfg.frame_interp_mode ==
-                    N64System::FrameInterpMode::Bidirectional;
-            if (ImGui::Selectable("Interpolation", both_sel) && !both_sel) {
+                cfg.frame_interp_mode == N64System::FrameInterpMode::LinearBlend;
+            if (ImGui::Selectable("Linear blend", linear_sel) && !linear_sel) {
                 cfg.frame_interp = true;
-                cfg.frame_interp_mode =
-                    N64System::FrameInterpMode::Bidirectional;
+                cfg.frame_interp_mode = N64System::FrameInterpMode::LinearBlend;
                 if (Rdp::ready()) {
                     Video::set_frame_interp_mode(
-                        Video::FrameInterpMode::Bidirectional);
+                        Video::FrameInterpMode::LinearBlend);
                     Video::set_frame_interp_enabled(true);
                 }
                 save_settings(state);
             }
-            if (both_sel)
+            if (linear_sel)
+                ImGui::SetItemDefaultFocus();
+
+            const bool flow_sel =
+                cfg.frame_interp &&
+                cfg.frame_interp_mode == N64System::FrameInterpMode::OpticalFlow;
+            if (ImGui::Selectable("Optical flow", flow_sel) && !flow_sel) {
+                cfg.frame_interp = true;
+                cfg.frame_interp_mode = N64System::FrameInterpMode::OpticalFlow;
+                if (Rdp::ready()) {
+                    Video::set_frame_interp_mode(
+                        Video::FrameInterpMode::OpticalFlow);
+                    Video::set_frame_interp_enabled(true);
+                }
+                save_settings(state);
+            }
+            if (flow_sel)
                 ImGui::SetItemDefaultFocus();
 
             const bool one_sel =
@@ -273,8 +295,9 @@ void draw_video_settings(GuiState &state) {
         if (ImGui::IsItemHovered(ImGuiHoveredFlags_DelayNormal))
             ImGui::SetTooltip(
                 "None: no extra frames.\n"
-                "Interpolation: blend between previous and next (~1 frame "
-                "delay).\n"
+                "Linear blend: RGB crossfade between previous and next "
+                "(~1 frame delay; may ghost on motion).\n"
+                "Optical flow: motion-compensated warp (~1 frame delay).\n"
                 "Extrapolation (experimental): lower latency; may look "
                 "unstable on moving objects.");
 

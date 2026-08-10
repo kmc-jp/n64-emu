@@ -148,10 +148,22 @@ void AppCore::run_windowed() {
 
     Video::init_video(wsi, g_memory().get_rdram().data(), config.upscale,
                config.frame_interp);
-    Video::set_frame_interp_mode(
-        config.frame_interp_mode == N64System::FrameInterpMode::Extrapolate
-            ? Video::FrameInterpMode::Extrapolate
-            : Video::FrameInterpMode::Bidirectional);
+    {
+        Video::FrameInterpMode mode = Video::FrameInterpMode::OpticalFlow;
+        switch (config.frame_interp_mode) {
+        case N64System::FrameInterpMode::LinearBlend:
+            mode = Video::FrameInterpMode::LinearBlend;
+            break;
+        case N64System::FrameInterpMode::Extrapolate:
+            mode = Video::FrameInterpMode::Extrapolate;
+            break;
+        case N64System::FrameInterpMode::OpticalFlow:
+        default:
+            mode = Video::FrameInterpMode::OpticalFlow;
+            break;
+        }
+        Video::set_frame_interp_mode(mode);
+    }
     g_wsi = &wsi;
     N64System::set_field_present(&on_field_present);
     N64System::set_present_stats_fn(&on_present_stats);

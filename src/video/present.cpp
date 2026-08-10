@@ -137,7 +137,9 @@ void init_video(Vulkan::WSI &wsi, uint8_t *rdram, unsigned upscale,
     g_frame_interp.reset();
     g_frame_interp.set_enabled(frame_interp);
     g_depth_capture.reset();
-    g_depth_capture.set_enabled(frame_interp);
+    const bool depth =
+        frame_interp && frame_interp_uses_depth(g_frame_interp.mode());
+    g_depth_capture.set_enabled(depth);
     g_have_presented_origin = false;
     g_last_presented_origin = 0;
     g_presents = 0;
@@ -153,14 +155,15 @@ void init_video(Vulkan::WSI &wsi, uint8_t *rdram, unsigned upscale,
 #else
     if (frame_interp)
         Utils::info(
-            "Frame interpolation enabled (optical flow + depth); "
-            "warp at 1/{}x then upscale",
+            "Frame interpolation enabled; "
+            "blend/warp at 1/{}x then upscale",
             upscale);
 #endif
     g_frame_interp.set_upscale(upscale);
     Rdp::init(wsi.get_device(), rdram, upscale);
-    Rdp::set_sync_full_callback(DepthCapturer::sync_full_thunk,
-                                &g_depth_capture);
+    Rdp::set_sync_full_callback(depth ? DepthCapturer::sync_full_thunk : nullptr,
+                                depth ? static_cast<void *>(&g_depth_capture)
+                                      : nullptr);
 }
 
 void fini_video(Vulkan::Device &device) {
@@ -188,16 +191,25 @@ void set_frame_interp_enabled(bool enabled) {
     }
 #endif
     g_frame_interp.set_enabled(enabled);
-    g_depth_capture.set_enabled(enabled);
+    const bool depth =
+        enabled && frame_interp_uses_depth(g_frame_interp.mode());
+    g_depth_capture.set_enabled(depth);
     Rdp::set_sync_full_callback(
-        enabled ? DepthCapturer::sync_full_thunk : nullptr,
-        enabled ? static_cast<void *>(&g_depth_capture) : nullptr);
+        depth ? DepthCapturer::sync_full_thunk : nullptr,
+        depth ? static_cast<void *>(&g_depth_capture) : nullptr);
 }
 
 bool frame_interp_enabled() { return g_frame_interp.enabled(); }
 
 void set_frame_interp_mode(FrameInterpMode mode) {
     g_frame_interp.set_mode(mode);
+    if (g_frame_interp.enabled()) {
+        const bool depth = frame_interp_uses_depth(mode);
+        g_depth_capture.set_enabled(depth);
+        Rdp::set_sync_full_callback(
+            depth ? DepthCapturer::sync_full_thunk : nullptr,
+            depth ? static_cast<void *>(&g_depth_capture) : nullptr);
+    }
 }
 
 FrameInterpMode frame_interp_mode() { return g_frame_interp.mode(); }

@@ -58,6 +58,7 @@ endfunction()
 
 n64_compile_shader(fullscreen vert vertex_spirv)
 n64_compile_shader(blit frag fragment_spirv)
+n64_compile_shader(linear_blend comp linear_blend_spirv)
 
 set(_fi_shaders
     luma_downsample

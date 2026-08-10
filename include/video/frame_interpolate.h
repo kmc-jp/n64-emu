@@ -9,18 +9,26 @@
 namespace N64 {
 namespace Video {
 
-// How optical-flow intermediates are generated when frame interp is enabled.
+// How intermediates are generated when frame interp is enabled.
 enum class FrameInterpMode {
-    // Wait for the next novel frame, then fill the gap by warping both ends
-    // toward each other. Best quality; adds ~1 source-frame of display delay.
-    Bidirectional = 0,
+    // Wait for the next novel frame, then RGB-lerp prev→next. Low cost;
+    // adds ~1 source-frame of display delay. Ghosts on motion.
+    LinearBlend = 0,
+    // Wait for the next novel frame, then warp both ends with optical flow.
+    // Best quality; adds ~1 source-frame of display delay.
+    OpticalFlow = 1,
     // Show each novel frame immediately; fill duplicate fields by extrapolating
     // the latest frame forward with the previous pair's flow. Lower latency.
-    Extrapolate = 1,
+    Extrapolate = 2,
 };
 
-// Optical-flow frame interpolator for VI duplicate-field replacement.
-// Bidirectional mode delays output by one game frame; Extrapolate does not.
+inline bool frame_interp_uses_depth(FrameInterpMode mode) {
+    return mode == FrameInterpMode::OpticalFlow ||
+           mode == FrameInterpMode::Extrapolate;
+}
+
+// Frame interpolator for VI duplicate-field replacement.
+// LinearBlend / OpticalFlow delay output by one game frame; Extrapolate does not.
 // Novel frames: VI_ORIGIN change and/or content fingerprint.
 class FrameInterpolator {
   public:
@@ -97,7 +105,7 @@ class FrameInterpolator {
     };
 
     bool enabled_ = false;
-    FrameInterpMode mode_ = FrameInterpMode::Bidirectional;
+    FrameInterpMode mode_ = FrameInterpMode::OpticalFlow;
     unsigned upscale_ = 1;
     bool debug_ = false;
     bool stats_ = false;
@@ -179,6 +187,7 @@ class FrameInterpolator {
     Vulkan::Program *prog_scene_reduce_ = nullptr;
     Vulkan::Program *prog_scene_finalize_ = nullptr;
     Vulkan::Program *prog_warp_ = nullptr;
+    Vulkan::Program *prog_linear_blend_ = nullptr;
     Vulkan::Program *prog_fp_ = nullptr;
     Vulkan::Program *prog_content_cmp_ = nullptr;
     Vulkan::Program *prog_content_fin_ = nullptr;
@@ -214,6 +223,7 @@ class FrameInterpolator {
     bool build_pair_flow(Vulkan::Device &device, unsigned k);
     Vulkan::ImageHandle warp(Vulkan::Device &device, float phase,
                              bool extrapolate = false);
+    Vulkan::ImageHandle linear_blend(Vulkan::Device &device, float phase);
     static void dispatch_2d(Vulkan::CommandBuffer &cmd, unsigned w,
                             unsigned h);
 };

@@ -14,10 +14,11 @@ enum class CpuBackend {
     Jit,
 };
 
-// Optical-flow frame interpolation strategy (when frame_interp is on).
+// Frame interpolation strategy (when frame_interp is on).
 enum class FrameInterpMode {
-    Bidirectional = 0, // both frames; ~1 frame display delay
-    Extrapolate = 1,   // latest frame only; lower latency
+    LinearBlend = 0, // simple RGB crossfade; ~1 frame display delay
+    OpticalFlow = 1, // motion-compensated warp; ~1 frame display delay
+    Extrapolate = 2, // optical-flow forward nudge; lower latency
 };
 
 struct Config {
@@ -41,9 +42,9 @@ struct Config {
     bool headless{false};
     // Parallel-RDP internal resolution multiplier (1, 2, 4, or 8).
     unsigned upscale{4};
-    // Optical-flow frame interpolation (duplicate VI fields -> intermediates).
+    // Frame interpolation (duplicate VI fields -> intermediates).
     bool frame_interp{false};
-    FrameInterpMode frame_interp_mode{FrameInterpMode::Bidirectional};
+    FrameInterpMode frame_interp_mode{FrameInterpMode::OpticalFlow};
     // Preferred Vulkan physical device UUID (hex). Empty = auto-select.
     std::string vulkan_device{};
 };

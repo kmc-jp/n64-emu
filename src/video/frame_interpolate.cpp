@@ -20,6 +20,7 @@
 #include "flow_temporal_blend_spirv.h"
 #include "flow_temporal_save_spirv.h"
 #include "luma_downsample_spirv.h"
+#include "linear_blend_spirv.h"
 #include "pyramid_down_spirv.h"
 #include "scene_finalize_spirv.h"
 #include "scene_reduce_spirv.h"
@@ -368,13 +369,23 @@ void FrameInterpolator::ensure_programs(Vulkan::Device &device) {
         prog_warp_ =
             req(device, warp_blend_spirv, sizeof(warp_blend_spirv), layout);
     }
+    {
+        Vulkan::ResourceLayout layout = {};
+        layout.sets[0].sampled_image_mask = (1u << 0) | (1u << 1);
+        layout.sets[0].storage_image_mask = 1u << 2;
+        layout.sets[0].fp_mask = (1u << 0) | (1u << 1) | (1u << 2);
+        layout.push_constant_size = 12; // uvec2 + phase
+        prog_linear_blend_ = req(device, linear_blend_spirv,
+                                 sizeof(linear_blend_spirv), layout);
+    }
 
     programs_ready_ =
         prog_luma_ && prog_pyramid_ && prog_flow_ && prog_smooth_ &&
         prog_advect_ && prog_consistency_ && prog_temporal_blend_ &&
         prog_temporal_save_ && prog_flow_scale_ && prog_scene_reduce_ &&
-        prog_scene_finalize_ && prog_warp_ && prog_fp_ && prog_content_cmp_ &&
-        prog_content_fin_ && prog_global_ && prog_global_fin_;
+        prog_scene_finalize_ && prog_warp_ && prog_linear_blend_ && prog_fp_ &&
+        prog_content_cmp_ && prog_content_fin_ && prog_global_ &&
+        prog_global_fin_;
     if (!programs_ready_)
         Utils::warn("FrameInterpolator: failed to create compute programs");
 #endif
@@ -1045,6 +1056,79 @@ Vulkan::ImageHandle FrameInterpolator::warp(Vulkan::Device &device,
 #endif
 }
 
+Vulkan::ImageHandle FrameInterpolator::linear_blend(Vulkan::Device &device,
+                                                    float phase) {
+#if !N64_FRAME_INTERP
+    (void)device;
+    (void)phase;
+    return curr_novel_;
+#else
+    if (!prev_novel_ || !curr_novel_ || !prog_linear_blend_ || !output_)
+        return curr_novel_ ? curr_novel_ : prev_novel_;
+
+    const auto blend_t0 = std::chrono::steady_clock::now();
+    auto cmd = device.request_command_buffer();
+
+    struct Push {
+        uint32_t out_w, out_h;
+        float phase;
+    } push{};
+    push.out_w = warp_w_;
+    push.out_h = warp_h_;
+    push.phase = phase;
+
+    cmd->set_program(prog_linear_blend_);
+    cmd->set_texture(0, 0, prev_novel_->get_view(),
+                     Vulkan::StockSampler::LinearClamp);
+    cmd->set_texture(0, 1, curr_novel_->get_view(),
+                     Vulkan::StockSampler::LinearClamp);
+    cmd->set_storage_texture(0, 2, output_->get_view());
+    cmd->push_constants(&push, 0, sizeof(push));
+    dispatch_2d(*cmd, warp_w_, warp_h_);
+    storage_barrier(*cmd, *output_);
+
+    Vulkan::ImageHandle present = output_;
+    if (upscale_ > 1 && output_hi_) {
+        cmd->image_barrier(
+            *output_, VK_IMAGE_LAYOUT_GENERAL,
+            VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
+            VK_PIPELINE_STAGE_2_COMPUTE_SHADER_BIT,
+            VK_ACCESS_2_SHADER_STORAGE_WRITE_BIT,
+            VK_PIPELINE_STAGE_2_BLIT_BIT, VK_ACCESS_2_TRANSFER_READ_BIT);
+        cmd->image_barrier(
+            *output_hi_, VK_IMAGE_LAYOUT_GENERAL,
+            VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
+            VK_PIPELINE_STAGE_2_ALL_COMMANDS_BIT, 0,
+            VK_PIPELINE_STAGE_2_BLIT_BIT, VK_ACCESS_2_TRANSFER_WRITE_BIT);
+        cmd->blit_image(
+            *output_hi_, *output_, {},
+            {int(scan_w_), int(scan_h_), 1}, {},
+            {int(warp_w_), int(warp_h_), 1}, 0, 0, 0, 0, 1,
+            VK_FILTER_LINEAR);
+        cmd->image_barrier(
+            *output_hi_, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
+            VK_IMAGE_LAYOUT_GENERAL, VK_PIPELINE_STAGE_2_BLIT_BIT,
+            VK_ACCESS_2_TRANSFER_WRITE_BIT,
+            VK_PIPELINE_STAGE_2_FRAGMENT_SHADER_BIT,
+            VK_ACCESS_2_SHADER_SAMPLED_READ_BIT);
+        cmd->image_barrier(
+            *output_, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
+            VK_IMAGE_LAYOUT_GENERAL, VK_PIPELINE_STAGE_2_BLIT_BIT,
+            VK_ACCESS_2_TRANSFER_READ_BIT,
+            VK_PIPELINE_STAGE_2_COMPUTE_SHADER_BIT,
+            VK_ACCESS_2_SHADER_STORAGE_WRITE_BIT);
+        present = output_hi_;
+    }
+
+    submit_maybe_sync(device, cmd, profile_gpu_);
+    timings_.warp_ms += std::chrono::duration<double, std::milli>(
+                            std::chrono::steady_clock::now() - blend_t0)
+                            .count();
+    ++timings_.warps;
+    return present;
+#endif
+}
+
 bool FrameInterpolator::build_pair_flow(Vulkan::Device &device, unsigned k) {
 #if !N64_FRAME_INTERP
     (void)device;
@@ -1127,10 +1211,13 @@ Vulkan::ImageHandle FrameInterpolator::process(Vulkan::Device &device,
 
     // Env override for quick A/B of modes without rebuilding settings.
     if (const char *e = getenv("N64_FRAME_INTERP_MODE")) {
-        if (e[0] == 'e' || e[0] == 'E' || e[0] == '1')
+        if (e[0] == 'e' || e[0] == 'E' || e[0] == '2')
             mode_ = FrameInterpMode::Extrapolate;
-        else if (e[0] == 'b' || e[0] == 'B' || e[0] == '0')
-            mode_ = FrameInterpMode::Bidirectional;
+        else if (e[0] == 'l' || e[0] == 'L')
+            mode_ = FrameInterpMode::LinearBlend;
+        else if (e[0] == 'o' || e[0] == 'O' || e[0] == 'b' || e[0] == 'B' ||
+                 e[0] == '1' || e[0] == '0')
+            mode_ = FrameInterpMode::OpticalFlow;
     }
 
     ensure_programs(device);
@@ -1147,6 +1234,7 @@ Vulkan::ImageHandle FrameInterpolator::process(Vulkan::Device &device,
         kick_content_fingerprint(device, *scanout, !origin_changed);
     }
 
+    const bool linear_mode = mode_ == FrameInterpMode::LinearBlend;
     const bool extrapolate_mode = mode_ == FrameInterpMode::Extrapolate;
 
     if (novel) {
@@ -1168,28 +1256,45 @@ Vulkan::ImageHandle FrameInterpolator::process(Vulkan::Device &device,
             prev_depth_ = curr_depth_;
             curr_depth_ = depth;
 
-            const bool can_flow =
-                consecutive_k1_ < kBypassStreak && k >= 2 && prev_novel_;
-            if (can_flow && build_pair_flow(device, k)) {
-                if (!extrapolate_mode) {
+            if (linear_mode) {
+                clear_temporal_flow();
+                have_global_ = false;
+                have_flow_ = false;
+                if (k >= 2 && prev_novel_) {
                     for (unsigned i = 1; i < k; ++i) {
                         QueueItem item;
                         item.phase = float(i) / float(k);
                         queue_.push_back(item);
                     }
-                    QueueItem end;
-                    end.phase = -1.f;
-                    end.frame = curr_novel_;
-                    queue_.push_back(end);
                 }
+                QueueItem end;
+                end.phase = -1.f;
+                end.frame = curr_novel_;
+                queue_.push_back(end);
             } else {
-                clear_temporal_flow();
-                have_global_ = false;
-                if (!extrapolate_mode) {
-                    QueueItem end;
-                    end.phase = -1.f;
-                    end.frame = curr_novel_;
-                    queue_.push_back(end);
+                const bool can_flow =
+                    consecutive_k1_ < kBypassStreak && k >= 2 && prev_novel_;
+                if (can_flow && build_pair_flow(device, k)) {
+                    if (!extrapolate_mode) {
+                        for (unsigned i = 1; i < k; ++i) {
+                            QueueItem item;
+                            item.phase = float(i) / float(k);
+                            queue_.push_back(item);
+                        }
+                        QueueItem end;
+                        end.phase = -1.f;
+                        end.frame = curr_novel_;
+                        queue_.push_back(end);
+                    }
+                } else {
+                    clear_temporal_flow();
+                    have_global_ = false;
+                    if (!extrapolate_mode) {
+                        QueueItem end;
+                        end.phase = -1.f;
+                        end.frame = curr_novel_;
+                        queue_.push_back(end);
+                    }
                 }
             }
         } else {
@@ -1231,6 +1336,8 @@ Vulkan::ImageHandle FrameInterpolator::process(Vulkan::Device &device,
     queue_.pop_front();
     if (item.phase < 0.f)
         return item.frame ? item.frame : scanout;
+    if (linear_mode)
+        return linear_blend(device, item.phase);
     return warp(device, item.phase, false);
 #endif
 }

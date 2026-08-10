@@ -141,9 +141,14 @@ bool parse_toml_file(const std::string &path, N64System::Config &config,
                 if (*v == "extrapolate" || *v == "onesided" || *v == "one-sided")
                     config.frame_interp_mode =
                         N64System::FrameInterpMode::Extrapolate;
-                else
+                else if (*v == "linear" || *v == "blend" ||
+                         *v == "linear_blend" || *v == "linear-blend")
                     config.frame_interp_mode =
-                        N64System::FrameInterpMode::Bidirectional;
+                        N64System::FrameInterpMode::LinearBlend;
+                else
+                    // "bidirectional", "optical", "optical_flow", etc.
+                    config.frame_interp_mode =
+                        N64System::FrameInterpMode::OpticalFlow;
             }
             if (auto v = (*video)["vulkan_device"].value<std::string>())
                 config.vulkan_device = *v;
@@ -263,11 +268,22 @@ bool save_toml(const N64System::Config &config, const UiSettings &ui) {
     toml::table video;
     video.insert_or_assign("upscale", static_cast<int64_t>(config.upscale));
     video.insert_or_assign("frame_interp", config.frame_interp);
-    video.insert_or_assign(
-        "frame_interp_mode",
-        config.frame_interp_mode == N64System::FrameInterpMode::Extrapolate
-            ? "extrapolate"
-            : "bidirectional");
+    {
+        const char *mode_str = "optical_flow";
+        switch (config.frame_interp_mode) {
+        case N64System::FrameInterpMode::LinearBlend:
+            mode_str = "linear";
+            break;
+        case N64System::FrameInterpMode::Extrapolate:
+            mode_str = "extrapolate";
+            break;
+        case N64System::FrameInterpMode::OpticalFlow:
+        default:
+            mode_str = "optical_flow";
+            break;
+        }
+        video.insert_or_assign("frame_interp_mode", mode_str);
+    }
     video.insert_or_assign("vulkan_device", config.vulkan_device);
 
     toml::table cpu;

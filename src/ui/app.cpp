@@ -215,11 +215,22 @@ bool try_start_game(Vulkan::WSI &wsi, SDL2Platform &platform, uint8_t *rdram) {
     }
 
     Video::init_video(wsi, rdram, g_gui.config->upscale, g_gui.config->frame_interp);
-    Video::set_frame_interp_mode(
-        g_gui.config->frame_interp_mode ==
-                N64System::FrameInterpMode::Extrapolate
-            ? Video::FrameInterpMode::Extrapolate
-            : Video::FrameInterpMode::Bidirectional);
+    {
+        Video::FrameInterpMode mode = Video::FrameInterpMode::OpticalFlow;
+        switch (g_gui.config->frame_interp_mode) {
+        case N64System::FrameInterpMode::LinearBlend:
+            mode = Video::FrameInterpMode::LinearBlend;
+            break;
+        case N64System::FrameInterpMode::Extrapolate:
+            mode = Video::FrameInterpMode::Extrapolate;
+            break;
+        case N64System::FrameInterpMode::OpticalFlow:
+        default:
+            mode = Video::FrameInterpMode::OpticalFlow;
+            break;
+        }
+        Video::set_frame_interp_mode(mode);
+    }
     N64System::set_up(*g_gui.config);
     remember_recent_rom(g_gui.recent_roms, g_gui.config->rom_filepath);
     g_gui.mode = AppMode::Running;
