@@ -84,6 +84,15 @@ foreach(_name IN LISTS _fi_shaders)
     n64_compile_shader(optical_flow/${_name} comp ${_name}_spirv)
 endforeach()
 
+set(_gffe_shaders
+    extrap_forward_splat
+    extrap_bg_update
+    extrap_bg_fill
+)
+foreach(_name IN LISTS _gffe_shaders)
+    n64_compile_shader(gffe/${_name} comp ${_name}_spirv)
+endforeach()
+
 add_custom_target(video_shaders DEPENDS ${_shader_headers})
 target_sources(video PRIVATE ${_shader_headers})
 add_dependencies(video video_shaders)

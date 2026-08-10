@@ -219,14 +219,14 @@ void draw_video_settings(GuiState &state) {
         if (cfg.frame_interp) {
             switch (cfg.frame_interp_mode) {
             case N64System::FrameInterpMode::LinearBlend:
-                fi_label = "Linear blend";
+                fi_label = "Linear blend (interpolation)";
                 break;
             case N64System::FrameInterpMode::Extrapolate:
-                fi_label = "Extrapolation (experimental)";
+                fi_label = "GFFE (extrapolation)";
                 break;
             case N64System::FrameInterpMode::OpticalFlow:
             default:
-                fi_label = "Optical flow";
+                fi_label = "Optical flow (interpolation)";
                 break;
             }
         }
@@ -239,13 +239,16 @@ void draw_video_settings(GuiState &state) {
                     Video::set_frame_interp_enabled(false);
                 save_settings(state);
             }
+            if (ImGui::IsItemHovered(ImGuiHoveredFlags_DelayNormal))
+                ImGui::SetTooltip("No extra frames.");
             if (none_sel)
                 ImGui::SetItemDefaultFocus();
 
             const bool linear_sel =
                 cfg.frame_interp &&
                 cfg.frame_interp_mode == N64System::FrameInterpMode::LinearBlend;
-            if (ImGui::Selectable("Linear blend", linear_sel) && !linear_sel) {
+            if (ImGui::Selectable("Linear blend (interpolation)", linear_sel) &&
+                !linear_sel) {
                 cfg.frame_interp = true;
                 cfg.frame_interp_mode = N64System::FrameInterpMode::LinearBlend;
                 if (Rdp::ready()) {
@@ -255,13 +258,19 @@ void draw_video_settings(GuiState &state) {
                 }
                 save_settings(state);
             }
+            if (ImGui::IsItemHovered(ImGuiHoveredFlags_DelayNormal))
+                ImGui::SetTooltip(
+                    "Waits for the next frame, then RGB-crossfades "
+                    "previous→next. Uses both frames, so display is delayed "
+                    "by ~1 source frame (may ghost on motion).");
             if (linear_sel)
                 ImGui::SetItemDefaultFocus();
 
             const bool flow_sel =
                 cfg.frame_interp &&
                 cfg.frame_interp_mode == N64System::FrameInterpMode::OpticalFlow;
-            if (ImGui::Selectable("Optical flow", flow_sel) && !flow_sel) {
+            if (ImGui::Selectable("Optical flow (interpolation)", flow_sel) &&
+                !flow_sel) {
                 cfg.frame_interp = true;
                 cfg.frame_interp_mode = N64System::FrameInterpMode::OpticalFlow;
                 if (Rdp::ready()) {
@@ -271,14 +280,18 @@ void draw_video_settings(GuiState &state) {
                 }
                 save_settings(state);
             }
+            if (ImGui::IsItemHovered(ImGuiHoveredFlags_DelayNormal))
+                ImGui::SetTooltip(
+                    "Waits for the next frame, then motion-compensated warp. "
+                    "Uses both frames, so display is delayed by ~1 source "
+                    "frame.");
             if (flow_sel)
                 ImGui::SetItemDefaultFocus();
 
             const bool one_sel =
                 cfg.frame_interp &&
                 cfg.frame_interp_mode == N64System::FrameInterpMode::Extrapolate;
-            if (ImGui::Selectable("Extrapolation (experimental)", one_sel) &&
-                !one_sel) {
+            if (ImGui::Selectable("GFFE (extrapolation)", one_sel) && !one_sel) {
                 cfg.frame_interp = true;
                 cfg.frame_interp_mode = N64System::FrameInterpMode::Extrapolate;
                 if (Rdp::ready()) {
@@ -288,18 +301,16 @@ void draw_video_settings(GuiState &state) {
                 }
                 save_settings(state);
             }
+            if (ImGui::IsItemHovered(ImGuiHoveredFlags_DelayNormal))
+                ImGui::SetTooltip(
+                    "G-buffer Free Frame Extrapolation.\n"
+                    "Shows each new frame immediately; fills duplicates by "
+                    "forward-predicting from history only (no extra frame "
+                    "delay; may ghost on abrupt shading/motion).");
             if (one_sel)
                 ImGui::SetItemDefaultFocus();
             ImGui::EndCombo();
         }
-        if (ImGui::IsItemHovered(ImGuiHoveredFlags_DelayNormal))
-            ImGui::SetTooltip(
-                "None: no extra frames.\n"
-                "Linear blend: RGB crossfade between previous and next "
-                "(~1 frame delay; may ghost on motion).\n"
-                "Optical flow: motion-compensated warp (~1 frame delay).\n"
-                "Extrapolation (experimental): lower latency; may look "
-                "unstable on moving objects.");
 
         ImGui::TableNextRow();
         ImGui::TableSetColumnIndex(0);

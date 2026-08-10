@@ -13,13 +13,14 @@ namespace Video {
 enum class FrameInterpMode {
     // Wait for the next novel frame, then RGB-lerp prev→next. Low cost;
     // adds ~1 source-frame of display delay. Ghosts on motion.
-    LinearBlend = 0,
+    LinearBlend = 0, // interpolation
     // Wait for the next novel frame, then warp both ends with optical flow.
     // Best quality; adds ~1 source-frame of display delay.
-    OpticalFlow = 1,
-    // Show each novel frame immediately; fill duplicate fields by extrapolating
-    // the latest frame forward with the previous pair's flow. Lower latency.
-    Extrapolate = 2,
+    OpticalFlow = 1, // interpolation
+    // GFFE geometry-aware extrapolation: present novels immediately;
+    // fill duplicates by forward-splat + hierarchical background (no +1 delay).
+    // SCN (shading correction network) is a future plug-in on GAE outputs.
+    Extrapolate = 2, // extrapolation
 };
 
 inline bool frame_interp_uses_depth(FrameInterpMode mode) {
@@ -87,6 +88,7 @@ class FrameInterpolator {
     static constexpr unsigned kFingerprintSize = 16;
     static constexpr unsigned kBypassStreak = 4;
     static constexpr unsigned kMaxHold = 8;
+    static constexpr unsigned kBgLayers = 3;
     static constexpr double kFallbackEnterMs = 5.0;
     static constexpr double kFallbackExitMs = 2.5;
     static constexpr unsigned kFallbackEnterStreak = 3;
@@ -98,6 +100,9 @@ class FrameInterpolator {
     static constexpr float kTemporalFlowAlpha = 0.5f;
     static constexpr float kGlobalConfMin = 0.25f;
     static constexpr float kStopVelEps = 0.03f;
+    static constexpr float kExtrapConfMin = 0.12f;
+    static constexpr float kExtrapMotionDyn = 1.5f;
+    static constexpr float kBgStaticMotion = 0.75f;
 
     struct QueueItem {
         float phase = -1.f;
@@ -121,10 +126,12 @@ class FrameInterpolator {
     bool flag_global_motion_ = false;
     bool flag_flow_smooth_ = true;
     bool have_flow_ = false;
+    bool have_bg_ = false;
     bool profile_gpu_ = false;
     bool fallback_ = false;
     unsigned fallback_bad_streak_ = 0;
     unsigned fallback_good_streak_ = 0;
+    unsigned bg_parity_ = 0; // ping-pong index into bg_*_[parity][layer]
 
     Timings timings_{};
 
@@ -158,9 +165,17 @@ class FrameInterpolator {
     Vulkan::ImageHandle prev_flow_ab_;
     Vulkan::ImageHandle prev_flow_ba_;
     bool have_prev_flow_ = false;
-    Vulkan::ImageHandle output_;      // native-res warp target
+    Vulkan::ImageHandle output_;      // native-res warp / GAE color
     Vulkan::ImageHandle output_hi_;   // upscaled to scanout size when upscale_ > 1
     Vulkan::BufferHandle scene_buf_;
+
+    // GFFE GAE buffers (warp resolution).
+    Vulkan::ImageHandle gae_depth_;
+    Vulkan::ImageHandle gae_coverage_;
+    Vulkan::ImageHandle gae_mask_; // SCN M_input: 0 static, 128 dyn, 255 hole
+    Vulkan::ImageHandle gae_depth_atomic_; // R32_UINT for imageAtomicMin
+    Vulkan::ImageHandle bg_color_[2][kBgLayers];
+    Vulkan::ImageHandle bg_depth_[2][kBgLayers];
 
     Vulkan::ImageHandle fp_prev_;
     Vulkan::ImageHandle fp_curr_;
@@ -193,6 +208,9 @@ class FrameInterpolator {
     Vulkan::Program *prog_content_fin_ = nullptr;
     Vulkan::Program *prog_global_ = nullptr;
     Vulkan::Program *prog_global_fin_ = nullptr;
+    Vulkan::Program *prog_extrap_splat_ = nullptr;
+    Vulkan::Program *prog_extrap_bg_update_ = nullptr;
+    Vulkan::Program *prog_extrap_bg_fill_ = nullptr;
     bool programs_ready_ = false;
 
     std::deque<QueueItem> queue_;
@@ -221,9 +239,13 @@ class FrameInterpolator {
     void enter_fallback();
     void note_latency_stats(unsigned k);
     bool build_pair_flow(Vulkan::Device &device, unsigned k);
-    Vulkan::ImageHandle warp(Vulkan::Device &device, float phase,
-                             bool extrapolate = false);
+    Vulkan::ImageHandle warp(Vulkan::Device &device, float phase);
     Vulkan::ImageHandle linear_blend(Vulkan::Device &device, float phase);
+    void update_background(Vulkan::Device &device);
+    Vulkan::ImageHandle geometry_aware_extrapolate(Vulkan::Device &device,
+                                                   float alpha);
+    Vulkan::ImageHandle present_native_output(Vulkan::Device &device,
+                                              Vulkan::CommandBufferHandle &cmd);
     static void dispatch_2d(Vulkan::CommandBuffer &cmd, unsigned w,
                             unsigned h);
 };

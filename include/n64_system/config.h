@@ -16,9 +16,9 @@ enum class CpuBackend {
 
 // Frame interpolation strategy (when frame_interp is on).
 enum class FrameInterpMode {
-    LinearBlend = 0, // simple RGB crossfade; ~1 frame display delay
-    OpticalFlow = 1, // motion-compensated warp; ~1 frame display delay
-    Extrapolate = 2, // optical-flow forward nudge; lower latency
+    LinearBlend = 0, // interpolation: RGB crossfade; ~1 frame display delay
+    OpticalFlow = 1, // interpolation: motion-compensated warp; ~1 frame delay
+    Extrapolate = 2, // extrapolation: GFFE geometry-aware; lower latency
 };
 
 struct Config {

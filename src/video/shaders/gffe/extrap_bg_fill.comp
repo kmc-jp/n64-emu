@@ -1,0 +1,102 @@
+#version 450
+layout(local_size_x = 8, local_size_y = 8) in;
+
+// Fill forward-splat holes from hierarchical BG (GFFE background projection).
+// Remaining holes are edge-dilated from valid neighbors (FOV enlarge unavailable).
+
+layout(set = 0, binding = 0) uniform sampler2D uFlowAB;
+layout(set = 0, binding = 1) uniform sampler2D uBgColor0;
+layout(set = 0, binding = 2) uniform sampler2D uBgDepth0;
+layout(set = 0, binding = 3) uniform sampler2D uBgColor1;
+layout(set = 0, binding = 4) uniform sampler2D uBgDepth1;
+layout(set = 0, binding = 5) uniform sampler2D uBgColor2;
+layout(set = 0, binding = 6) uniform sampler2D uBgDepth2;
+layout(set = 0, binding = 7, rgba8) uniform image2D uColor;
+layout(set = 0, binding = 8, r16f) uniform image2D uGaeDepth;
+layout(set = 0, binding = 9, r8) uniform image2D uCoverage;
+layout(set = 0, binding = 10, r8) uniform image2D uMask;
+
+layout(push_constant) uniform Push {
+    uvec2 out_size;
+    vec2 flow_scale;
+    float alpha;
+    float have_bg;
+} push;
+
+bool try_layer(vec2 src_uv, sampler2D color_tex, sampler2D depth_tex,
+               inout vec4 color, inout float depth) {
+    if (src_uv.x < 0.0 || src_uv.y < 0.0 || src_uv.x > 1.0 || src_uv.y > 1.0)
+        return false;
+    float z = textureLod(depth_tex, src_uv, 0.0).x;
+    if (z >= 1.5)
+        return false;
+    color = textureLod(color_tex, src_uv, 0.0);
+    depth = z;
+    return true;
+}
+
+void main() {
+    ivec2 p = ivec2(gl_GlobalInvocationID.xy);
+    ivec2 size = ivec2(push.out_size);
+    if (p.x >= size.x || p.y >= size.y)
+        return;
+
+    float cov = imageLoad(uCoverage, p).x;
+    if (cov > 0.5)
+        return;
+
+    vec2 uv = (vec2(p) + 0.5) / vec2(size);
+    vec4 color = vec4(0.0);
+    float depth = 2.0;
+    bool filled = false;
+
+    if (push.have_bg > 0.5) {
+        vec4 flow4 = textureLod(uFlowAB, uv, 0.0);
+        vec2 f = flow4.xy * push.flow_scale;
+        // Project BG (at time t) forward by α into the extrapolated frame.
+        vec2 src_uv = uv - (push.alpha * f) / vec2(size);
+
+        if (try_layer(src_uv, uBgColor0, uBgDepth0, color, depth) ||
+            try_layer(src_uv, uBgColor1, uBgDepth1, color, depth) ||
+            try_layer(src_uv, uBgColor2, uBgDepth2, color, depth)) {
+            filled = true;
+        }
+    }
+
+    if (!filled) {
+        // Edge / out-of-screen fallback: average covered neighbors.
+        vec4 sum = vec4(0.0);
+        float wsum = 0.0;
+        float zsum = 0.0;
+        for (int dy = -2; dy <= 2; ++dy) {
+            for (int dx = -2; dx <= 2; ++dx) {
+                if (dx == 0 && dy == 0)
+                    continue;
+                ivec2 q = p + ivec2(dx, dy);
+                if (q.x < 0 || q.y < 0 || q.x >= size.x || q.y >= size.y)
+                    continue;
+                float c = imageLoad(uCoverage, q).x;
+                if (c < 0.5)
+                    continue;
+                float w = 1.0 / float(abs(dx) + abs(dy));
+                sum += w * imageLoad(uColor, q);
+                zsum += w * imageLoad(uGaeDepth, q).x;
+                wsum += w;
+            }
+        }
+        if (wsum > 1e-4) {
+            color = sum / wsum;
+            depth = zsum / wsum;
+            filled = true;
+        }
+    }
+
+    if (!filled)
+        return;
+
+    imageStore(uColor, p, color);
+    imageStore(uGaeDepth, p, vec4(depth));
+    imageStore(uCoverage, p, vec4(1.0));
+    // 255 = disocclusion / hole fill (GFFE M_input contract for SCN).
+    imageStore(uMask, p, vec4(1.0));
+}

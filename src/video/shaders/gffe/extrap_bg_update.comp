@@ -1,0 +1,123 @@
+#version 450
+layout(local_size_x = 8, local_size_y = 8) in;
+
+// Hierarchical background collection (GFFE §4.2, screen-space adaptation).
+// Warps previous BG layers by the just-measured pair flow, then inserts the
+// current novel as layer 0 and pushes occluded history deeper.
+
+layout(set = 0, binding = 0) uniform sampler2D uFrame;
+layout(set = 0, binding = 1) uniform sampler2D uDepth;
+layout(set = 0, binding = 2) uniform sampler2D uFlowAB;
+layout(set = 0, binding = 3) uniform sampler2D uBgColor0;
+layout(set = 0, binding = 4) uniform sampler2D uBgDepth0;
+layout(set = 0, binding = 5) uniform sampler2D uBgColor1;
+layout(set = 0, binding = 6) uniform sampler2D uBgDepth1;
+layout(set = 0, binding = 7) uniform sampler2D uBgColor2;
+layout(set = 0, binding = 8) uniform sampler2D uBgDepth2;
+layout(set = 0, binding = 9, rgba8) uniform writeonly image2D uOutColor0;
+layout(set = 0, binding = 10, r16f) uniform writeonly image2D uOutDepth0;
+layout(set = 0, binding = 11, rgba8) uniform writeonly image2D uOutColor1;
+layout(set = 0, binding = 12, r16f) uniform writeonly image2D uOutDepth1;
+layout(set = 0, binding = 13, rgba8) uniform writeonly image2D uOutColor2;
+layout(set = 0, binding = 14, r16f) uniform writeonly image2D uOutDepth2;
+
+layout(push_constant) uniform Push {
+    uvec2 out_size;
+    vec2 flow_scale;
+    float have_depth;
+    float have_prev_bg;
+    float static_motion; // |flow| below → treat as static surface
+} push;
+
+const float kInvalidDepth = 2.0;
+
+vec4 sample_bg_color(sampler2D tex, vec2 uv, float valid) {
+    if (valid < 0.5)
+        return vec4(0.0);
+    return textureLod(tex, uv, 0.0);
+}
+
+float sample_bg_depth(sampler2D tex, vec2 uv, float valid) {
+    if (valid < 0.5)
+        return kInvalidDepth;
+    float z = textureLod(tex, uv, 0.0).x;
+    // Alpha/sentinel: depths > 1.5 were cleared as empty.
+    return z;
+}
+
+void main() {
+    ivec2 p = ivec2(gl_GlobalInvocationID.xy);
+    ivec2 size = ivec2(push.out_size);
+    if (p.x >= size.x || p.y >= size.y)
+        return;
+
+    vec2 uv = (vec2(p) + 0.5) / vec2(size);
+    vec4 flow4 = textureLod(uFlowAB, uv, 0.0);
+    vec2 f = flow4.xy * push.flow_scale;
+    // Warp previous BG into the current novel's screen space.
+    vec2 src_uv = uv - f / vec2(size);
+    float in_bounds = float(src_uv.x >= 0.0 && src_uv.y >= 0.0 &&
+                            src_uv.x <= 1.0 && src_uv.y <= 1.0);
+
+    vec4 prev_c0 = sample_bg_color(uBgColor0, src_uv, push.have_prev_bg * in_bounds);
+    float prev_z0 = sample_bg_depth(uBgDepth0, src_uv, push.have_prev_bg * in_bounds);
+    vec4 prev_c1 = sample_bg_color(uBgColor1, src_uv, push.have_prev_bg * in_bounds);
+    float prev_z1 = sample_bg_depth(uBgDepth1, src_uv, push.have_prev_bg * in_bounds);
+    vec4 prev_c2 = sample_bg_color(uBgColor2, src_uv, push.have_prev_bg * in_bounds);
+    float prev_z2 = sample_bg_depth(uBgDepth2, src_uv, push.have_prev_bg * in_bounds);
+
+    // Validity: cleared layers store depth = 2.0
+    bool v0 = prev_z0 < 1.5;
+    bool v1 = prev_z1 < 1.5;
+    bool v2 = prev_z2 < 1.5;
+
+    vec4 curr_c = textureLod(uFrame, uv, 0.0);
+    float curr_z = 0.5;
+    if (push.have_depth > 0.5)
+        curr_z = textureLod(uDepth, uv, 0.0).x;
+
+    float motion = length(f);
+    bool static_px = motion < push.static_motion;
+
+    // Layer 0 is always the current surface.
+    imageStore(uOutColor0, p, curr_c);
+    imageStore(uOutDepth0, p, vec4(curr_z));
+
+    // Push occluded / static history into deeper layers (GFFE Fig. 5).
+    vec4 out_c1 = vec4(0.0);
+    float out_z1 = kInvalidDepth;
+    vec4 out_c2 = vec4(0.0);
+    float out_z2 = kInvalidDepth;
+
+    if (v0 && prev_z0 > curr_z + 0.002) {
+        // Previous surface is behind the new surface → keep as layer 1.
+        out_c1 = prev_c0;
+        out_z1 = prev_z0;
+        if (v1 && prev_z1 > prev_z0 + 0.002) {
+            out_c2 = prev_c1;
+            out_z2 = prev_z1;
+        } else if (v2 && prev_z2 > prev_z0 + 0.002) {
+            out_c2 = prev_c2;
+            out_z2 = prev_z2;
+        }
+    } else if (static_px && v1) {
+        out_c1 = prev_c1;
+        out_z1 = prev_z1;
+        if (v2) {
+            out_c2 = prev_c2;
+            out_z2 = prev_z2;
+        }
+    } else if (v1 && prev_z1 > curr_z + 0.002) {
+        out_c1 = prev_c1;
+        out_z1 = prev_z1;
+        if (v2 && prev_z2 > prev_z1 + 0.002) {
+            out_c2 = prev_c2;
+            out_z2 = prev_z2;
+        }
+    }
+
+    imageStore(uOutColor1, p, out_c1);
+    imageStore(uOutDepth1, p, vec4(out_z1));
+    imageStore(uOutColor2, p, out_c2);
+    imageStore(uOutDepth2, p, vec4(out_z2));
+}

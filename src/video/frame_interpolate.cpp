@@ -25,6 +25,9 @@
 #include "scene_finalize_spirv.h"
 #include "scene_reduce_spirv.h"
 #include "warp_blend_spirv.h"
+#include "extrap_forward_splat_spirv.h"
+#include "extrap_bg_update_spirv.h"
+#include "extrap_bg_fill_spirv.h"
 #endif
 
 #include <algorithm>
@@ -136,8 +139,20 @@ void FrameInterpolator::reset() {
     prev_flow_ba_.reset();
     have_prev_flow_ = false;
     have_flow_ = false;
+    have_bg_ = false;
+    bg_parity_ = 0;
     output_.reset();
     output_hi_.reset();
+    gae_depth_.reset();
+    gae_coverage_.reset();
+    gae_mask_.reset();
+    gae_depth_atomic_.reset();
+    for (unsigned p = 0; p < 2; ++p) {
+        for (unsigned l = 0; l < kBgLayers; ++l) {
+            bg_color_[p][l].reset();
+            bg_depth_[p][l].reset();
+        }
+    }
     scene_buf_.reset();
     fp_prev_.reset();
     fp_curr_.reset();
@@ -170,6 +185,7 @@ void FrameInterpolator::enter_fallback() {
     queue_.clear();
     clear_temporal_flow();
     have_global_ = false;
+    have_bg_ = false;
     prev_novel_.reset();
     curr_novel_.reset();
     prev_depth_.reset();
@@ -365,7 +381,7 @@ void FrameInterpolator::ensure_programs(Vulkan::Device &device) {
         layout.sets[0].fp_mask =
             (1u << 0) | (1u << 1) | (1u << 2) | (1u << 3) | (1u << 4) |
             (1u << 6) | (1u << 7) | (1u << 8);
-        layout.push_constant_size = 48; // have_global instead of vec2 globals
+        layout.push_constant_size = 52; // uvec2+vec2+9 floats
         prog_warp_ =
             req(device, warp_blend_spirv, sizeof(warp_blend_spirv), layout);
     }
@@ -378,6 +394,50 @@ void FrameInterpolator::ensure_programs(Vulkan::Device &device) {
         prog_linear_blend_ = req(device, linear_blend_spirv,
                                  sizeof(linear_blend_spirv), layout);
     }
+    {
+        Vulkan::ResourceLayout layout = {};
+        layout.sets[0].sampled_image_mask = (1u << 0) | (1u << 1) | (1u << 2);
+        layout.sets[0].storage_image_mask =
+            (1u << 3) | (1u << 4) | (1u << 5) | (1u << 6) | (1u << 7);
+        layout.sets[0].storage_buffer_mask = (1u << 8) | (1u << 9);
+        layout.sets[0].fp_mask =
+            (1u << 0) | (1u << 1) | (1u << 2) | (1u << 4) | (1u << 5) |
+            (1u << 6) | (1u << 7);
+        layout.push_constant_size = 40;
+        prog_extrap_splat_ = req(device, extrap_forward_splat_spirv,
+                                 sizeof(extrap_forward_splat_spirv), layout);
+    }
+    {
+        Vulkan::ResourceLayout layout = {};
+        layout.sets[0].sampled_image_mask =
+            (1u << 0) | (1u << 1) | (1u << 2) | (1u << 3) | (1u << 4) |
+            (1u << 5) | (1u << 6) | (1u << 7) | (1u << 8);
+        layout.sets[0].storage_image_mask =
+            (1u << 9) | (1u << 10) | (1u << 11) | (1u << 12) | (1u << 13) |
+            (1u << 14);
+        layout.sets[0].fp_mask =
+            (1u << 0) | (1u << 1) | (1u << 2) | (1u << 3) | (1u << 4) |
+            (1u << 5) | (1u << 6) | (1u << 7) | (1u << 8) | (1u << 9) |
+            (1u << 10) | (1u << 11) | (1u << 12) | (1u << 13) | (1u << 14);
+        layout.push_constant_size = 28;
+        prog_extrap_bg_update_ = req(device, extrap_bg_update_spirv,
+                                     sizeof(extrap_bg_update_spirv), layout);
+    }
+    {
+        Vulkan::ResourceLayout layout = {};
+        layout.sets[0].sampled_image_mask =
+            (1u << 0) | (1u << 1) | (1u << 2) | (1u << 3) | (1u << 4) |
+            (1u << 5) | (1u << 6);
+        layout.sets[0].storage_image_mask =
+            (1u << 7) | (1u << 8) | (1u << 9) | (1u << 10);
+        layout.sets[0].fp_mask =
+            (1u << 0) | (1u << 1) | (1u << 2) | (1u << 3) | (1u << 4) |
+            (1u << 5) | (1u << 6) | (1u << 7) | (1u << 8) | (1u << 9) |
+            (1u << 10);
+        layout.push_constant_size = 24;
+        prog_extrap_bg_fill_ = req(device, extrap_bg_fill_spirv,
+                                   sizeof(extrap_bg_fill_spirv), layout);
+    }
 
     programs_ready_ =
         prog_luma_ && prog_pyramid_ && prog_flow_ && prog_smooth_ &&
@@ -385,7 +445,8 @@ void FrameInterpolator::ensure_programs(Vulkan::Device &device) {
         prog_temporal_save_ && prog_flow_scale_ && prog_scene_reduce_ &&
         prog_scene_finalize_ && prog_warp_ && prog_linear_blend_ && prog_fp_ &&
         prog_content_cmp_ && prog_content_fin_ && prog_global_ &&
-        prog_global_fin_;
+        prog_global_fin_ && prog_extrap_splat_ && prog_extrap_bg_update_ &&
+        prog_extrap_bg_fill_;
     if (!programs_ready_)
         Utils::warn("FrameInterpolator: failed to create compute programs");
 #endif
@@ -448,6 +509,25 @@ void FrameInterpolator::ensure_resources(Vulkan::Device &device, unsigned w,
             create_storage_image(device, w, h, VK_FORMAT_R8G8B8A8_UNORM);
     else
         output_hi_.reset();
+
+    gae_depth_ =
+        create_storage_image(device, warp_w_, warp_h_, VK_FORMAT_R16_SFLOAT);
+    gae_coverage_ =
+        create_storage_image(device, warp_w_, warp_h_, VK_FORMAT_R8_UNORM);
+    gae_mask_ =
+        create_storage_image(device, warp_w_, warp_h_, VK_FORMAT_R8_UNORM);
+    gae_depth_atomic_ =
+        create_storage_image(device, warp_w_, warp_h_, VK_FORMAT_R32_UINT);
+    for (unsigned p = 0; p < 2; ++p) {
+        for (unsigned l = 0; l < kBgLayers; ++l) {
+            bg_color_[p][l] = create_storage_image(device, warp_w_, warp_h_,
+                                                   VK_FORMAT_R8G8B8A8_UNORM);
+            bg_depth_[p][l] = create_storage_image(device, warp_w_, warp_h_,
+                                                   VK_FORMAT_R16_SFLOAT);
+        }
+    }
+    have_bg_ = false;
+    bg_parity_ = 0;
 
     fp_prev_ = create_storage_image(device, kFingerprintSize, kFingerprintSize,
                                     VK_FORMAT_R16_SFLOAT);
@@ -938,11 +1018,10 @@ void FrameInterpolator::note_latency_stats(unsigned k) {
 }
 
 Vulkan::ImageHandle FrameInterpolator::warp(Vulkan::Device &device,
-                                            float phase, bool extrapolate) {
+                                            float phase) {
 #if !N64_FRAME_INTERP
     (void)device;
     (void)phase;
-    (void)extrapolate;
     return curr_novel_;
 #else
     const auto warp_t0 = std::chrono::steady_clock::now();
@@ -973,7 +1052,6 @@ Vulkan::ImageHandle FrameInterpolator::warp(Vulkan::Device &device,
         float blend_fallback;
         float have_depth;
         float have_global;
-        float extrapolate;
     } push{};
     push.out_w = warp_w_;
     push.out_h = warp_h_;
@@ -988,7 +1066,6 @@ Vulkan::ImageHandle FrameInterpolator::warp(Vulkan::Device &device,
     push.blend_fallback = flag_blend_fallback_ ? 1.f : 0.f;
     push.have_depth = use_depth ? 1.f : 0.f;
     push.have_global = (flag_global_motion_ && have_global_) ? 1.f : 0.f;
-    push.extrapolate = extrapolate ? 1.f : 0.f;
 
     cmd->set_program(prog_warp_);
     cmd->set_texture(0, 0, prev_novel_->get_view(),
@@ -1013,25 +1090,42 @@ Vulkan::ImageHandle FrameInterpolator::warp(Vulkan::Device &device,
     dispatch_2d(*cmd, warp_w_, warp_h_);
     storage_barrier(*cmd, *output_);
 
+    Vulkan::ImageHandle present = present_native_output(device, cmd);
+    submit_maybe_sync(device, cmd, profile_gpu_);
+    timings_.warp_ms += std::chrono::duration<double, std::milli>(
+                            std::chrono::steady_clock::now() - warp_t0)
+                            .count();
+    ++timings_.warps;
+    return present;
+#endif
+}
+
+Vulkan::ImageHandle
+FrameInterpolator::present_native_output(Vulkan::Device &device,
+                                         Vulkan::CommandBufferHandle &cmd) {
+#if !N64_FRAME_INTERP
+    (void)device;
+    (void)cmd;
+    return output_;
+#else
+    (void)device;
     Vulkan::ImageHandle present = output_;
     if (upscale_ > 1 && output_hi_) {
-        // Restore scanout resolution so novel (4x) and intermediate match.
         cmd->image_barrier(
             *output_, VK_IMAGE_LAYOUT_GENERAL,
             VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
             VK_PIPELINE_STAGE_2_COMPUTE_SHADER_BIT,
-            VK_ACCESS_2_SHADER_STORAGE_WRITE_BIT,
-            VK_PIPELINE_STAGE_2_BLIT_BIT, VK_ACCESS_2_TRANSFER_READ_BIT);
+            VK_ACCESS_2_SHADER_STORAGE_WRITE_BIT, VK_PIPELINE_STAGE_2_BLIT_BIT,
+            VK_ACCESS_2_TRANSFER_READ_BIT);
         cmd->image_barrier(
             *output_hi_, VK_IMAGE_LAYOUT_GENERAL,
             VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
-            VK_PIPELINE_STAGE_2_ALL_COMMANDS_BIT, 0,
-            VK_PIPELINE_STAGE_2_BLIT_BIT, VK_ACCESS_2_TRANSFER_WRITE_BIT);
-        cmd->blit_image(
-            *output_hi_, *output_, {},
-            {int(scan_w_), int(scan_h_), 1}, {},
-            {int(warp_w_), int(warp_h_), 1}, 0, 0, 0, 0, 1,
-            VK_FILTER_LINEAR);
+            VK_PIPELINE_STAGE_2_ALL_COMMANDS_BIT, 0, VK_PIPELINE_STAGE_2_BLIT_BIT,
+            VK_ACCESS_2_TRANSFER_WRITE_BIT);
+        cmd->blit_image(*output_hi_, *output_, {},
+                        {int(scan_w_), int(scan_h_), 1}, {},
+                        {int(warp_w_), int(warp_h_), 1}, 0, 0, 0, 0, 1,
+                        VK_FILTER_LINEAR);
         cmd->image_barrier(
             *output_hi_, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
             VK_IMAGE_LAYOUT_GENERAL, VK_PIPELINE_STAGE_2_BLIT_BIT,
@@ -1046,12 +1140,6 @@ Vulkan::ImageHandle FrameInterpolator::warp(Vulkan::Device &device,
             VK_ACCESS_2_SHADER_STORAGE_WRITE_BIT);
         present = output_hi_;
     }
-
-    submit_maybe_sync(device, cmd, profile_gpu_);
-    timings_.warp_ms += std::chrono::duration<double, std::milli>(
-                            std::chrono::steady_clock::now() - warp_t0)
-                            .count();
-    ++timings_.warps;
     return present;
 #endif
 }
@@ -1087,42 +1175,237 @@ Vulkan::ImageHandle FrameInterpolator::linear_blend(Vulkan::Device &device,
     dispatch_2d(*cmd, warp_w_, warp_h_);
     storage_barrier(*cmd, *output_);
 
-    Vulkan::ImageHandle present = output_;
-    if (upscale_ > 1 && output_hi_) {
-        cmd->image_barrier(
-            *output_, VK_IMAGE_LAYOUT_GENERAL,
-            VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
-            VK_PIPELINE_STAGE_2_COMPUTE_SHADER_BIT,
-            VK_ACCESS_2_SHADER_STORAGE_WRITE_BIT,
-            VK_PIPELINE_STAGE_2_BLIT_BIT, VK_ACCESS_2_TRANSFER_READ_BIT);
-        cmd->image_barrier(
-            *output_hi_, VK_IMAGE_LAYOUT_GENERAL,
-            VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
-            VK_PIPELINE_STAGE_2_ALL_COMMANDS_BIT, 0,
-            VK_PIPELINE_STAGE_2_BLIT_BIT, VK_ACCESS_2_TRANSFER_WRITE_BIT);
-        cmd->blit_image(
-            *output_hi_, *output_, {},
-            {int(scan_w_), int(scan_h_), 1}, {},
-            {int(warp_w_), int(warp_h_), 1}, 0, 0, 0, 0, 1,
-            VK_FILTER_LINEAR);
-        cmd->image_barrier(
-            *output_hi_, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
-            VK_IMAGE_LAYOUT_GENERAL, VK_PIPELINE_STAGE_2_BLIT_BIT,
-            VK_ACCESS_2_TRANSFER_WRITE_BIT,
-            VK_PIPELINE_STAGE_2_FRAGMENT_SHADER_BIT,
-            VK_ACCESS_2_SHADER_SAMPLED_READ_BIT);
-        cmd->image_barrier(
-            *output_, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
-            VK_IMAGE_LAYOUT_GENERAL, VK_PIPELINE_STAGE_2_BLIT_BIT,
-            VK_ACCESS_2_TRANSFER_READ_BIT,
-            VK_PIPELINE_STAGE_2_COMPUTE_SHADER_BIT,
-            VK_ACCESS_2_SHADER_STORAGE_WRITE_BIT);
-        present = output_hi_;
-    }
-
+    Vulkan::ImageHandle present = present_native_output(device, cmd);
     submit_maybe_sync(device, cmd, profile_gpu_);
     timings_.warp_ms += std::chrono::duration<double, std::milli>(
                             std::chrono::steady_clock::now() - blend_t0)
+                            .count();
+    ++timings_.warps;
+    return present;
+#endif
+}
+
+void FrameInterpolator::update_background(Vulkan::Device &device) {
+#if !N64_FRAME_INTERP
+    (void)device;
+#else
+    if (!curr_novel_ || !flow_ab_[0] || !prog_extrap_bg_update_)
+        return;
+    if (!depth_dummy_) {
+        depth_dummy_ = create_storage_image(device, 1, 1, VK_FORMAT_R16_SFLOAT);
+        auto clear_cmd = device.request_command_buffer();
+        VkClearValue cv{};
+        cv.color.float32[0] = 1.f;
+        clear_cmd->clear_image(*depth_dummy_, cv);
+        device.submit(clear_cmd);
+    }
+
+    const unsigned src = bg_parity_;
+    const unsigned dst = bg_parity_ ^ 1u;
+    const bool use_depth = flag_depth_occl_ && curr_depth_;
+    Vulkan::Image &depth = use_depth ? *curr_depth_ : *depth_dummy_;
+
+    // First update: seed empty prev layers with invalid depth.
+    if (!have_bg_) {
+        auto clear_cmd = device.request_command_buffer();
+        VkClearValue far{};
+        far.color.float32[0] = 2.f;
+        for (unsigned l = 0; l < kBgLayers; ++l) {
+            VkClearValue black{};
+            clear_cmd->clear_image(*bg_color_[src][l], black);
+            clear_cmd->clear_image(*bg_depth_[src][l], far);
+        }
+        device.submit(clear_cmd);
+    }
+
+    auto cmd = device.request_command_buffer();
+    struct Push {
+        uint32_t out_w, out_h;
+        float flow_scale_x, flow_scale_y;
+        float have_depth;
+        float have_prev_bg;
+        float static_motion;
+    } push{};
+    push.out_w = warp_w_;
+    push.out_h = warp_h_;
+    push.flow_scale_x = float(warp_w_) / float(std::max(1u, luma_w_[0]));
+    push.flow_scale_y = float(warp_h_) / float(std::max(1u, luma_h_[0]));
+    push.have_depth = use_depth ? 1.f : 0.f;
+    push.have_prev_bg = have_bg_ ? 1.f : 0.f;
+    push.static_motion = kBgStaticMotion;
+
+    cmd->set_program(prog_extrap_bg_update_);
+    cmd->set_texture(0, 0, curr_novel_->get_view(),
+                     Vulkan::StockSampler::LinearClamp);
+    cmd->set_texture(0, 1, depth.get_view(), Vulkan::StockSampler::LinearClamp);
+    cmd->set_texture(0, 2, flow_ab_[0]->get_view(),
+                     Vulkan::StockSampler::LinearClamp);
+    cmd->set_texture(0, 3, bg_color_[src][0]->get_view(),
+                     Vulkan::StockSampler::LinearClamp);
+    cmd->set_texture(0, 4, bg_depth_[src][0]->get_view(),
+                     Vulkan::StockSampler::LinearClamp);
+    cmd->set_texture(0, 5, bg_color_[src][1]->get_view(),
+                     Vulkan::StockSampler::LinearClamp);
+    cmd->set_texture(0, 6, bg_depth_[src][1]->get_view(),
+                     Vulkan::StockSampler::LinearClamp);
+    cmd->set_texture(0, 7, bg_color_[src][2]->get_view(),
+                     Vulkan::StockSampler::LinearClamp);
+    cmd->set_texture(0, 8, bg_depth_[src][2]->get_view(),
+                     Vulkan::StockSampler::LinearClamp);
+    cmd->set_storage_texture(0, 9, bg_color_[dst][0]->get_view());
+    cmd->set_storage_texture(0, 10, bg_depth_[dst][0]->get_view());
+    cmd->set_storage_texture(0, 11, bg_color_[dst][1]->get_view());
+    cmd->set_storage_texture(0, 12, bg_depth_[dst][1]->get_view());
+    cmd->set_storage_texture(0, 13, bg_color_[dst][2]->get_view());
+    cmd->set_storage_texture(0, 14, bg_depth_[dst][2]->get_view());
+    cmd->push_constants(&push, 0, sizeof(push));
+    dispatch_2d(*cmd, warp_w_, warp_h_);
+    for (unsigned l = 0; l < kBgLayers; ++l) {
+        storage_barrier(*cmd, *bg_color_[dst][l]);
+        storage_barrier(*cmd, *bg_depth_[dst][l]);
+    }
+    submit_maybe_sync(device, cmd, profile_gpu_);
+    bg_parity_ = dst;
+    have_bg_ = true;
+#endif
+}
+
+Vulkan::ImageHandle
+FrameInterpolator::geometry_aware_extrapolate(Vulkan::Device &device,
+                                              float alpha) {
+#if !N64_FRAME_INTERP
+    (void)device;
+    (void)alpha;
+    return curr_novel_;
+#else
+    // GFFE GAE: forward splat + hierarchical BG hole fill.
+    // SCN (shading correction) is intentionally a pass-through: present GAE
+    // color. gae_mask_ follows GFFE M_input (0 static / 128 dyn / 255 hole).
+    if (!curr_novel_ || !have_flow_ || !prog_extrap_splat_ ||
+        !prog_extrap_bg_fill_ || !output_)
+        return curr_novel_;
+
+    const auto t0 = std::chrono::steady_clock::now();
+    if (!depth_dummy_) {
+        depth_dummy_ = create_storage_image(device, 1, 1, VK_FORMAT_R16_SFLOAT);
+        auto clear_cmd = device.request_command_buffer();
+        VkClearValue cv{};
+        cv.color.float32[0] = 1.f;
+        clear_cmd->clear_image(*depth_dummy_, cv);
+        device.submit(clear_cmd);
+    }
+    const bool use_depth = flag_depth_occl_ && curr_depth_;
+    Vulkan::Image &depth = use_depth ? *curr_depth_ : *depth_dummy_;
+
+    {
+        auto clear_cmd = device.request_command_buffer();
+        VkClearValue black{};
+        VkClearValue far{};
+        far.color.float32[0] = 2.f;
+        VkClearValue zero{};
+        VkClearValue depth_far_u{};
+        depth_far_u.color.uint32[0] = 0xffffffffu;
+        clear_cmd->clear_image(*output_, black);
+        clear_cmd->clear_image(*gae_depth_, far);
+        clear_cmd->clear_image(*gae_coverage_, zero);
+        clear_cmd->clear_image(*gae_mask_, zero);
+        clear_cmd->clear_image(*gae_depth_atomic_, depth_far_u);
+        device.submit(clear_cmd);
+    }
+
+    auto cmd = device.request_command_buffer();
+    const float flow_sx = float(warp_w_) / float(std::max(1u, luma_w_[0]));
+    const float flow_sy = float(warp_h_) / float(std::max(1u, luma_h_[0]));
+
+    struct SplatPush {
+        uint32_t out_w, out_h;
+        float flow_scale_x, flow_scale_y;
+        float alpha;
+        float have_depth;
+        float have_global;
+        float conf_min;
+        float motion_dyn;
+        uint32_t pass;
+    } sp{};
+    sp.out_w = warp_w_;
+    sp.out_h = warp_h_;
+    sp.flow_scale_x = flow_sx;
+    sp.flow_scale_y = flow_sy;
+    sp.alpha = alpha;
+    sp.have_depth = use_depth ? 1.f : 0.f;
+    sp.have_global = (flag_global_motion_ && have_global_) ? 1.f : 0.f;
+    sp.conf_min = kExtrapConfMin;
+    sp.motion_dyn = kExtrapMotionDyn;
+
+    auto bind_splat = [&](uint32_t pass) {
+        sp.pass = pass;
+        cmd->set_program(prog_extrap_splat_);
+        cmd->set_texture(0, 0, curr_novel_->get_view(),
+                         Vulkan::StockSampler::LinearClamp);
+        cmd->set_texture(0, 1, flow_ab_[0]->get_view(),
+                         Vulkan::StockSampler::LinearClamp);
+        cmd->set_texture(0, 2, depth.get_view(),
+                         Vulkan::StockSampler::LinearClamp);
+        cmd->set_storage_texture(0, 3, gae_depth_atomic_->get_view());
+        cmd->set_storage_texture(0, 4, output_->get_view());
+        cmd->set_storage_texture(0, 5, gae_depth_->get_view());
+        cmd->set_storage_texture(0, 6, gae_coverage_->get_view());
+        cmd->set_storage_texture(0, 7, gae_mask_->get_view());
+        cmd->set_storage_buffer(0, 8, *global_out_);
+        cmd->set_storage_buffer(0, 9, *scene_buf_);
+        cmd->push_constants(&sp, 0, sizeof(sp));
+        dispatch_2d(*cmd, warp_w_, warp_h_);
+    };
+
+    bind_splat(0);
+    storage_barrier(*cmd, *gae_depth_atomic_);
+    bind_splat(1);
+    storage_barrier(*cmd, *output_);
+    storage_barrier(*cmd, *gae_depth_);
+    storage_barrier(*cmd, *gae_coverage_);
+    storage_barrier(*cmd, *gae_mask_);
+
+    const unsigned bg = bg_parity_;
+    struct FillPush {
+        uint32_t out_w, out_h;
+        float flow_scale_x, flow_scale_y;
+        float alpha;
+        float have_bg;
+    } fp{};
+    fp.out_w = warp_w_;
+    fp.out_h = warp_h_;
+    fp.flow_scale_x = flow_sx;
+    fp.flow_scale_y = flow_sy;
+    fp.alpha = alpha;
+    fp.have_bg = have_bg_ ? 1.f : 0.f;
+
+    cmd->set_program(prog_extrap_bg_fill_);
+    cmd->set_texture(0, 0, flow_ab_[0]->get_view(),
+                     Vulkan::StockSampler::LinearClamp);
+    cmd->set_texture(0, 1, bg_color_[bg][0]->get_view(),
+                     Vulkan::StockSampler::LinearClamp);
+    cmd->set_texture(0, 2, bg_depth_[bg][0]->get_view(),
+                     Vulkan::StockSampler::LinearClamp);
+    cmd->set_texture(0, 3, bg_color_[bg][1]->get_view(),
+                     Vulkan::StockSampler::LinearClamp);
+    cmd->set_texture(0, 4, bg_depth_[bg][1]->get_view(),
+                     Vulkan::StockSampler::LinearClamp);
+    cmd->set_texture(0, 5, bg_color_[bg][2]->get_view(),
+                     Vulkan::StockSampler::LinearClamp);
+    cmd->set_texture(0, 6, bg_depth_[bg][2]->get_view(),
+                     Vulkan::StockSampler::LinearClamp);
+    cmd->set_storage_texture(0, 7, output_->get_view());
+    cmd->set_storage_texture(0, 8, gae_depth_->get_view());
+    cmd->set_storage_texture(0, 9, gae_coverage_->get_view());
+    cmd->set_storage_texture(0, 10, gae_mask_->get_view());
+    cmd->push_constants(&fp, 0, sizeof(fp));
+    dispatch_2d(*cmd, warp_w_, warp_h_);
+    storage_barrier(*cmd, *output_);
+
+    Vulkan::ImageHandle present = present_native_output(device, cmd);
+    submit_maybe_sync(device, cmd, profile_gpu_);
+    timings_.warp_ms += std::chrono::duration<double, std::milli>(
+                            std::chrono::steady_clock::now() - t0)
                             .count();
     ++timings_.warps;
     return present;
@@ -1275,7 +1558,9 @@ Vulkan::ImageHandle FrameInterpolator::process(Vulkan::Device &device,
                 const bool can_flow =
                     consecutive_k1_ < kBypassStreak && k >= 2 && prev_novel_;
                 if (can_flow && build_pair_flow(device, k)) {
-                    if (!extrapolate_mode) {
+                    if (extrapolate_mode) {
+                        update_background(device);
+                    } else {
                         for (unsigned i = 1; i < k; ++i) {
                             QueueItem item;
                             item.phase = float(i) / float(k);
@@ -1321,12 +1606,14 @@ Vulkan::ImageHandle FrameInterpolator::process(Vulkan::Device &device,
     }
 
     if (extrapolate_mode) {
-        // Experimental: present novels immediately. Only a single small nudge
-        // on the first duplicate field, then freeze — ramping extrapolation
-        // every hold chatters, and overshoot snaps when the next novel arrives.
-        if (!have_flow_ || !curr_novel_ || !prev_novel_ || hold_count_ != 2)
+        // GFFE: novels already returned above. Duplicates use α = j/(n+1).
+        if (!have_flow_ || !curr_novel_ || hold_count_ <= 1)
             return hold_count_ > 1 && curr_novel_ ? curr_novel_ : scanout;
-        return warp(device, 0.12f, true);
+
+        const unsigned j = hold_count_ - 1;
+        const unsigned n = std::max(1u, pair_k_ - 1);
+        const float alpha = float(j) / float(n + 1);
+        return geometry_aware_extrapolate(device, alpha);
     }
 
     if (queue_.empty())
@@ -1338,7 +1625,7 @@ Vulkan::ImageHandle FrameInterpolator::process(Vulkan::Device &device,
         return item.frame ? item.frame : scanout;
     if (linear_mode)
         return linear_blend(device, item.phase);
-    return warp(device, item.phase, false);
+    return warp(device, item.phase);
 #endif
 }
 

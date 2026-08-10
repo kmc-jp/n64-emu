@@ -1,0 +1,106 @@
+#version 450
+layout(local_size_x = 8, local_size_y = 8) in;
+
+// GFFE-style geometry-aware extrapolation: forward-splat curr frame by
+// α · flow_AB with a depth (or confidence) Z-test.
+// pass 0 = atomic depth only; pass 1 = color/coverage/mask if depth wins.
+
+layout(set = 0, binding = 0) uniform sampler2D uFrame;
+layout(set = 0, binding = 1) uniform sampler2D uFlowAB; // xy=disp (pair), z=conf
+layout(set = 0, binding = 2) uniform sampler2D uDepth;  // R16F linear Z
+layout(set = 0, binding = 3, r32ui) uniform uimage2D uDepthAtomic;
+layout(set = 0, binding = 4, rgba8) uniform image2D uColor;
+layout(set = 0, binding = 5, r16f) uniform image2D uGaeDepth;
+layout(set = 0, binding = 6, r8) uniform image2D uCoverage;
+layout(set = 0, binding = 7, r8) uniform image2D uMask;
+layout(set = 0, binding = 8) readonly buffer GlobalMotion {
+    float ab_x;
+    float ab_y;
+    float ba_x;
+    float ba_y;
+} global_motion;
+layout(set = 0, binding = 9) readonly buffer SceneBuf {
+    uint total_sad_bits;
+    uint pixel_count;
+    uint scene_cut;
+} scene;
+
+layout(push_constant) uniform Push {
+    uvec2 out_size;
+    vec2 flow_scale; // out_pixel / flow_pixel
+    float alpha;     // extrapolation factor j/(n+1)
+    float have_depth;
+    float have_global;
+    float conf_min;
+    float motion_dyn; // |flow| above this → dynamic mask
+    uint pass;        // 0 = depth atomic, 1 = color resolve
+} push;
+
+uint quantize_z(float z) {
+    return uint(clamp(z, 0.0, 1.0) * 65535.0);
+}
+
+void main() {
+    ivec2 p = ivec2(gl_GlobalInvocationID.xy);
+    ivec2 size = ivec2(push.out_size);
+    if (p.x >= size.x || p.y >= size.y)
+        return;
+
+    vec2 uv = (vec2(p) + 0.5) / vec2(size);
+
+    if (scene.scene_cut != 0u) {
+        if (push.pass == 1u) {
+            vec4 c = textureLod(uFrame, uv, 0.0);
+            imageStore(uColor, p, c);
+            imageStore(uCoverage, p, vec4(1.0));
+            imageStore(uMask, p, vec4(0.0));
+            imageStore(uGaeDepth, p, vec4(0.5));
+        }
+        return;
+    }
+
+    vec4 flow4 = textureLod(uFlowAB, uv, 0.0);
+    float conf = flow4.z;
+    vec2 fallback = vec2(0.0);
+    if (push.have_global > 0.5)
+        fallback = vec2(global_motion.ab_x, global_motion.ab_y) * push.flow_scale;
+
+    float atten = smoothstep(push.conf_min * 0.5, push.conf_min + 0.15, conf);
+    vec2 f = mix(fallback, flow4.xy * push.flow_scale, atten);
+
+    // Low-confidence fragments become holes for hierarchical BG fill.
+    if (atten < 0.08 && push.have_global < 0.5)
+        return;
+
+    vec2 dest_f = vec2(p) + push.alpha * f;
+    ivec2 dest = ivec2(round(dest_f));
+    if (dest.x < 0 || dest.y < 0 || dest.x >= size.x || dest.y >= size.y)
+        return;
+
+    float z;
+    if (push.have_depth > 0.5)
+        z = textureLod(uDepth, uv, 0.0).x;
+    else
+        // Prefer confident matches when no geometric depth is available.
+        z = 1.0 - clamp(conf, 0.0, 1.0);
+
+    uint z_u = quantize_z(z);
+
+    if (push.pass == 0u) {
+        imageAtomicMin(uDepthAtomic, dest, z_u);
+        return;
+    }
+
+    uint best = imageLoad(uDepthAtomic, dest).x;
+    if (best != z_u)
+        return;
+
+    vec4 color = textureLod(uFrame, uv, 0.0);
+    imageStore(uColor, dest, color);
+    imageStore(uGaeDepth, dest, vec4(z));
+    imageStore(uCoverage, dest, vec4(1.0));
+
+    float motion = length(f);
+    float mask_v = (motion >= push.motion_dyn) ? (128.0 / 255.0) : 0.0;
+    imageStore(uMask, dest, vec4(mask_v));
+}
