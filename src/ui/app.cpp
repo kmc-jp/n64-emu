@@ -16,6 +16,8 @@
 #include "video/present.h"
 #include <SDL.h>
 #include <SDL_vulkan.h>
+#include <algorithm>
+#include <chrono>
 #include <cstdlib>
 #include <filesystem>
 #include <string>
@@ -39,6 +41,36 @@ void prepare_imgui() {
     gui_draw(g_gui);
 }
 
+void note_fps(uint32_t origin, bool presented) {
+    using clock = std::chrono::steady_clock;
+    static clock::time_point window_start = clock::now();
+    static uint64_t origin_changes = 0;
+    static uint64_t presents = 0;
+    static uint32_t last_origin = 0;
+    static bool have_origin = false;
+
+    if (!have_origin) {
+        last_origin = origin;
+        have_origin = true;
+    } else if (origin != last_origin) {
+        ++origin_changes;
+        last_origin = origin;
+    }
+    if (presented)
+        ++presents;
+
+    const auto now = clock::now();
+    const double elapsed =
+        std::chrono::duration<double>(now - window_start).count();
+    if (elapsed >= 1.0) {
+        g_gui.fps_game = static_cast<float>(origin_changes / elapsed);
+        g_gui.fps_display = static_cast<float>(presents / elapsed);
+        origin_changes = 0;
+        presents = 0;
+        window_start = now;
+    }
+}
+
 void on_field_present(N64::Mmio::VI::VI &vi) {
     if (!g_wsi)
         return;
@@ -52,8 +84,13 @@ void on_field_present(N64::Mmio::VI::VI &vi) {
         g_gui.mode != AppMode::Running || g_gui.show_video_settings ||
         g_gui.show_emu_settings || g_gui.show_audio_settings ||
         g_gui.show_controller_settings || g_gui.show_about;
-    if (!Video::present_field(*g_wsi, vi, force_ui))
+    const uint32_t origin = vi.reg_origin;
+    if (!Video::present_field(*g_wsi, vi, force_ui)) {
         imgui_abandon_frame();
+        note_fps(origin, false);
+    } else {
+        note_fps(origin, true);
+    }
 }
 
 void host_controller_poll() {

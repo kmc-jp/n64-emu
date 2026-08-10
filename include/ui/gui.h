@@ -28,6 +28,8 @@ struct GuiState {
     // vulkan_device value that was used for this process's WSI init.
     std::string applied_vulkan_device{};
     std::vector<std::string> recent_roms{};
+    float fps_game{0.f};
+    float fps_display{0.f};
 };
 
 void gui_draw(GuiState &state);

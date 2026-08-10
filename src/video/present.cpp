@@ -6,6 +6,8 @@
 #include "video/frame_interpolate.h"
 #include "utils/log.h"
 #include "vertex_spirv.h"
+#include <chrono>
+#include <cstdlib>
 #include <mutex>
 
 namespace N64 {
@@ -150,8 +152,12 @@ void init_video(Vulkan::WSI &wsi, uint8_t *rdram, unsigned upscale,
     }
 #else
     if (frame_interp)
-        Utils::info("Frame interpolation enabled (optical flow + depth)");
+        Utils::info(
+            "Frame interpolation enabled (optical flow + depth); "
+            "warp at 1/{}x then upscale",
+            upscale);
 #endif
+    g_frame_interp.set_upscale(upscale);
     Rdp::init(wsi.get_device(), rdram, upscale);
     Rdp::set_sync_full_callback(DepthCapturer::sync_full_thunk,
                                 &g_depth_capture);
@@ -193,36 +199,100 @@ void set_frame_interp_mode(FrameInterpMode mode) {
 
 FrameInterpMode frame_interp_mode() { return g_frame_interp.mode(); }
 
+unsigned frame_interp_pair_k() { return g_frame_interp.pair_k(); }
+
 bool present_field(Vulkan::WSI &wsi, N64::Mmio::VI::VI &vi,
                    bool force_present) {
-    std::lock_guard lock(Rdp::mutex());
+    using clock = std::chrono::steady_clock;
+    static const bool profile = [] {
+        const char *e = getenv("N64_PROFILE_PRESENT");
+        if (!e || e[0] == '\0')
+            e = getenv("N64_PROFILE_FRAME");
+        return e && e[0] != '\0' && e[0] != '0';
+    }();
+    static uint64_t prof_fields = 0;
+    static double prof_scanout_ms = 0.0;
+    static double prof_acquire_ms = 0.0;
+    static double prof_interp_ms = 0.0;
+    static double prof_blit_ms = 0.0;
+    static double prof_submit_ms = 0.0;
+    static auto prof_last_log = clock::now();
+    const auto stamp = [&] { return profile ? clock::now() : clock::time_point{}; };
+    const auto elapsed_ms = [](clock::time_point a, clock::time_point b) {
+        return std::chrono::duration<double, std::milli>(b - a).count();
+    };
 
-    const bool dirty = Rdp::is_dirty();
-    const bool can_skip_dup =
-        !force_present && !g_frame_interp.enabled() && !dirty &&
-        g_have_presented_origin && vi.reg_origin == g_last_presented_origin;
-    if (can_skip_dup) {
-        ++g_present_skips;
-        return false;
-    }
+    Rdp::ScanoutResult result;
+    {
+        std::lock_guard lock(Rdp::mutex());
 
-    auto result = Rdp::scanout(vi_to_regs(vi));
-    if (result.skip && !force_present) {
-        ++g_present_skips;
-        return false;
+        const bool dirty = Rdp::is_dirty();
+        const bool can_skip_dup =
+            !force_present && !g_frame_interp.enabled() && !dirty &&
+            g_have_presented_origin && vi.reg_origin == g_last_presented_origin;
+        if (can_skip_dup) {
+            ++g_present_skips;
+            return false;
+        }
+
+        const auto t_scanout = stamp();
+        result = Rdp::scanout(vi_to_regs(vi));
+        if (profile)
+            prof_scanout_ms += elapsed_ms(t_scanout, stamp());
+        if (result.skip && !force_present) {
+            ++g_present_skips;
+            return false;
+        }
+        Rdp::clear_dirty();
     }
 
     Util::IntrusivePtr<Vulkan::Image> image = result.image;
+    const auto t_acquire = stamp();
     wsi.begin_frame();
+    const auto t_interp = stamp();
     if (image) {
         auto depth = g_depth_capture.take(result.origin);
         image = g_frame_interp.process(wsi.get_device(), image, result.origin,
                                        depth);
     }
+    const auto t_blit = stamp();
     render_screen(wsi, image);
+    const auto t_submit = stamp();
     wsi.end_frame();
+    const auto t_done = stamp();
 
-    Rdp::clear_dirty();
+    if (profile) {
+        ++prof_fields;
+        prof_acquire_ms += elapsed_ms(t_acquire, t_interp);
+        prof_interp_ms += elapsed_ms(t_interp, t_blit);
+        prof_blit_ms += elapsed_ms(t_blit, t_submit);
+        prof_submit_ms += elapsed_ms(t_submit, t_done);
+        if (elapsed_ms(prof_last_log, t_done) >= 1000.0) {
+            const double inv = 1.0 / double(prof_fields);
+            const auto it = g_frame_interp.take_timings();
+            Utils::info(
+                "present profile: fields/s={} avg scanout={:.2f}ms "
+                "acquire={:.2f}ms interp={:.2f}ms (fence={:.2f}ms "
+                "flow={:.2f}ms warp={:.2f}ms) blit={:.2f}ms present={:.2f}ms "
+                "total={:.2f}ms | flows/s={} warps/s={}",
+                prof_fields, prof_scanout_ms * inv, prof_acquire_ms * inv,
+                prof_interp_ms * inv, it.fence_wait_ms * inv, it.flow_ms * inv,
+                it.warp_ms * inv,
+                prof_blit_ms * inv, prof_submit_ms * inv,
+                (prof_scanout_ms + prof_acquire_ms + prof_interp_ms +
+                 prof_blit_ms + prof_submit_ms) *
+                    inv,
+                it.flows, it.warps);
+            prof_fields = 0;
+            prof_scanout_ms = 0.0;
+            prof_acquire_ms = 0.0;
+            prof_interp_ms = 0.0;
+            prof_blit_ms = 0.0;
+            prof_submit_ms = 0.0;
+            prof_last_log = t_done;
+        }
+    }
+
     if (!result.skip) {
         g_have_presented_origin = true;
         g_last_presented_origin = result.origin;

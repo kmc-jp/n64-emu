@@ -87,6 +87,19 @@ Vulkan::Program *req(Vulkan::Device &device, const uint32_t *spirv, size_t n,
     return device.request_program(spirv, n, &layout);
 }
 
+// `sync` serializes against the GPU so the caller's wall clock measures GPU
+// cost. Diagnostic only: it destroys pipelining.
+void submit_maybe_sync(Vulkan::Device &device, Vulkan::CommandBufferHandle &cmd,
+                       bool sync) {
+    if (!sync) {
+        device.submit(cmd);
+        return;
+    }
+    Vulkan::Fence fence;
+    device.submit(cmd, &fence);
+    fence->wait();
+}
+
 } // namespace
 
 void FrameInterpolator::reset() {
@@ -102,6 +115,7 @@ void FrameInterpolator::reset() {
     depth_dummy_.reset();
     queue_.clear();
     scan_w_ = scan_h_ = 0;
+    warp_w_ = warp_h_ = 0;
     num_levels_ = 0;
     for (unsigned i = 0; i < kMaxLevels; ++i) {
         luma_a_[i].reset();
@@ -118,6 +132,7 @@ void FrameInterpolator::reset() {
     have_prev_flow_ = false;
     have_flow_ = false;
     output_.reset();
+    output_hi_.reset();
     scene_buf_.reset();
     fp_prev_.reset();
     fp_curr_.reset();
@@ -134,6 +149,25 @@ void FrameInterpolator::reset() {
     stats_pairs_ = 0;
     stats_pair_ms_sum_ = 0.0;
     stats_k_sum_ = 0;
+    timings_ = {};
+}
+
+FrameInterpolator::Timings FrameInterpolator::take_timings() {
+    Timings t = timings_;
+    timings_ = {};
+    return t;
+}
+
+void FrameInterpolator::set_upscale(unsigned upscale) {
+    upscale = std::max(1u, upscale);
+    if (upscale == upscale_)
+        return;
+    upscale_ = upscale;
+    // Force ensure_resources to rebuild warp/output sizes.
+    scan_w_ = scan_h_ = 0;
+    warp_w_ = warp_h_ = 0;
+    output_.reset();
+    output_hi_.reset();
 }
 
 void FrameInterpolator::clear_temporal_flow() {
@@ -303,9 +337,14 @@ void FrameInterpolator::ensure_resources(Vulkan::Device &device, unsigned w,
 
     scan_w_ = w;
     scan_h_ = h;
+    // Warp at native (pre-RDP-upscale) resolution. Motion vectors are estimated
+    // on a <=320 luma pyramid either way; writing intermediates at 4x only burns
+    // bandwidth.
+    warp_w_ = std::max(1u, w / std::max(1u, upscale_));
+    warp_h_ = std::max(1u, h / std::max(1u, upscale_));
 
-    unsigned lw = std::min(w, kTargetLumaWidth);
-    unsigned lh = std::max(1u, (h * lw + w / 2) / std::max(w, 1u));
+    unsigned lw = std::min(warp_w_, kTargetLumaWidth);
+    unsigned lh = std::max(1u, (warp_h_ * lw + warp_w_ / 2) / std::max(warp_w_, 1u));
     num_levels_ = 0;
     while (num_levels_ < kMaxLevels) {
         luma_w_[num_levels_] = std::max(1u, lw);
@@ -338,7 +377,13 @@ void FrameInterpolator::ensure_resources(Vulkan::Device &device, unsigned w,
         create_storage_image(device, luma_w_[0], luma_h_[0], kFlowFormat);
     prev_flow_ba_ =
         create_storage_image(device, luma_w_[0], luma_h_[0], kFlowFormat);
-    output_ = create_storage_image(device, w, h, VK_FORMAT_R8G8B8A8_UNORM);
+    output_ =
+        create_storage_image(device, warp_w_, warp_h_, VK_FORMAT_R8G8B8A8_UNORM);
+    if (upscale_ > 1)
+        output_hi_ =
+            create_storage_image(device, w, h, VK_FORMAT_R8G8B8A8_UNORM);
+    else
+        output_hi_.reset();
 
     fp_prev_ = create_storage_image(device, kFingerprintSize, kFingerprintSize,
                                     VK_FORMAT_R16_SFLOAT);
@@ -729,9 +774,18 @@ bool FrameInterpolator::poll_content_novel(Vulkan::Device &device) {
     if (!content_pending_ || !content_fence_)
         return content_changed_latched_;
 
-    // Previous field's fingerprint should already be done; this is a no-wait
-    // in the common case and avoids stalling the present path every field.
-    content_fence_->wait();
+    const auto fence_t0 = std::chrono::steady_clock::now();
+    if (!content_fence_->wait_timeout(0)) {
+        timings_.fence_wait_ms +=
+            std::chrono::duration<double, std::milli>(
+                std::chrono::steady_clock::now() - fence_t0)
+                .count();
+        return content_changed_latched_;
+    }
+    timings_.fence_wait_ms +=
+        std::chrono::duration<double, std::milli>(
+            std::chrono::steady_clock::now() - fence_t0)
+            .count();
     content_pending_ = false;
 
     auto *raw = static_cast<const uint32_t *>(device.map_host_buffer(
@@ -827,6 +881,7 @@ Vulkan::ImageHandle FrameInterpolator::warp(Vulkan::Device &device,
     (void)extrapolate;
     return curr_novel_;
 #else
+    const auto warp_t0 = std::chrono::steady_clock::now();
     auto cmd = device.request_command_buffer();
 
     if (!depth_dummy_) {
@@ -856,10 +911,10 @@ Vulkan::ImageHandle FrameInterpolator::warp(Vulkan::Device &device,
         float have_global;
         float extrapolate;
     } push{};
-    push.out_w = scan_w_;
-    push.out_h = scan_h_;
-    push.flow_scale_x = float(scan_w_) / float(std::max(1u, luma_w_[0]));
-    push.flow_scale_y = float(scan_h_) / float(std::max(1u, luma_h_[0]));
+    push.out_w = warp_w_;
+    push.out_h = warp_h_;
+    push.flow_scale_x = float(warp_w_) / float(std::max(1u, luma_w_[0]));
+    push.flow_scale_y = float(warp_h_) / float(std::max(1u, luma_h_[0]));
     push.phase = phase;
     push.debug = debug_ ? 1.f : 0.f;
     push.onesided = flag_onesided_ ? 1.f : 0.f;
@@ -891,11 +946,49 @@ Vulkan::ImageHandle FrameInterpolator::warp(Vulkan::Device &device,
                      Vulkan::StockSampler::LinearClamp);
     cmd->set_storage_buffer(0, 9, *global_out_);
     cmd->push_constants(&push, 0, sizeof(push));
-    dispatch_2d(*cmd, scan_w_, scan_h_);
+    dispatch_2d(*cmd, warp_w_, warp_h_);
     storage_barrier(*cmd, *output_);
 
-    device.submit(cmd);
-    return output_;
+    Vulkan::ImageHandle present = output_;
+    if (upscale_ > 1 && output_hi_) {
+        // Restore scanout resolution so novel (4x) and intermediate match.
+        cmd->image_barrier(
+            *output_, VK_IMAGE_LAYOUT_GENERAL,
+            VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
+            VK_PIPELINE_STAGE_2_COMPUTE_SHADER_BIT,
+            VK_ACCESS_2_SHADER_STORAGE_WRITE_BIT,
+            VK_PIPELINE_STAGE_2_BLIT_BIT, VK_ACCESS_2_TRANSFER_READ_BIT);
+        cmd->image_barrier(
+            *output_hi_, VK_IMAGE_LAYOUT_GENERAL,
+            VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
+            VK_PIPELINE_STAGE_2_ALL_COMMANDS_BIT, 0,
+            VK_PIPELINE_STAGE_2_BLIT_BIT, VK_ACCESS_2_TRANSFER_WRITE_BIT);
+        cmd->blit_image(
+            *output_hi_, *output_, {},
+            {int(scan_w_), int(scan_h_), 1}, {},
+            {int(warp_w_), int(warp_h_), 1}, 0, 0, 0, 0, 1,
+            VK_FILTER_LINEAR);
+        cmd->image_barrier(
+            *output_hi_, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
+            VK_IMAGE_LAYOUT_GENERAL, VK_PIPELINE_STAGE_2_BLIT_BIT,
+            VK_ACCESS_2_TRANSFER_WRITE_BIT,
+            VK_PIPELINE_STAGE_2_FRAGMENT_SHADER_BIT,
+            VK_ACCESS_2_SHADER_SAMPLED_READ_BIT);
+        cmd->image_barrier(
+            *output_, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
+            VK_IMAGE_LAYOUT_GENERAL, VK_PIPELINE_STAGE_2_BLIT_BIT,
+            VK_ACCESS_2_TRANSFER_READ_BIT,
+            VK_PIPELINE_STAGE_2_COMPUTE_SHADER_BIT,
+            VK_ACCESS_2_SHADER_STORAGE_WRITE_BIT);
+        present = output_hi_;
+    }
+
+    submit_maybe_sync(device, cmd, profile_gpu_);
+    timings_.warp_ms += std::chrono::duration<double, std::milli>(
+                            std::chrono::steady_clock::now() - warp_t0)
+                            .count();
+    ++timings_.warps;
+    return present;
 #endif
 }
 
@@ -907,6 +1000,7 @@ bool FrameInterpolator::build_pair_flow(Vulkan::Device &device, unsigned k) {
 #else
     if (!prev_novel_ || !curr_novel_ || k < 2)
         return false;
+    const auto t0 = std::chrono::steady_clock::now();
     auto cmd = device.request_command_buffer();
     build_pyramid(*cmd, *prev_novel_, luma_a_);
     build_pyramid(*cmd, *curr_novel_, luma_b_);
@@ -916,7 +1010,11 @@ bool FrameInterpolator::build_pair_flow(Vulkan::Device &device, unsigned k) {
     normalize_and_blend_temporal(*cmd, k);
     save_temporal_velocity(*cmd, k);
     append_global_motion(*cmd);
-    device.submit(cmd);
+    submit_maybe_sync(device, cmd, profile_gpu_);
+    timings_.flow_ms += std::chrono::duration<double, std::milli>(
+                            std::chrono::steady_clock::now() - t0)
+                            .count();
+    ++timings_.flows;
     have_flow_ = true;
     return true;
 #endif
@@ -943,8 +1041,13 @@ Vulkan::ImageHandle FrameInterpolator::process(Vulkan::Device &device,
         const char *e = getenv("N64_FRAME_INTERP_STATS");
         return e && e[0] != '\0' && e[0] != '0';
     }();
+    static const bool env_profile_gpu = [] {
+        const char *e = getenv("N64_PROFILE_INTERP_GPU");
+        return e && e[0] != '\0' && e[0] != '0';
+    }();
     debug_ = env_debug;
     stats_ = env_stats;
+    profile_gpu_ = env_profile_gpu;
 
     auto env_flag = [](const char *name, bool default_on) {
         const char *e = getenv(name);

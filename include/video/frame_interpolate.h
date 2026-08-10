@@ -21,7 +21,7 @@ enum class FrameInterpMode {
 
 // Optical-flow frame interpolator for VI duplicate-field replacement.
 // Bidirectional mode delays output by one game frame; Extrapolate does not.
-// Novel frames: content fingerprint (primary) with VI_ORIGIN as cold-start aid.
+// Novel frames: VI_ORIGIN change and/or content fingerprint.
 class FrameInterpolator {
   public:
     FrameInterpolator() = default;
@@ -35,6 +35,26 @@ class FrameInterpolator {
 
     void set_mode(FrameInterpMode mode) { mode_ = mode; }
     FrameInterpMode mode() const { return mode_; }
+
+    // RDP internal upscale factor. Warp runs at native (pre-upscale) resolution
+    // and the result is blitted back up for present when this is > 1.
+    void set_upscale(unsigned upscale);
+    unsigned upscale() const { return upscale_; }
+
+    // Fields between the last two novel frames (1 = every field was novel).
+    unsigned pair_k() const { return pair_k_ < 1 ? 1u : pair_k_; }
+
+    // Host-side cost of the interp stages, accumulated since the last take.
+    // flow/warp are record+submit only unless N64_PROFILE_INTERP_GPU is set,
+    // in which case they are serialized against the GPU and measure it.
+    struct Timings {
+        double fence_wait_ms = 0.0;
+        double flow_ms = 0.0;
+        double warp_ms = 0.0;
+        uint64_t flows = 0;
+        uint64_t warps = 0;
+    };
+    Timings take_timings();
 
     // Process one VI-field scanout. Returns the image to present (may be a
     // warped intermediate, a delayed novel frame, or the input passthrough).
@@ -68,6 +88,7 @@ class FrameInterpolator {
 
     bool enabled_ = false;
     FrameInterpMode mode_ = FrameInterpMode::Bidirectional;
+    unsigned upscale_ = 1;
     bool debug_ = false;
     bool stats_ = false;
     bool flag_subpixel_ = false;
@@ -82,6 +103,9 @@ class FrameInterpolator {
     bool flag_global_motion_ = false;
     bool flag_flow_smooth_ = true;
     bool have_flow_ = false;
+    bool profile_gpu_ = false;
+
+    Timings timings_{};
 
     uint32_t last_origin_ = 0;
     bool have_origin_ = false;
@@ -97,6 +121,8 @@ class FrameInterpolator {
 
     unsigned scan_w_ = 0;
     unsigned scan_h_ = 0;
+    unsigned warp_w_ = 0;
+    unsigned warp_h_ = 0;
     unsigned luma_w_[kMaxLevels] = {};
     unsigned luma_h_[kMaxLevels] = {};
     unsigned num_levels_ = 0;
@@ -111,7 +137,8 @@ class FrameInterpolator {
     Vulkan::ImageHandle prev_flow_ab_;
     Vulkan::ImageHandle prev_flow_ba_;
     bool have_prev_flow_ = false;
-    Vulkan::ImageHandle output_;
+    Vulkan::ImageHandle output_;      // native-res warp target
+    Vulkan::ImageHandle output_hi_;   // upscaled to scanout size when upscale_ > 1
     Vulkan::BufferHandle scene_buf_;
 
     Vulkan::ImageHandle fp_prev_;

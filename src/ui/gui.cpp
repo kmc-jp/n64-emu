@@ -12,6 +12,8 @@
 #include "video/present.h"
 #include <SDL.h>
 #include <algorithm>
+#include <cmath>
+#include <cstdio>
 #include <cstring>
 #include <filesystem>
 #include <initializer_list>
@@ -99,7 +101,7 @@ void draw_video_settings(GuiState &state) {
     if (!state.show_video_settings)
         return;
 
-    ImGui::SetNextWindowSize(ImVec2(520, 240), ImGuiCond_FirstUseEver);
+    ImGui::SetNextWindowSize(ImVec2(520, 280), ImGuiCond_FirstUseEver);
     if (!ImGui::Begin("Video Settings", &state.show_video_settings,
                       ImGuiWindowFlags_NoCollapse)) {
         ImGui::End();
@@ -270,9 +272,48 @@ void draw_video_settings(GuiState &state) {
                 "Extrapolation (experimental): lower latency; may look "
                 "unstable on moving objects.");
 
+        ImGui::TableNextRow();
+        ImGui::TableSetColumnIndex(0);
+        ImGui::AlignTextToFramePadding();
+        ImGui::TextUnformatted("Show FPS:");
+        ImGui::TableSetColumnIndex(1);
+        if (state.ui_settings) {
+            bool show_fps = state.ui_settings->show_fps;
+            if (ImGui::Checkbox("##show_fps", &show_fps)) {
+                state.ui_settings->show_fps = show_fps;
+                save_settings(state);
+            }
+        }
+
         ImGui::EndTable();
     }
 
+    ImGui::End();
+}
+
+void draw_fps_overlay(GuiState &state) {
+    if (!state.ui_settings || !state.ui_settings->show_fps ||
+        state.mode != AppMode::Running || !state.config)
+        return;
+
+    char buf[64];
+    std::snprintf(buf, sizeof(buf), "%d FPS  %d VI/s",
+                  static_cast<int>(std::lround(state.fps_game)),
+                  static_cast<int>(std::lround(state.fps_display)));
+
+    const ImGuiViewport *vp = ImGui::GetMainViewport();
+    const float pad = 10.0f;
+    ImGui::SetNextWindowPos(
+        ImVec2(vp->WorkPos.x + vp->WorkSize.x - pad, vp->WorkPos.y + pad),
+        ImGuiCond_Always, ImVec2(1.0f, 0.0f));
+    ImGui::SetNextWindowBgAlpha(0.55f);
+    const ImGuiWindowFlags flags =
+        ImGuiWindowFlags_NoDecoration | ImGuiWindowFlags_NoInputs |
+        ImGuiWindowFlags_NoNav | ImGuiWindowFlags_AlwaysAutoResize |
+        ImGuiWindowFlags_NoFocusOnAppearing | ImGuiWindowFlags_NoSavedSettings |
+        ImGuiWindowFlags_NoMove;
+    if (ImGui::Begin("##fps_overlay", nullptr, flags))
+        ImGui::TextUnformatted(buf);
     ImGui::End();
 }
 
@@ -776,6 +817,7 @@ void gui_draw(GuiState &state) {
     draw_audio_settings(state);
     draw_controller_settings(state);
     draw_about(state);
+    draw_fps_overlay(state);
 }
 
 } // namespace Ui

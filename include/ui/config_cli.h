@@ -14,6 +14,7 @@ struct UiSettings {
     UiTheme theme{UiTheme::Dark};
     // Linear output gain in [0, 1].
     float audio_volume{1.0f};
+    bool show_fps{false};
     // SDL_Scancode values indexed by N64KeyBind.
     int key_binds[kN64KeyBindCount]{};
     // XInput / SDL GameController bindings indexed by N64KeyBind.

@@ -29,6 +29,8 @@ void set_frame_interp_enabled(bool enabled);
 bool frame_interp_enabled();
 void set_frame_interp_mode(FrameInterpMode mode);
 FrameInterpMode frame_interp_mode();
+// Last measured source hold (VI fields per novel frame). 1 if every field is novel.
+unsigned frame_interp_pair_k();
 
 bool present_field(Vulkan::WSI &wsi, N64::Mmio::VI::VI &vi,
                    bool force_present = false);

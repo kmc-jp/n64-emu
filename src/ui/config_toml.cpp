@@ -144,6 +144,8 @@ bool parse_toml_file(const std::string &path, N64System::Config &config,
                 else if (*v == "dark")
                     ui.theme = UiTheme::Dark;
             }
+            if (auto v = (*u)["show_fps"].value<bool>())
+                ui.show_fps = *v;
         }
         if (auto *audio = tbl["audio"].as_table()) {
             if (auto v = (*audio)["volume"].value<double>())
@@ -254,6 +256,7 @@ bool save_toml(const N64System::Config &config, const UiSettings &ui) {
     ui_tbl.insert_or_assign("last_rom_dir", ui.last_rom_dir);
     ui_tbl.insert_or_assign(
         "theme", ui.theme == UiTheme::Light ? "light" : "dark");
+    ui_tbl.insert_or_assign("show_fps", ui.show_fps);
 
     toml::table audio;
     audio.insert_or_assign("volume", static_cast<double>(ui.audio_volume));
