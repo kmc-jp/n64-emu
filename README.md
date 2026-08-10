@@ -11,7 +11,7 @@ Kamo64 is an experimental Nintendo 64 emulator with low-level emulation (LLE) an
 - RSP emulation with SIMD extensions
 - Graphic rendering with GPU acceleration (Parallel-RDP)
 - Internal resolution upscaling
-- Optical-flow frame interpolation
+- Frame interpolation
 - Full audio support
 - Full controller support
 - Save data support
@@ -91,31 +91,11 @@ Notes:
 
 ## Run
 
-Only the z64 format (big-endian) is supported.
-
 ```bash
-./kamo64[.exe] [options] <rom_file.z64>
+./kamo64[.exe]
 ```
 
-### Options
-
-| Option | Description |
-| --- | --- |
-| `--jit` | Use the CPU dynarec (x86-64 only, default on x86-64) |
-| `--no-jit` | Disable CPU dynarec (use cached interpreter) |
-| `--log <file>` | Write logs to a file (default: stdout) |
-| `--log-level=<level>` | Set log level: `trace`, `debug`, `info` (default), `critical`, or `off` |
-| `--upscale=<n>` | Parallel-RDP internal resolution: `1`, `2`, `4` (default), or `8` |
-| `--frame-interp` | Enable optical-flow frame interpolation (fills duplicate VI fields) |
-| `--no-frame-interp` | Disable frame interpolation (default) |
-| `--headless` | Run without a window / Vulkan present |
-| `--debug` | Enable the interactive debugger |
-
-Example:
-
-```bash
-./kamo64 --log-level=debug rom.z64
-```
+See `./kamo64 --help` for available options.
 
 ## Test
 
