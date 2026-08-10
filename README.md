@@ -117,25 +117,6 @@ Example:
 ./n64 --log-level=debug rom.z64
 ```
 
-### Key mappings
-
-- + Control Pad : W/A/S/D
-- C Buttons (Directional Pad) : ↑/←/↓/→
-- A Button : Space
-- B Button : Right Shift
-- Control Stick : I/J/K/L
-- L/R Button : Q/P
-- Z Button : Z
-- Start : X
-- Abort emulator : Tab (debugging only)
-
-
-See https://en-americas-support.nintendo.com/app/answers/detail/a_id/56673/~/nintendo-64-controller-diagram
-
-We plan to add support for physical N64 controllers.
-
-TODO: Other buttons
-
 ## Test
 
 You can run the test suite with CTest:

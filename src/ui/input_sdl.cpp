@@ -288,24 +288,24 @@ const char *n64_key_bind_toml_key(N64KeyBind bind) {
 }
 
 void default_key_binds(int out[kN64KeyBindCount]) {
-    out[static_cast<int>(N64KeyBind::A)] = SDL_SCANCODE_SPACE;
-    out[static_cast<int>(N64KeyBind::B)] = SDL_SCANCODE_RSHIFT;
+    out[static_cast<int>(N64KeyBind::A)] = SDL_SCANCODE_X;
+    out[static_cast<int>(N64KeyBind::B)] = SDL_SCANCODE_C;
     out[static_cast<int>(N64KeyBind::Z)] = SDL_SCANCODE_Z;
-    out[static_cast<int>(N64KeyBind::Start)] = SDL_SCANCODE_X;
-    out[static_cast<int>(N64KeyBind::DPadUp)] = SDL_SCANCODE_W;
-    out[static_cast<int>(N64KeyBind::DPadDown)] = SDL_SCANCODE_S;
-    out[static_cast<int>(N64KeyBind::DPadLeft)] = SDL_SCANCODE_A;
-    out[static_cast<int>(N64KeyBind::DPadRight)] = SDL_SCANCODE_D;
+    out[static_cast<int>(N64KeyBind::Start)] = SDL_SCANCODE_RETURN;
+    out[static_cast<int>(N64KeyBind::DPadUp)] = SDL_SCANCODE_UP;
+    out[static_cast<int>(N64KeyBind::DPadDown)] = SDL_SCANCODE_DOWN;
+    out[static_cast<int>(N64KeyBind::DPadLeft)] = SDL_SCANCODE_LEFT;
+    out[static_cast<int>(N64KeyBind::DPadRight)] = SDL_SCANCODE_RIGHT;
     out[static_cast<int>(N64KeyBind::L)] = SDL_SCANCODE_Q;
-    out[static_cast<int>(N64KeyBind::R)] = SDL_SCANCODE_P;
-    out[static_cast<int>(N64KeyBind::CUp)] = SDL_SCANCODE_UP;
-    out[static_cast<int>(N64KeyBind::CDown)] = SDL_SCANCODE_DOWN;
-    out[static_cast<int>(N64KeyBind::CLeft)] = SDL_SCANCODE_LEFT;
-    out[static_cast<int>(N64KeyBind::CRight)] = SDL_SCANCODE_RIGHT;
-    out[static_cast<int>(N64KeyBind::StickUp)] = SDL_SCANCODE_I;
-    out[static_cast<int>(N64KeyBind::StickDown)] = SDL_SCANCODE_K;
-    out[static_cast<int>(N64KeyBind::StickLeft)] = SDL_SCANCODE_J;
-    out[static_cast<int>(N64KeyBind::StickRight)] = SDL_SCANCODE_L;
+    out[static_cast<int>(N64KeyBind::R)] = SDL_SCANCODE_E;
+    out[static_cast<int>(N64KeyBind::CUp)] = SDL_SCANCODE_I;
+    out[static_cast<int>(N64KeyBind::CDown)] = SDL_SCANCODE_K;
+    out[static_cast<int>(N64KeyBind::CLeft)] = SDL_SCANCODE_J;
+    out[static_cast<int>(N64KeyBind::CRight)] = SDL_SCANCODE_L;
+    out[static_cast<int>(N64KeyBind::StickUp)] = SDL_SCANCODE_KP_8;
+    out[static_cast<int>(N64KeyBind::StickDown)] = SDL_SCANCODE_KP_2;
+    out[static_cast<int>(N64KeyBind::StickLeft)] = SDL_SCANCODE_KP_4;
+    out[static_cast<int>(N64KeyBind::StickRight)] = SDL_SCANCODE_KP_6;
 }
 
 void default_pad_binds(PadBind out[kN64KeyBindCount]) {
