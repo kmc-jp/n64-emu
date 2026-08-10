@@ -50,10 +50,12 @@ void draw_recents_menu(GuiState &state) {
     if (!ImGui::BeginMenu("Recents", !state.recent_roms.empty()))
         return;
 
-    for (const std::string &path : state.recent_roms) {
+    for (size_t i = 0; i < state.recent_roms.size(); ++i) {
+        const std::string &path = state.recent_roms[i];
         const std::string label =
             std::filesystem::path(path).filename().string();
         const bool exists = std::filesystem::exists(path);
+        ImGui::PushID(static_cast<int>(i));
         if (!exists)
             ImGui::BeginDisabled();
         if (ImGui::MenuItem(label.c_str(), nullptr, false, exists))
@@ -62,6 +64,7 @@ void draw_recents_menu(GuiState &state) {
             ImGui::SetTooltip("%s", path.c_str());
         if (!exists)
             ImGui::EndDisabled();
+        ImGui::PopID();
     }
 
     ImGui::EndMenu();

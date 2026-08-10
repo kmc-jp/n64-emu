@@ -150,12 +150,59 @@ void FrameInterpolator::reset() {
     stats_pair_ms_sum_ = 0.0;
     stats_k_sum_ = 0;
     timings_ = {};
+    fallback_ = false;
+    fallback_bad_streak_ = 0;
+    fallback_good_streak_ = 0;
 }
 
 FrameInterpolator::Timings FrameInterpolator::take_timings() {
     Timings t = timings_;
     timings_ = {};
     return t;
+}
+
+void FrameInterpolator::enter_fallback() {
+    fallback_ = true;
+    queue_.clear();
+    clear_temporal_flow();
+    have_global_ = false;
+    prev_novel_.reset();
+    curr_novel_.reset();
+    prev_depth_.reset();
+    curr_depth_.reset();
+    have_origin_ = false;
+    hold_count_ = 0;
+    consecutive_k1_ = 0;
+    pair_k_ = 1;
+    have_fp_ = false;
+    content_pending_ = false;
+    content_fence_.reset();
+    content_changed_latched_ = true;
+}
+
+void FrameInterpolator::note_present_acquire_ms(double acquire_ms) {
+    if (!enabled_) {
+        fallback_ = false;
+        fallback_bad_streak_ = 0;
+        fallback_good_streak_ = 0;
+        return;
+    }
+
+    if (acquire_ms >= kFallbackEnterMs) {
+        ++fallback_bad_streak_;
+        fallback_good_streak_ = 0;
+        if (!fallback_ && fallback_bad_streak_ >= kFallbackEnterStreak)
+            enter_fallback();
+    } else if (acquire_ms <= kFallbackExitMs) {
+        ++fallback_good_streak_;
+        fallback_bad_streak_ = 0;
+        if (fallback_ && fallback_good_streak_ >= kFallbackExitStreak)
+            fallback_ = false;
+    } else {
+        fallback_bad_streak_ = 0;
+        if (!fallback_)
+            fallback_good_streak_ = 0;
+    }
 }
 
 void FrameInterpolator::set_upscale(unsigned upscale) {
@@ -1032,6 +1079,11 @@ Vulkan::ImageHandle FrameInterpolator::process(Vulkan::Device &device,
 #else
     if (!enabled_ || !scanout)
         return scanout;
+
+    if (fallback_) {
+        ++timings_.fallback_fields;
+        return scanout;
+    }
 
     static const bool env_debug = [] {
         const char *e = getenv("N64_FRAME_INTERP_DEBUG");

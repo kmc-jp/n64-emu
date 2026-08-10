@@ -53,8 +53,14 @@ class FrameInterpolator {
         double warp_ms = 0.0;
         uint64_t flows = 0;
         uint64_t warps = 0;
+        uint64_t fallback_fields = 0;
     };
     Timings take_timings();
+
+    // Feed begin_frame / acquire cost so interp can drop to passthrough when
+    // the GPU / swapchain is behind the 60Hz budget.
+    void note_present_acquire_ms(double acquire_ms);
+    bool fallback_active() const { return fallback_; }
 
     // Process one VI-field scanout. Returns the image to present (may be a
     // warped intermediate, a delayed novel frame, or the input passthrough).
@@ -73,6 +79,10 @@ class FrameInterpolator {
     static constexpr unsigned kFingerprintSize = 16;
     static constexpr unsigned kBypassStreak = 4;
     static constexpr unsigned kMaxHold = 8;
+    static constexpr double kFallbackEnterMs = 5.0;
+    static constexpr double kFallbackExitMs = 2.5;
+    static constexpr unsigned kFallbackEnterStreak = 3;
+    static constexpr unsigned kFallbackExitStreak = 60;
     static constexpr float kSceneThreshold = 0.18f;
     static constexpr float kContentThreshold = 0.02f;
     static constexpr float kConsistencyAlpha = 0.01f;
@@ -104,6 +114,9 @@ class FrameInterpolator {
     bool flag_flow_smooth_ = true;
     bool have_flow_ = false;
     bool profile_gpu_ = false;
+    bool fallback_ = false;
+    unsigned fallback_bad_streak_ = 0;
+    unsigned fallback_good_streak_ = 0;
 
     Timings timings_{};
 
@@ -196,6 +209,7 @@ class FrameInterpolator {
                                   bool do_compare);
     bool poll_content_novel(Vulkan::Device &device);
     void clear_temporal_flow();
+    void enter_fallback();
     void note_latency_stats(unsigned k);
     bool build_pair_flow(Vulkan::Device &device, unsigned k);
     Vulkan::ImageHandle warp(Vulkan::Device &device, float phase,

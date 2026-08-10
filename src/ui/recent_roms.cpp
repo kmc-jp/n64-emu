@@ -21,22 +21,22 @@ std::string normalize_path(const std::string &path) {
     return p.make_preferred().string();
 }
 
-bool path_equal(const std::string &a, const std::string &b) {
+// Comparison key: preferred separators + case-folded on Windows so that
+// C:/a/b.z64 and C:\a\b.z64 (and mixed casing) map to the same entry.
+std::string path_key(const std::string &path) {
+    std::string key = normalize_path(path);
 #ifdef _WIN32
-    if (a.size() != b.size())
-        return false;
-    for (size_t i = 0; i < a.size(); ++i) {
-        const auto ca =
-            static_cast<char>(std::tolower(static_cast<unsigned char>(a[i])));
-        const auto cb =
-            static_cast<char>(std::tolower(static_cast<unsigned char>(b[i])));
-        if (ca != cb)
-            return false;
+    for (char &c : key) {
+        if (c == '/')
+            c = '\\';
+        c = static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
     }
-    return true;
-#else
-    return a == b;
 #endif
+    return key;
+}
+
+bool path_equal(const std::string &a, const std::string &b) {
+    return path_key(a) == path_key(b);
 }
 
 } // namespace
@@ -51,20 +51,29 @@ std::vector<std::string> load_recent_roms() {
     if (!in)
         return out;
 
+    bool changed = false;
     std::string line;
     while (std::getline(in, line)) {
         while (!line.empty() && (line.back() == '\r' || line.back() == '\n'))
             line.pop_back();
         if (line.empty())
             continue;
+        const std::string normalized = normalize_path(line);
+        if (normalized != line)
+            changed = true;
         if (std::any_of(out.begin(), out.end(), [&](const std::string &p) {
-                return path_equal(p, line);
-            }))
+                return path_equal(p, normalized);
+            })) {
+            changed = true;
             continue;
-        out.push_back(std::move(line));
+        }
+        out.push_back(normalized);
         if (out.size() >= kMaxRecentRoms)
             break;
     }
+    in.close();
+    if (changed)
+        save_recent_roms(out);
     return out;
 }
 
@@ -90,8 +99,7 @@ void remember_recent_rom(std::vector<std::string> &paths,
     const std::string normalized = normalize_path(path);
     paths.erase(std::remove_if(paths.begin(), paths.end(),
                                [&](const std::string &p) {
-                                   return path_equal(p, normalized) ||
-                                          path_equal(p, path);
+                                   return path_equal(p, normalized);
                                }),
                 paths.end());
     paths.insert(paths.begin(), normalized);

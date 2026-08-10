@@ -247,8 +247,13 @@ bool present_field(Vulkan::WSI &wsi, N64::Mmio::VI::VI &vi,
     }
 
     Util::IntrusivePtr<Vulkan::Image> image = result.image;
-    const auto t_acquire = stamp();
+    const auto t_acquire = std::chrono::steady_clock::now();
     wsi.begin_frame();
+    const double acquire_ms = std::chrono::duration<double, std::milli>(
+                                  std::chrono::steady_clock::now() - t_acquire)
+                                  .count();
+    g_frame_interp.note_present_acquire_ms(acquire_ms);
+
     const auto t_interp = stamp();
     if (image) {
         auto depth = g_depth_capture.take(result.origin);
@@ -263,7 +268,7 @@ bool present_field(Vulkan::WSI &wsi, N64::Mmio::VI::VI &vi,
 
     if (profile) {
         ++prof_fields;
-        prof_acquire_ms += elapsed_ms(t_acquire, t_interp);
+        prof_acquire_ms += acquire_ms;
         prof_interp_ms += elapsed_ms(t_interp, t_blit);
         prof_blit_ms += elapsed_ms(t_blit, t_submit);
         prof_submit_ms += elapsed_ms(t_submit, t_done);
@@ -274,7 +279,7 @@ bool present_field(Vulkan::WSI &wsi, N64::Mmio::VI::VI &vi,
                 "present profile: fields/s={} avg scanout={:.2f}ms "
                 "acquire={:.2f}ms interp={:.2f}ms (fence={:.2f}ms "
                 "flow={:.2f}ms warp={:.2f}ms) blit={:.2f}ms present={:.2f}ms "
-                "total={:.2f}ms | flows/s={} warps/s={}",
+                "total={:.2f}ms | flows/s={} warps/s={} fallback/s={}{}",
                 prof_fields, prof_scanout_ms * inv, prof_acquire_ms * inv,
                 prof_interp_ms * inv, it.fence_wait_ms * inv, it.flow_ms * inv,
                 it.warp_ms * inv,
@@ -282,7 +287,8 @@ bool present_field(Vulkan::WSI &wsi, N64::Mmio::VI::VI &vi,
                 (prof_scanout_ms + prof_acquire_ms + prof_interp_ms +
                  prof_blit_ms + prof_submit_ms) *
                     inv,
-                it.flows, it.warps);
+                it.flows, it.warps, it.fallback_fields,
+                g_frame_interp.fallback_active() ? " [fallback]" : "");
             prof_fields = 0;
             prof_scanout_ms = 0.0;
             prof_acquire_ms = 0.0;
