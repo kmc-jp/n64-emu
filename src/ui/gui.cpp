@@ -526,14 +526,20 @@ void draw_controller_settings(GuiState &state) {
     }
     std::memcpy(prev_keys, keys, sizeof(prev_keys));
 
+    const ImGuiStyle &style = ImGui::GetStyle();
+    const float bind_btn_w =
+        std::max(ImGui::CalcTextSize("Press key... (Esc)").x,
+                 ImGui::CalcTextSize("Press button... (Esc)").x) +
+        style.FramePadding.x * 2.0f;
+
     if (ImGui::BeginTable("##controller_binds", 3,
-                          ImGuiTableFlags_SizingStretchProp |
+                          ImGuiTableFlags_SizingFixedFit |
                               ImGuiTableFlags_NoSavedSettings |
                               ImGuiTableFlags_RowBg |
                               ImGuiTableFlags_BordersInnerV)) {
         ImGui::TableSetupColumn("Action", ImGuiTableColumnFlags_WidthFixed);
-        ImGui::TableSetupColumn("Keyboard", ImGuiTableColumnFlags_WidthStretch);
-        ImGui::TableSetupColumn("Gamepad", ImGuiTableColumnFlags_WidthStretch);
+        ImGui::TableSetupColumn("Keyboard", ImGuiTableColumnFlags_WidthFixed);
+        ImGui::TableSetupColumn("Gamepad", ImGuiTableColumnFlags_WidthFixed);
         ImGui::TableHeadersRow();
 
         for (int i = 0; i < kN64KeyBindCount; ++i) {
@@ -560,7 +566,7 @@ void draw_controller_settings(GuiState &state) {
                     key_name = n;
             }
             ImGui::PushID(i * 2);
-            if (ImGui::Button(key_name, ImVec2(-FLT_MIN, 0.0f))) {
+            if (ImGui::Button(key_name, ImVec2(bind_btn_w, 0.0f))) {
                 waiting = WaitKind::Key;
                 waiting_index = i;
                 std::memcpy(prev_keys, keys, sizeof(prev_keys));
@@ -574,7 +580,7 @@ void draw_controller_settings(GuiState &state) {
             if (waiting == WaitKind::Pad && waiting_index == i)
                 pad_name = "Press button... (Esc)";
             ImGui::PushID(i * 2 + 1);
-            if (ImGui::Button(pad_name, ImVec2(-FLT_MIN, 0.0f))) {
+            if (ImGui::Button(pad_name, ImVec2(bind_btn_w, 0.0f))) {
                 waiting = WaitKind::Pad;
                 waiting_index = i;
                 // Warm edge detector so currently-held inputs are ignored.

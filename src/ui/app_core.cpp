@@ -115,6 +115,7 @@ void AppCore::run_headless() {
 
 void AppCore::run_windowed() {
     ensure_prdp_vulkan_icd();
+    ensure_low_latency_swapchain();
 
     SDL2Platform platform(window);
     Vulkan::WSI wsi;

@@ -13,6 +13,7 @@ n64-emu is an experimental Nintendo 64 emulator with low-level emulation (LLE) a
 - Internal resolution upscaling
 - Optical-flow frame interpolation
 - Full audio support
+- Full controller support
 - Save data support
 
 ## Build

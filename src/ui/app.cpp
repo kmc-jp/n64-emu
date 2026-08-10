@@ -46,8 +46,14 @@ void on_field_present(N64::Mmio::VI::VI &vi) {
     // Also refresh here so ImGui / title path stays responsive between PIF polls.
     poll_and_inject_controller(imgui_want_capture_keyboard());
     prepare_imgui();
-    // Always present so the ImGui menu bar refreshes even on duplicate VI.
-    Video::present_field(*g_wsi, vi, true);
+    // While playing, skip duplicate-VI presents to keep the swapchain shallow.
+    // Force present when a settings/about window needs a live UI refresh.
+    const bool force_ui =
+        g_gui.mode != AppMode::Running || g_gui.show_video_settings ||
+        g_gui.show_emu_settings || g_gui.show_audio_settings ||
+        g_gui.show_controller_settings || g_gui.show_about;
+    if (!Video::present_field(*g_wsi, vi, force_ui))
+        imgui_abandon_frame();
 }
 
 void host_controller_poll() {
@@ -242,6 +248,7 @@ App::~App() {
 
 void App::run() {
     ensure_prdp_vulkan_icd();
+    ensure_low_latency_swapchain();
 
     SDL2Platform platform(window);
     platform.event_hook = &event_hook;

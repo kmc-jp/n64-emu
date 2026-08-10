@@ -285,6 +285,13 @@ void imgui_new_frame() {
     g_frame_rendered = false;
 }
 
+void imgui_abandon_frame() {
+    if (!g_ready || g_frame_rendered)
+        return;
+    ImGui::EndFrame();
+    g_frame_rendered = true;
+}
+
 void imgui_render(Vulkan::CommandBuffer &cmd) {
     if (!g_ready)
         return;

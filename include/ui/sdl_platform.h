@@ -32,6 +32,9 @@ Vulkan::PresentMode recommended_present_mode();
 const char *present_mode_name(Vulkan::PresentMode mode);
 void ensure_prdp_vulkan_icd();
 
+// Prefer a short swapchain (lower present latency) when unset.
+void ensure_low_latency_swapchain();
+
 SDL_Window *create_main_window(const char *title, int width, int height);
 
 } // namespace Ui

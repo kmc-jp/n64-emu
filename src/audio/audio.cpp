@@ -19,11 +19,11 @@ constexpr int DEFAULT_GUEST_FREQUENCY = 44100;
 constexpr int CHANNELS = 2;
 constexpr size_t RING_FRAMES = 48000;
 
-constexpr double TARGET_SEC = 0.080;
-constexpr double LOW_WATER_SEC = 0.030;
-constexpr double RESUME_SEC = 0.050;
-constexpr int MAX_HIGH_WATER_WAIT_MS = 80;
-constexpr int MAX_FULL_RING_WAIT_MS = 100;
+constexpr double TARGET_SEC = 0.200;
+constexpr double LOW_WATER_SEC = 0.050;
+constexpr double RESUME_SEC = 0.100;
+constexpr int MAX_HIGH_WATER_WAIT_MS = 200;
+constexpr int MAX_FULL_RING_WAIT_MS = 250;
 
 bool g_enabled = false;
 Sink *g_sink = nullptr;
@@ -137,6 +137,7 @@ void apply_sync_policy() {
             resume_out = true;
         }
 
+        // Pace the emu thread to real-time by waiting when audio is ahead.
         const auto deadline = std::chrono::steady_clock::now() +
                               std::chrono::milliseconds(MAX_HIGH_WATER_WAIT_MS);
         while (g_enabled && g_frames_avail > target) {

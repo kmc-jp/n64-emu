@@ -18,6 +18,8 @@ bool imgui_set_sdl_window(SDL_Window *window);
 void imgui_apply_theme(UiTheme theme);
 UiTheme imgui_current_theme();
 void imgui_new_frame();
+// Close a NewFrame without drawing (when present is skipped).
+void imgui_abandon_frame();
 void imgui_render(Vulkan::CommandBuffer &cmd);
 bool imgui_process_event(const SDL_Event &e);
 bool imgui_want_capture_keyboard();
