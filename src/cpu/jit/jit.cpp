@@ -1,4 +1,4 @@
-﻿#include "cpu/jit/jit.h"
+#include "cpu/jit/jit.h"
 #include "cpu/cached_interp.h"
 #include "cpu/cpu.h"
 #include "cpu/idle_skip.h"
@@ -20,7 +20,7 @@ namespace Jit {
 namespace {
 // Flush RSP + scheduler after this many guest cycles of soft-chained work.
 // Much cheaper than per-BB / per-delay-slot advance; still far shorter than a
-// half-line (~6000), so CPU↔RSP and PI/AI waits cannot starve.
+// half-line (~6000), so CPU?RSP and PI/AI waits cannot starve.
 constexpr int kAdvanceEveryCycles = 1024;
 
 struct JitProf {
@@ -226,7 +226,7 @@ CompiledBlock *Dynarec::compile(uint32_t vaddr, uint32_t paddr) {
     return block;
 }
 
-int Dynarec::run(int budget, bool rsp_thread) {
+int Dynarec::run(int budget) {
     if (budget < 1)
         budget = 1;
 
@@ -244,14 +244,14 @@ int Dynarec::run(int budget, bool rsp_thread) {
         if (prof_on) {
             if (prof_times) {
                 const auto t0 = clock::now();
-                N64System::advance_after_cpu(pending, rsp_thread);
+                N64System::advance_after_cpu(pending);
                 p.advance_ms += ms_since(t0);
             } else {
-                N64System::advance_after_cpu(pending, rsp_thread);
+                N64System::advance_after_cpu(pending);
             }
             ++p.advances;
         } else {
-            N64System::advance_after_cpu(pending, rsp_thread);
+            N64System::advance_after_cpu(pending);
         }
         pending = 0;
     };
@@ -280,7 +280,7 @@ int Dynarec::run(int budget, bool rsp_thread) {
         apply_idle_if_pending();
     };
 
-    idle_skip_begin_slice(budget, rsp_thread);
+    idle_skip_begin_slice(budget);
 
     // Soft-chain within the half-line budget. Batch RSP + scheduler every
     // kAdvanceEveryCycles (and on overdue events / abort / exit).
@@ -310,14 +310,14 @@ int Dynarec::run(int budget, bool rsp_thread) {
             if (prof_on) {
                 if (prof_times) {
                     const auto t0 = clock::now();
-                    N64System::advance_after_cpu(0, rsp_thread);
+                    N64System::advance_after_cpu(0);
                     p.advance_ms += ms_since(t0);
                 } else {
-                    N64System::advance_after_cpu(0, rsp_thread);
+                    N64System::advance_after_cpu(0);
                 }
                 ++p.advances;
             } else {
-                N64System::advance_after_cpu(0, rsp_thread);
+                N64System::advance_after_cpu(0);
             }
             if (g_scheduler().cycles_until_next_event() == 0)
                 credit(run_interpreter_fallback());
@@ -415,7 +415,7 @@ int Dynarec::run(int budget, bool rsp_thread) {
             }
             if (total >= budget)
                 break;
-            // Idle warp (or any extra credit) — re-check events in outer loop.
+            // Idle warp (or any extra credit) ? re-check events in outer loop.
             if (total > total_before + got)
                 break;
             if (cpu.delay_slot)
@@ -471,14 +471,14 @@ int Dynarec::run(int budget, bool rsp_thread) {
         if (prof_on) {
             if (prof_times) {
                 const auto t0 = clock::now();
-                N64System::advance_after_cpu(got, rsp_thread);
+                N64System::advance_after_cpu(got);
                 p.advance_ms += ms_since(t0);
             } else {
-                N64System::advance_after_cpu(got, rsp_thread);
+                N64System::advance_after_cpu(got);
             }
             ++p.advances;
         } else {
-            N64System::advance_after_cpu(got, rsp_thread);
+            N64System::advance_after_cpu(got);
         }
         return got;
     }

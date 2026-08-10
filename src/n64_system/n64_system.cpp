@@ -18,15 +18,51 @@
 #include "n64_system/scheduler.h"
 #include "rcp/dpc.h"
 #include "rcp/rsp.h"
-#include "rcp/rsp_thread.h"
 #include "rcp/vu_profile.h"
 #include "utils/log.h"
 #include <algorithm>
 #include <chrono>
 #include <cstdlib>
+#include <thread>
 
 namespace N64 {
 namespace N64System {
+
+namespace {
+void pace_field_realtime() {
+    using clock = std::chrono::steady_clock;
+    static clock::time_point deadline{};
+    static bool have_deadline = false;
+    constexpr auto kField =
+        std::chrono::duration_cast<clock::duration>(
+            std::chrono::duration<double>(1.0 / 60.0));
+
+    const auto now = clock::now();
+    if (!have_deadline) {
+        deadline = now + kField;
+        have_deadline = true;
+        return;
+    }
+    if (now < deadline) {
+        const auto wait_t0 = clock::now();
+        const auto spin_from = deadline - std::chrono::milliseconds(1);
+        if (clock::now() < spin_from)
+            std::this_thread::sleep_until(spin_from);
+        while (clock::now() < deadline) {
+        }
+        Audio::note_sync_wait_ns(
+            static_cast<uint64_t>(
+                std::chrono::duration_cast<std::chrono::nanoseconds>(
+                    clock::now() - wait_t0)
+                    .count()));
+    }
+    auto next = deadline + kField;
+    const auto t = clock::now();
+    while (next <= t)
+        next += kField;
+    deadline = next;
+}
+} // namespace
 
 namespace {
 FieldPresentFn g_field_present = nullptr;
@@ -65,11 +101,6 @@ void set_up(Config &config) {
     N64System::reset_all(config);
     g_debugger().configure(config);
 
-    Rsp::g_rsp_thread().configure(config.rsp_thread);
-    Rsp::g_rsp_thread().start();
-    if (config.rsp_thread)
-        Utils::info("RSP worker thread enabled");
-
     if (config.test_mode) {
         Utils::info("Copying ROM");
         for (uint32_t i = 0; i < 0x100000; i += 4) {
@@ -88,7 +119,6 @@ void set_up(Config &config) {
 void shutdown() {
     Utils::info("Stopping N64 system");
     N64::g_memory().persist_sram();
-    Rsp::g_rsp_thread().shutdown();
 }
 
 static void cpu_step_callback(Config &config) {
@@ -120,7 +150,6 @@ static void cpu_step_callback(Config &config) {
 }
 
 void step(Config &config) {
-    static int consumed_cpu_cycles = 0;
     static const bool profile_frame = [] {
         const char *e = getenv("N64_PROFILE_FRAME");
         return e && e[0] != '\0' && e[0] != '0';
@@ -150,15 +179,12 @@ void step(Config &config) {
 #else
                 false;
 #endif
-            auto &rsp = g_rsp();
-            auto &sched = g_scheduler();
             Debugger::Debugger &dbg = g_debugger();
             const bool dbg_on = dbg.enabled();
             const bool need_step_cb =
                 config.test_mode || Utils::LOG_INSTRUCTION;
 
             double cpu_ms = 0.0;
-            double rsp_ms = 0.0;
             while (remaining > 0) {
                 int taken = 1;
                 if (dbg_on)
@@ -168,36 +194,16 @@ void step(Config &config) {
                                        : std::chrono::steady_clock::time_point{};
                 if (use_jit) {
 #if defined(N64_JIT_X64)
-                    taken = Cpu::Jit::g_dynarec().run(remaining,
-                                                     config.rsp_thread);
+                    taken = Cpu::Jit::g_dynarec().run(remaining);
                     if (taken < 1)
                         taken = 1;
 #endif
                 } else if (dbg_on || need_step_cb) {
                     g_cpu().step();
                     taken = static_cast<int>(Cpu::CPU_CYCLES_PER_INST);
-                    consumed_cpu_cycles += taken;
-                    const auto rsp_t0 =
-                        profile_frame ? std::chrono::steady_clock::now()
-                                      : std::chrono::steady_clock::time_point{};
-                    if (config.rsp_thread) {
-                        if (!rsp.halted())
-                            Rsp::g_rsp_thread().kick_until_halt();
-                    } else {
-                        while (consumed_cpu_cycles >= 3) {
-                            consumed_cpu_cycles -= 3;
-                            rsp.step();
-                            rsp.step();
-                        }
-                    }
-                    if (profile_frame) {
-                        rsp_ms += std::chrono::duration<double, std::milli>(
-                                      std::chrono::steady_clock::now() - rsp_t0)
-                                      .count();
-                    }
-                    sched.tick(static_cast<uint64_t>(taken));
+                    g_scheduler().tick(static_cast<uint64_t>(taken));
                 } else {
-                    taken = Cpu::CachedInterp::run(remaining, config.rsp_thread);
+                    taken = Cpu::CachedInterp::run(remaining);
                     if (taken < 1)
                         taken = 1;
                 }
@@ -212,48 +218,36 @@ void step(Config &config) {
 
                 remaining -= taken;
             }
-            if (profile_frame) {
+            if (profile_frame)
                 prof_cpu_ms += cpu_ms;
-                prof_rsp_ms += rsp_ms;
-            }
         }
         if ((g_vi().get_reg_current() & 0x3FE) == g_vi().get_reg_intr()) {
             g_mi().get_reg_intr().vi = 1;
             N64System::check_interrupt();
         }
-        if (config.rsp_thread) {
-            const auto rsp_wait_t0 =
-                profile_frame ? std::chrono::steady_clock::now()
-                              : std::chrono::steady_clock::time_point{};
-            Rsp::g_rsp_thread().wait_idle();
-            if (!g_rsp().halted())
-                Rsp::g_rsp_thread().kick_until_halt();
-            if (profile_frame) {
-                prof_rsp_ms += std::chrono::duration<double, std::milli>(
-                                   std::chrono::steady_clock::now() - rsp_wait_t0)
-                                   .count();
-            }
-        }
         const auto rdp_t0 = profile_frame ? std::chrono::steady_clock::now()
                                           : std::chrono::steady_clock::time_point{};
         if (g_field_present)
             g_field_present(g_vi());
+        const auto rdp_t1 = profile_frame ? std::chrono::steady_clock::now()
+                                          : std::chrono::steady_clock::time_point{};
+        pace_field_realtime();
         if (profile_frame) {
             const auto t1 = std::chrono::steady_clock::now();
             prof_emu_ms +=
                 std::chrono::duration<double, std::milli>(rdp_t0 - field_t0)
                     .count();
             prof_rdp_ms +=
-                std::chrono::duration<double, std::milli>(t1 - rdp_t0).count();
+                std::chrono::duration<double, std::milli>(rdp_t1 - rdp_t0)
+                    .count();
             prof_audio_ms += Audio::take_sync_wait_ms();
             ++prof_fields;
             if (std::chrono::duration<double>(t1 - prof_last_log).count() >=
                 1.0) {
                 const double inv = prof_fields ? 1.0 / prof_fields : 0.0;
                 const double emu = prof_emu_ms * inv;
-                const double audio = prof_audio_ms * inv;
-                // Audio pacing blocks inside the CPU execution path.
-                const double cpu = std::max(prof_cpu_ms * inv - audio, 0.0);
+                const double pace = prof_audio_ms * inv;
+                const double cpu = std::max(prof_cpu_ms * inv, 0.0);
                 const double rsp = prof_rsp_ms * inv;
                 const double rdp = prof_rdp_ms * inv;
                 const PresentCounters present =
@@ -261,15 +255,19 @@ void step(Config &config) {
                 Utils::info(
                     "frame profile: fields/s={} presents/s={} skipped/s={} "
                     "avg cpu={:.2f}ms rsp={:.2f}ms rdp={:.2f}ms "
-                    "audio={:.2f}ms total={:.2f}ms "
-                    "(cpu {:.0f}% / rsp {:.0f}% / rdp {:.0f}% / audio {:.0f}%) "
+                    "pace={:.2f}ms total={:.2f}ms "
+                    "(cpu {:.0f}% / rsp {:.0f}% / rdp {:.0f}% / pace {:.0f}%) "
                     "work={:.2f}ms budget60={:.2f}ms",
                     prof_fields, present.presented, present.skipped, cpu, rsp,
-                    rdp, audio, emu + rdp,
-                    (emu + rdp) > 0 ? 100.0 * cpu / (emu + rdp) : 0.0,
-                    (emu + rdp) > 0 ? 100.0 * rsp / (emu + rdp) : 0.0,
-                    (emu + rdp) > 0 ? 100.0 * rdp / (emu + rdp) : 0.0,
-                    (emu + rdp) > 0 ? 100.0 * audio / (emu + rdp) : 0.0,
+                    rdp, pace, emu + rdp + pace,
+                    (emu + rdp + pace) > 0 ? 100.0 * cpu / (emu + rdp + pace)
+                                          : 0.0,
+                    (emu + rdp + pace) > 0 ? 100.0 * rsp / (emu + rdp + pace)
+                                          : 0.0,
+                    (emu + rdp + pace) > 0 ? 100.0 * rdp / (emu + rdp + pace)
+                                          : 0.0,
+                    (emu + rdp + pace) > 0 ? 100.0 * pace / (emu + rdp + pace)
+                                          : 0.0,
                     cpu + rsp + rdp, 1000.0 / 60.0);
                 Rsp::vu_profile_dump();
 #if defined(N64_JIT_X64)

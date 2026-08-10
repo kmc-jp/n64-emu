@@ -47,10 +47,6 @@ bool apply_command_line(N64System::Config &config, int argc, char *argv[]) {
             config.cpu_backend = N64System::CpuBackend::Jit;
         } else if (current == "--no-jit") {
             config.cpu_backend = N64System::CpuBackend::Interpreter;
-        } else if (current == "--rsp-thread") {
-            config.rsp_thread = true;
-        } else if (current == "--no-rsp-thread") {
-            config.rsp_thread = false;
         } else if (current.starts_with("--upscale=")) {
             std::string_view n_str =
                 current.substr(std::string("--upscale=").size());
@@ -135,12 +131,6 @@ bool apply_command_line(N64System::Config &config, int argc, char *argv[]) {
         return false;
     }
 #endif
-
-    if (config.rsp_thread && config.debug) {
-        std::cerr << "Error: --rsp-thread cannot be used with --debug"
-                  << std::endl;
-        return false;
-    }
 
     if (config.headless && config.rom_filepath.empty()) {
         std::cerr << "Error: ROM path required for --headless/--test"

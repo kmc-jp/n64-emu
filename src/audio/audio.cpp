@@ -2,9 +2,7 @@
 #include "utils/log.h"
 #include <algorithm>
 #include <atomic>
-#include <chrono>
 #include <cmath>
-#include <condition_variable>
 #include <cstring>
 #include <mutex>
 #include <vector>
@@ -20,11 +18,7 @@ constexpr int DEFAULT_GUEST_FREQUENCY = 44100;
 constexpr int CHANNELS = 2;
 constexpr size_t RING_FRAMES = 48000;
 
-constexpr double TARGET_SEC = 0.200;
-constexpr double LOW_WATER_SEC = 0.050;
-constexpr double RESUME_SEC = 0.100;
-constexpr int MAX_HIGH_WATER_WAIT_MS = 200;
-constexpr int MAX_FULL_RING_WAIT_MS = 250;
+constexpr double MAX_LATENCY_FRAMES = 8.0;
 
 bool g_enabled = false;
 Sink *g_sink = nullptr;
@@ -32,11 +26,9 @@ int g_host_frequency = 0;
 int g_guest_frequency = DEFAULT_GUEST_FREQUENCY;
 double g_resample_pos = 0.0;
 bool g_output_paused = false;
-size_t g_callback_frames = 1024;
 float g_volume = 1.0f;
 
 std::mutex g_mutex;
-std::condition_variable g_space_cv;
 std::atomic<uint64_t> g_sync_wait_ns{0};
 std::vector<int16_t> g_ring;
 size_t g_ring_cap_frames = 0;
@@ -44,10 +36,11 @@ size_t g_read_frame = 0;
 size_t g_write_frame = 0;
 size_t g_frames_avail = 0;
 
-size_t frames_for_seconds(double seconds) {
-    if (g_host_frequency <= 0)
-        return 0;
-    return static_cast<size_t>(g_host_frequency * seconds);
+size_t max_queued_frames() {
+    const size_t per_field =
+        static_cast<size_t>(std::ceil(g_host_frequency / 60.0));
+    return std::max<size_t>(per_field * static_cast<size_t>(MAX_LATENCY_FRAMES),
+                            2048);
 }
 
 size_t frames_free_locked() { return g_ring_cap_frames - g_frames_avail; }
@@ -114,54 +107,11 @@ bool open_device() {
         return false;
 
     g_host_frequency = hz;
-    g_callback_frames = 1024;
     g_output_paused = true;
     g_sink->set_paused(true);
-    Utils::info("Audio: Callback device {} Hz (guest {} Hz)", g_host_frequency,
-                g_guest_frequency);
+    Utils::info("Audio: Callback device {} Hz (guest {} Hz), non-blocking push",
+                g_host_frequency, g_guest_frequency);
     return true;
-}
-
-void apply_sync_policy() {
-    const size_t target = frames_for_seconds(TARGET_SEC);
-    const size_t low =
-        std::max(frames_for_seconds(LOW_WATER_SEC), g_callback_frames * 2);
-    const size_t resume = std::max(frames_for_seconds(RESUME_SEC), low);
-
-    bool pause = false;
-    bool resume_out = false;
-    {
-        std::unique_lock lock(g_mutex);
-        if (g_frames_avail < low) {
-            if (!g_output_paused)
-                pause = true;
-        } else if (g_output_paused && g_frames_avail >= resume) {
-            resume_out = true;
-        }
-
-        // Pace the emu thread to real-time by waiting when audio is ahead.
-        if (g_enabled && g_frames_avail > target) {
-            const auto wait_t0 = std::chrono::steady_clock::now();
-            const auto deadline =
-                wait_t0 + std::chrono::milliseconds(MAX_HIGH_WATER_WAIT_MS);
-            while (g_enabled && g_frames_avail > target) {
-                if (g_space_cv.wait_until(lock, deadline) ==
-                    std::cv_status::timeout)
-                    break;
-            }
-            g_sync_wait_ns.fetch_add(
-                static_cast<uint64_t>(
-                    std::chrono::duration_cast<std::chrono::nanoseconds>(
-                        std::chrono::steady_clock::now() - wait_t0)
-                        .count()),
-                std::memory_order_relaxed);
-        }
-    }
-
-    if (pause)
-        set_output_paused(true);
-    else if (resume_out)
-        set_output_paused(false);
 }
 
 } // namespace
@@ -171,19 +121,23 @@ void set_sink(Sink *sink) { g_sink = sink; }
 size_t pull_frames(int16_t *out_interleaved, size_t frame_count) {
     std::lock_guard lock(g_mutex);
     const size_t n = ring_read_locked(out_interleaved, frame_count);
-    if (n == 0)
-        return 0;
-    if (g_volume <= 0.0f) {
-        std::memset(out_interleaved, 0, n * CHANNELS * sizeof(int16_t));
-    } else if (g_volume < 1.0f) {
-        const float vol = g_volume;
-        for (size_t i = 0; i < n * CHANNELS; ++i) {
-            const float s = static_cast<float>(out_interleaved[i]) * vol;
-            out_interleaved[i] = static_cast<int16_t>(
-                std::clamp(s, -32768.0f, 32767.0f));
+    if (n < frame_count) {
+        std::memset(out_interleaved + n * CHANNELS, 0,
+                    (frame_count - n) * CHANNELS * sizeof(int16_t));
+    }
+    if (n > 0) {
+        if (g_volume <= 0.0f) {
+            std::memset(out_interleaved, 0, n * CHANNELS * sizeof(int16_t));
+        } else if (g_volume < 1.0f) {
+            const float vol = g_volume;
+            for (size_t i = 0; i < n * CHANNELS; ++i) {
+                const float s = static_cast<float>(out_interleaved[i]) * vol;
+                out_interleaved[i] = static_cast<int16_t>(
+                    std::clamp(s, -32768.0f, 32767.0f));
+            }
         }
     }
-    return n;
+    return frame_count;
 }
 
 void set_volume(float volume) {
@@ -192,11 +146,16 @@ void set_volume(float volume) {
 
 float volume() { return g_volume; }
 
-void notify_space() { g_space_cv.notify_all(); }
+void notify_space() {}
 
 double take_sync_wait_ms() {
     const uint64_t ns = g_sync_wait_ns.exchange(0, std::memory_order_relaxed);
     return static_cast<double>(ns) / 1e6;
+}
+
+void note_sync_wait_ns(uint64_t ns) {
+    if (ns)
+        g_sync_wait_ns.fetch_add(ns, std::memory_order_relaxed);
 }
 
 void init() {
@@ -209,7 +168,6 @@ void init() {
 
 void shutdown() {
     g_enabled = false;
-    g_space_cv.notify_all();
     close_device();
     g_host_frequency = 0;
 }
@@ -246,6 +204,9 @@ void push_samples(std::span<const int16_t> interleaved_stereo) {
     if (in_frames == 0)
         return;
 
+    if (g_output_paused)
+        set_output_paused(false);
+
     const double ratio = static_cast<double>(g_host_frequency) /
                          static_cast<double>(g_guest_frequency);
     const size_t out_cap =
@@ -276,28 +237,16 @@ void push_samples(std::span<const int16_t> interleaved_stereo) {
     }
     g_resample_pos -= static_cast<double>(in_frames);
 
-    size_t written = 0;
-    const auto full_deadline = std::chrono::steady_clock::now() +
-                               std::chrono::milliseconds(MAX_FULL_RING_WAIT_MS);
-
-    while (written < out_frames && g_enabled) {
-        std::unique_lock lock(g_mutex);
-        while (frames_free_locked() == 0 && g_enabled) {
-            if (g_space_cv.wait_until(lock, full_deadline) ==
-                std::cv_status::timeout) {
-                lock.unlock();
-                apply_sync_policy();
-                return;
-            }
-        }
-        if (!g_enabled)
+    {
+        std::lock_guard lock(g_mutex);
+        const size_t cap = max_queued_frames();
+        if (g_frames_avail >= cap)
             return;
-        const size_t n = std::min(out_frames - written, frames_free_locked());
-        ring_write_locked(host.data() + written * CHANNELS, n);
-        written += n;
+        const size_t room = std::min(frames_free_locked(), cap - g_frames_avail);
+        const size_t n = std::min(out_frames, room);
+        if (n > 0)
+            ring_write_locked(host.data(), n);
     }
-
-    apply_sync_policy();
 }
 
 } // namespace Audio

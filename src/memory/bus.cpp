@@ -11,7 +11,6 @@
 #include "mmio/vi.h"
 #include "rcp/dpc.h"
 #include "rcp/rsp.h"
-#include "rcp/rsp_thread.h"
 #include "rdp/rdp_core.h"
 #include "utils/byte_array.h"
 #include "utils/log.h"
@@ -24,10 +23,9 @@ namespace Memory {
 
 template <class...> constexpr std::false_type always_false{};
 
-// 64 KiB physical-page dispatch (gopher64-style). RDRAM stays a direct check.
 enum class PhysMap : uint8_t {
     Unmapped = 0,
-    SpMem, // 0x0400_0000: DMEM / IMEM — refine by offset
+    SpMem, // 0x0400_0000: DMEM / IMEM  Erefine by offset
     RspReg,
     Dpc,
     Mi,
@@ -122,7 +120,6 @@ template <typename Wire> Wire read_paddr(uint32_t paddr) {
     constexpr bool wire8 = std::is_same<Wire, uint8_t>::value;
     static_assert(wire64 || wire32 || wire16 || wire8);
 
-    // Hottest path: RDRAM (direct compare, no table).
     if (paddr <= PHYS_RDRAM_MEM_END) {
         Rdp::check_framebuffers(paddr, static_cast<uint32_t>(sizeof(Wire)));
         return Utils::read_from_byte_array<Wire>(g_memory().get_rdram(), paddr);
@@ -131,7 +128,6 @@ template <typename Wire> Wire read_paddr(uint32_t paddr) {
     switch (phys_map()[paddr >> 16]) {
     case PhysMap::SpMem:
         if (PHYS_SPDMEM_BASE <= paddr && paddr <= PHYS_SPDMEM_END) {
-            Rsp::g_rsp_thread().wait_idle();
             const uint32_t offs = paddr - PHYS_SPDMEM_BASE;
             auto &dmem = g_rsp().get_sp_dmem();
             if constexpr (wire8) {
@@ -151,7 +147,6 @@ template <typename Wire> Wire read_paddr(uint32_t paddr) {
             }
         }
         if (PHYS_SPIMEM_BASE <= paddr && paddr <= PHYS_SPIMEM_END) {
-            Rsp::g_rsp_thread().wait_idle();
             const uint32_t offs = paddr - PHYS_SPIMEM_BASE;
             if constexpr (wire8) {
                 return Utils::read_from_byte_array8(g_rsp().get_sp_imem(), offs);
@@ -356,7 +351,6 @@ template <typename Wire> void write_paddr(uint32_t paddr, Wire value) {
     switch (phys_map()[paddr >> 16]) {
     case PhysMap::SpMem:
         if (PHYS_SPDMEM_BASE <= paddr && paddr <= PHYS_SPDMEM_END) {
-            Rsp::g_rsp_thread().wait_idle();
             uint32_t offs = (paddr - PHYS_SPDMEM_BASE) & 0xFFF;
             auto &dmem = g_rsp().get_sp_dmem();
             if constexpr (wire8) {
@@ -378,7 +372,6 @@ template <typename Wire> void write_paddr(uint32_t paddr, Wire value) {
             return;
         }
         if (PHYS_SPIMEM_BASE <= paddr && paddr <= PHYS_SPIMEM_END) {
-            Rsp::g_rsp_thread().wait_idle();
             uint32_t offs = (paddr - PHYS_SPIMEM_BASE) & 0xFFF;
             auto &imem = g_rsp().get_sp_imem();
             if constexpr (wire8) {
@@ -508,7 +501,7 @@ template <typename Wire> void write_paddr(uint32_t paddr, Wire value) {
     case PhysMap::Sram: {
         auto &sram = g_memory().get_sram();
         if (sram.empty()) {
-            // No cartridge SRAM — ignore writes.
+            // No cartridge SRAM  Eignore writes.
         } else if constexpr (wire32) {
             const uint32_t offs =
                 (paddr - PHYS_SRAM_BASE) &

@@ -1,4 +1,4 @@
-﻿#ifndef CPU_JIT_JIT_H
+#ifndef CPU_JIT_JIT_H
 #define CPU_JIT_JIT_H
 
 #include "cpu/jit/code_cache.h"
@@ -15,7 +15,7 @@ class Dynarec {
 
     // Soft-chain blocks up to `budget` cycles; advances RSP + scheduler after
     // each unit. Always returns >= 1 with matching machine advance.
-    int run(int budget, bool rsp_thread);
+    int run(int budget);
 
     void invalidate_page(uint32_t paddr);
     void invalidate_range(uint32_t paddr, uint32_t length);

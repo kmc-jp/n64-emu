@@ -4,7 +4,6 @@
 #include "mmio/controller_input.h"
 #include "mmio/vi.h"
 #include "n64_system/n64_system.h"
-#include "rcp/rsp_thread.h"
 #include "ui/audio_sdl.h"
 #include "ui/gui.h"
 #include "ui/imgui_layer.h"
@@ -300,7 +299,6 @@ App::App(N64System::Config &config_, UiSettings &ui_settings_)
 App::~App() {
     Input::set_host_poll(nullptr);
     imgui_shutdown();
-    N64::Rsp::g_rsp_thread().shutdown();
     input_shutdown();
     Audio::shutdown();
     if (game_window) {

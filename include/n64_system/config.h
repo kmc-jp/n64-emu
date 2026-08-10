@@ -36,8 +36,6 @@ struct Config {
 #else
     CpuBackend cpu_backend{CpuBackend::Interpreter};
 #endif
-    // Run RSP on a worker thread (run-until-halt with quantum). On by default.
-    bool rsp_thread{true};
     // No SDL window / Vulkan present (for CPU tests and CI).
     bool headless{false};
     // Parallel-RDP internal resolution multiplier (1, 2, 4, or 8).

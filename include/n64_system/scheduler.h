@@ -22,12 +22,17 @@ class Event {
 
 using scheduled_event_t = std::pair<uint64_t, Event>;
 
-// Min-heap by time: earlier events have higher priority.
 struct ScheduledEventEarlier {
     bool operator()(const scheduled_event_t &a,
                     const scheduled_event_t &b) const {
         return a.first > b.first;
     }
+};
+
+enum class NamedEventId : int {
+    Sp = 0,
+    SpDma = 1,
+    Count = 2,
 };
 
 class Scheduler {
@@ -38,26 +43,30 @@ class Scheduler {
                         ScheduledEventEarlier>
         event_queue;
 
-    // 現在の時刻
+    struct NamedEvent {
+        bool enabled = false;
+        uint64_t at = 0;
+        std::function<void()> cb;
+    };
+    NamedEvent named_[static_cast<int>(NamedEventId::Count)]{};
+
     uint64_t current_time;
+
+    bool dispatch_one_due();
 
   public:
     Scheduler() : current_time(0) {}
 
-    void init() {
-        current_time = 0;
-        event_queue = {};
-    }
+    void init();
 
-    // 現在からCPU cycles後にイベントを実行する
     void set_timer(uint64_t cycles, Event event);
+    void schedule_named(NamedEventId id, uint64_t cycles,
+                        std::function<void()> cb);
+    void cancel_named(NamedEventId id);
 
-    // TODO: スケジューラ単体をテストしたほうがいい?
     void tick(uint64_t cycles = 1);
 
     uint64_t get_current_time() const { return current_time; }
-
-    // Cycles until the next queued event. UINT64_MAX if the queue is empty.
     uint64_t cycles_until_next_event() const;
 
     inline static Scheduler &get_instance() { return instance; }

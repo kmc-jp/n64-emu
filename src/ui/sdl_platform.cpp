@@ -76,12 +76,13 @@ Vulkan::PresentMode recommended_present_mode() {
     if (e && e[0]) {
         if (std::strcmp(e, "fifo") == 0 || std::strcmp(e, "vsync") == 0)
             return Vulkan::PresentMode::SyncToVBlank;
+        if (std::strcmp(e, "mailbox") == 0)
+            return Vulkan::PresentMode::UnlockedNoTearing;
         if (std::strcmp(e, "immediate") == 0)
             return Vulkan::PresentMode::UnlockedForceTearing;
-        if (std::strcmp(e, "mailbox") != 0)
-            Utils::warn("Unknown N64_PRESENT=`{}`; using mailbox", e);
+        Utils::warn("Unknown N64_PRESENT=`{}`; using immediate", e);
     }
-    return Vulkan::PresentMode::UnlockedNoTearing;
+    return Vulkan::PresentMode::UnlockedForceTearing;
 }
 
 const char *present_mode_name(Vulkan::PresentMode mode) {

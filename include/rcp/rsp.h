@@ -164,6 +164,15 @@ class Rsp {
     sp_dma_t dma{};
     bool semaphore_held{false};
 
+    bool sync_point_{false};
+    bool broken_{false};
+    bool task_halted_{false};
+    bool running_task_{false};
+    bool run_after_dma_{false};
+    uint32_t last_status_signals_{0};
+    uint32_t last_dpc_busy_{0};
+    uint64_t task_cycle_counter_{0};
+
     std::array<uint32_t, 32> gpr_{};
     std::array<VuReg, 32> vpr_{};
     AccRegs acc_{};
@@ -185,6 +194,11 @@ class Rsp {
     uint16_t get_pc() const { return pc; }
 
     void take_break();
+
+    void do_task();
+    void on_sp_event();
+    bool running_task() const { return running_task_; }
+    void request_sync_point() { sync_point_ = true; }
 
     std::array<uint8_t, SP_DMEM_SIZE> &get_sp_dmem() { return sp_dmem; }
     std::array<uint8_t, SP_IMEM_SIZE> &get_sp_imem() { return sp_imem; }
@@ -249,6 +263,7 @@ class Rsp {
   private:
     void dma_read();
     void dma_write();
+    uint64_t run_until_sync();
 
     uint32_t fetch_instruction() const;
     void execute(uint32_t inst, uint16_t inst_pc);

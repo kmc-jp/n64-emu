@@ -20,6 +20,9 @@ bool g_have_presented_origin = false;
 uint32_t g_last_presented_origin = 0;
 uint64_t g_presents = 0;
 uint64_t g_present_skips = 0;
+bool g_have_seen_origin = false;
+uint32_t g_last_seen_origin = 0;
+uint64_t g_new_origins = 0;
 OverlayDrawFn g_overlay_draw = nullptr;
 float g_clear_color[4] = {0.f, 0.f, 0.f, 1.f};
 
@@ -237,6 +240,12 @@ bool present_field(Vulkan::WSI &wsi, N64::Mmio::VI::VI &vi,
         return std::chrono::duration<double, std::milli>(b - a).count();
     };
 
+    if (!g_have_seen_origin || vi.reg_origin != g_last_seen_origin) {
+        g_have_seen_origin = true;
+        g_last_seen_origin = vi.reg_origin;
+        ++g_new_origins;
+    }
+
     Rdp::ScanoutResult result;
     {
         std::lock_guard lock(Rdp::mutex());
@@ -292,11 +301,12 @@ bool present_field(Vulkan::WSI &wsi, N64::Mmio::VI::VI &vi,
             const double inv = 1.0 / double(prof_fields);
             const auto it = g_frame_interp.take_timings();
             Utils::info(
-                "present profile: fields/s={} avg scanout={:.2f}ms "
+                "present profile: fields/s={} newfb/s={} avg scanout={:.2f}ms "
                 "acquire={:.2f}ms interp={:.2f}ms (fence={:.2f}ms "
                 "flow={:.2f}ms warp={:.2f}ms) blit={:.2f}ms present={:.2f}ms "
                 "total={:.2f}ms | flows/s={} warps/s={} fallback/s={}{}",
-                prof_fields, prof_scanout_ms * inv, prof_acquire_ms * inv,
+                prof_fields, g_new_origins, prof_scanout_ms * inv,
+                prof_acquire_ms * inv,
                 prof_interp_ms * inv, it.fence_wait_ms * inv, it.flow_ms * inv,
                 it.warp_ms * inv,
                 prof_blit_ms * inv, prof_submit_ms * inv,
@@ -311,6 +321,7 @@ bool present_field(Vulkan::WSI &wsi, N64::Mmio::VI::VI &vi,
             prof_interp_ms = 0.0;
             prof_blit_ms = 0.0;
             prof_submit_ms = 0.0;
+            g_new_origins = 0;
             prof_last_log = t_done;
         }
     }

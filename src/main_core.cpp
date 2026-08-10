@@ -13,8 +13,6 @@ constexpr std::string_view USAGE =
     "info)\n"
     "--jit\tuse CPU dynarec (x86-64, default)\n"
     "--no-jit\tdisable CPU dynarec (use interpreter)\n"
-    "--rsp-thread\trun RSP on a worker thread (default)\n"
-    "--no-rsp-thread\tdisable RSP worker thread\n"
     "--upscale=[1|2|4|8]\tParallel-RDP resolution multiplier (default 4)\n"
     "--frame-interp\tenable frame interpolation (default: optical flow)\n"
     "--no-frame-interp\tdisable frame interpolation (default)\n"

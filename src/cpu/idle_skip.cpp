@@ -15,7 +15,6 @@ namespace {
 struct IdleCtx {
     int budget_left = 0;
     int pending_skip = 0;
-    bool rsp_thread = false;
     bool active = false;
 };
 
@@ -57,10 +56,9 @@ void queue_idle_warp(Cpu &cpu) {
 
 } // namespace
 
-void idle_skip_begin_slice(int budget, bool rsp_thread) {
+void idle_skip_begin_slice(int budget) {
     auto &c = ctx();
     c.budget_left = budget > 0 ? budget : 0;
-    c.rsp_thread = rsp_thread;
     c.pending_skip = 0;
     c.active = true;
 }
@@ -102,7 +100,7 @@ int idle_skip_apply_pending() {
 
     int warped = static_cast<int>(skip);
     g_cpu().add_count(static_cast<uint32_t>(warped));
-    N64System::advance_after_cpu(warped, c.rsp_thread);
+    N64System::advance_after_cpu(warped);
     idle_skip_consume(warped);
     return warped;
 }

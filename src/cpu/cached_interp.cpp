@@ -499,20 +499,20 @@ void reset() {
 
 void step_one() { step_one_core(/*do_count=*/true); }
 
-int run(int budget, bool rsp_thread) {
+int run(int budget) {
     if (budget < 1)
         budget = 1;
 
     int total = 0;
     int pending = 0;
-    idle_skip_begin_slice(budget, rsp_thread);
+    idle_skip_begin_slice(budget);
 
     // Soft-chain like JIT: COUNT advances per instruction; RSP + scheduler
     // are batched and flushed on the cycle budget or the next event deadline.
     const auto flush_pending = [&]() {
         if (pending < 1)
             return;
-        N64System::advance_after_cpu(pending, rsp_thread);
+        N64System::advance_after_cpu(pending);
         pending = 0;
     };
 
@@ -525,7 +525,7 @@ int run(int budget, bool rsp_thread) {
 
         if (until == 0) {
             flush_pending();
-            N64System::advance_after_cpu(0, rsp_thread);
+            N64System::advance_after_cpu(0);
             // If a callback re-scheduled at +0, still execute one instruction
             // below so we cannot spin forever on overdue events.
         }

@@ -30,7 +30,7 @@ void clear();
 void step_one();
 
 // Run up to `budget` instructions; advances RSP/scheduler internally.
-int run(int budget, bool rsp_thread);
+int run(int budget);
 
 } // namespace CachedInterp
 } // namespace Cpu

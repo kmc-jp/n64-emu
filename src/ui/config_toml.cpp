@@ -158,8 +158,6 @@ bool parse_toml_file(const std::string &path, N64System::Config &config,
                 config.cpu_backend = *v ? N64System::CpuBackend::Jit
                                         : N64System::CpuBackend::Interpreter;
             }
-            if (auto v = (*cpu)["rsp_thread"].value<bool>())
-                config.rsp_thread = *v;
         }
         if (auto *u = tbl["ui"].as_table()) {
             if (auto v = (*u)["last_rom_dir"].value<std::string>())
@@ -289,7 +287,6 @@ bool save_toml(const N64System::Config &config, const UiSettings &ui) {
     toml::table cpu;
     cpu.insert_or_assign("jit",
                          config.cpu_backend == N64System::CpuBackend::Jit);
-    cpu.insert_or_assign("rsp_thread", config.rsp_thread);
 
     toml::table ui_tbl;
     ui_tbl.insert_or_assign("last_rom_dir", ui.last_rom_dir);

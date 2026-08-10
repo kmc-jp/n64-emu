@@ -23,6 +23,9 @@ std::atomic<bool> g_cpu_fb_dirty{false};
 
 std::atomic<uint64_t> g_sync_signal{0};
 std::vector<uint8_t> g_rdram_dirty;
+// Inclusive dirty span in 8-byte units; empty when min>max.
+std::atomic<uint32_t> g_dirty_span_min{UINT32_MAX};
+std::atomic<uint32_t> g_dirty_span_max{0};
 
 struct FrameBufferInfo {
     uint32_t framebuffer_address = 0;
@@ -74,10 +77,23 @@ void mark_dirty_range(uint32_t address, uint32_t length) {
     if (start >= g_rdram_dirty.size())
         return;
     end = std::min(end, static_cast<uint32_t>(g_rdram_dirty.size()));
+    if (start >= end)
+        return;
     if (g_rdram_dirty[start])
         return;
     std::fill(g_rdram_dirty.begin() + start, g_rdram_dirty.begin() + end,
               uint8_t{1});
+
+    uint32_t cur_min = g_dirty_span_min.load(std::memory_order_relaxed);
+    while (start < cur_min &&
+           !g_dirty_span_min.compare_exchange_weak(cur_min, start,
+                                                   std::memory_order_relaxed)) {
+    }
+    uint32_t cur_max = g_dirty_span_max.load(std::memory_order_relaxed);
+    while (end > cur_max &&
+           !g_dirty_span_max.compare_exchange_weak(cur_max, end,
+                                                   std::memory_order_relaxed)) {
+    }
 }
 
 void mark_color_depth_dirty() {
@@ -186,6 +202,8 @@ void track_command(const uint32_t *words) {
 void reset_deferred_sync_state() {
     g_sync_signal.store(0, std::memory_order_relaxed);
     g_rdram_dirty.assign(RDRAM_SIZE >> 3, 0);
+    g_dirty_span_min.store(UINT32_MAX, std::memory_order_relaxed);
+    g_dirty_span_max.store(0, std::memory_order_relaxed);
     g_fb_info = {};
 }
 
@@ -195,6 +213,8 @@ void flush_pending_sync_locked() {
         return;
     g_command_processor->wait_for_timeline(signal);
     std::fill(g_rdram_dirty.begin(), g_rdram_dirty.end(), uint8_t{0});
+    g_dirty_span_min.store(UINT32_MAX, std::memory_order_relaxed);
+    g_dirty_span_max.store(0, std::memory_order_relaxed);
     g_sync_signal.store(0, std::memory_order_release);
 }
 } // namespace
@@ -293,6 +313,13 @@ void check_framebuffers(uint32_t address, uint32_t length) {
     if (start >= g_rdram_dirty.size())
         return;
     end = std::min(end, static_cast<uint32_t>(g_rdram_dirty.size()));
+    if (start >= end)
+        return;
+
+    const uint32_t span_min = g_dirty_span_min.load(std::memory_order_relaxed);
+    const uint32_t span_max = g_dirty_span_max.load(std::memory_order_relaxed);
+    if (span_min >= span_max || end <= span_min || start >= span_max)
+        return;
 
     const auto it =
         std::find(g_rdram_dirty.begin() + start, g_rdram_dirty.begin() + end,

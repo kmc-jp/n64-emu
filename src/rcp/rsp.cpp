@@ -5,8 +5,8 @@
 #include "memory/memory_map.h"
 #include "mmio/mi.h"
 #include "n64_system/interrupt.h"
+#include "n64_system/scheduler.h"
 #include "rcp/dpc.h"
-#include "rcp/rsp_thread.h"
 #include "rcp/vu_profile.h"
 #include "rdp/rdp_core.h"
 #include "utils/byte_array.h"
@@ -82,6 +82,14 @@ void Rsp::reset() {
     divin_ = 0;
     divout_ = 0;
     divin_loaded_ = false;
+    sync_point_ = false;
+    broken_ = false;
+    task_halted_ = false;
+    running_task_ = false;
+    run_after_dma_ = false;
+    last_status_signals_ = 0;
+    last_dpc_busy_ = 0;
+    task_cycle_counter_ = 0;
 }
 
 void Rsp::set_pc(uint16_t value) {
@@ -93,13 +101,62 @@ void Rsp::set_pc(uint16_t value) {
 void Rsp::branch(uint16_t target_pc) { next_pc = target_pc & 0xffc; }
 
 void Rsp::take_break() {
-    // https://n64brew.dev/wiki/Reality_Signal_Processor/CPU_Core
-    status_reg.halt = 1;
-    status_reg.broke = 1;
-    if (status_reg.intr_on_break) {
-        g_mi().get_reg_intr().sp = 1;
-        g_rsp_thread().note_sp_interrupt();
+    broken_ = true;
+    sync_point_ = true;
+}
+
+uint64_t Rsp::run_until_sync() {
+    broken_ = false;
+    task_cycle_counter_ = 0;
+    running_task_ = true;
+    sync_point_ = false;
+
+    constexpr uint32_t kMaxInsns = 10'000'000u;
+    uint32_t ran = 0;
+    while (!sync_point_ && !broken_ && !task_halted_ && ran < kMaxInsns) {
+        if (status_reg.halt)
+            break;
+        step();
+        ++ran;
+        ++task_cycle_counter_;
     }
+    running_task_ = false;
+    if (ran >= kMaxInsns)
+        Utils::warn("RSP run_until_sync hit instruction cap");
+    return (task_cycle_counter_ * 3) / 2;
+}
+
+void Rsp::do_task() {
+    sync_point_ = false;
+    last_status_signals_ = 0;
+    last_dpc_busy_ = 0;
+    if (status_reg.dma_busy) {
+        run_after_dma_ = true;
+        return;
+    }
+    const uint64_t timer = run_until_sync();
+    N64::g_scheduler().schedule_named(
+        N64System::NamedEventId::Sp, timer, [] { g_rsp().on_sp_event(); });
+}
+
+void Rsp::on_sp_event() {
+    if (broken_) {
+        status_reg.halt = 1;
+        status_reg.broke = 1;
+        if (status_reg.intr_on_break) {
+            g_mi().get_reg_intr().sp = 1;
+            N64System::check_interrupt();
+        }
+        return;
+    }
+    if (task_halted_) {
+        status_reg.halt = 1;
+        task_halted_ = false;
+        return;
+    }
+    if (status_reg.halt)
+        return;
+    do_task();
 }
 
 uint8_t Rsp::dmem_load8(uint32_t addr) const { return sp_dmem[addr & 0xFFF]; }
@@ -376,15 +433,24 @@ uint32_t Rsp::read_cp0(int reg) {
     case 2:
     case 3:
         return dma.raw;
-    case 4:
+    case 4: {
+        constexpr uint32_t kSigMask = 0x7F80u;
+        const uint32_t signals = status_reg.raw & kSigMask;
+        if (running_task_ && signals == last_status_signals_ && signals != 0)
+            sync_point_ = true;
+        last_status_signals_ = signals;
         return status_reg.raw;
+    }
     case 5:
         return status_reg.dma_full;
     case 6:
         return status_reg.dma_busy;
     case 7: {
-        if (semaphore_held)
+        if (semaphore_held) {
+            if (running_task_)
+                sync_point_ = true;
             return 1;
+        }
         semaphore_held = true;
         return 0;
     }
@@ -394,8 +460,15 @@ uint32_t Rsp::read_cp0(int reg) {
         return g_dpc().get_end();
     case 10:
         return g_dpc().get_current();
-    case 11:
-        return g_dpc().get_status().raw;
+    case 11: {
+        const uint32_t raw = g_dpc().get_status().raw;
+        constexpr uint32_t kBusyMask = (1u << 5) | (1u << 6); // pipe|cmd busy
+        const uint32_t busy = raw & kBusyMask;
+        if (running_task_ && busy == last_dpc_busy_ && busy != 0)
+            sync_point_ = true;
+        last_dpc_busy_ = busy;
+        return raw;
+    }
     case 12:
         return 0; // clock
     case 13:
@@ -424,6 +497,8 @@ void Rsp::write_cp0(int reg, uint32_t value) {
             dma.raw = 0xFF8;
             break;
         }
+        if (running_task_)
+            sync_point_ = true;
         dma_read();
         break;
     case 3:
@@ -432,11 +507,18 @@ void Rsp::write_cp0(int reg, uint32_t value) {
             dma.raw = 0xFF8;
             break;
         }
+        if (running_task_)
+            sync_point_ = true;
         dma_write();
         break;
-    case 4:
+    case 4: {
         status_reg_write(value);
-        break;
+        if ((value & 0x2u) != 0 && (value & 0x1u) == 0) {
+            status_reg.halt = 0;
+            task_halted_ = true;
+            sync_point_ = true;
+        }
+    } break;
     case 7:
         semaphore_held = false;
         break;
@@ -535,10 +617,7 @@ void Rsp::execute_cop2(uint32_t inst) {
 void Rsp::execute_lwc2(uint32_t inst) { vu_load(*this, inst); }
 void Rsp::execute_swc2(uint32_t inst) { vu_store(*this, inst); }
 
-// --- SP DMA / MMIO (unchanged behavior from prior commit) ---
-
 uint32_t Rsp::read_paddr32(uint32_t paddr) const {
-    g_rsp_thread().wait_idle();
     switch (paddr) {
     case PADDR_SP_MEM_ADDR:
         return mem_addr.raw;
@@ -570,7 +649,6 @@ uint32_t Rsp::read_paddr32(uint32_t paddr) const {
 }
 
 void Rsp::write_paddr32(uint32_t paddr, uint32_t value) {
-    g_rsp_thread().wait_idle();
     switch (paddr) {
     case PADDR_SP_MEM_ADDR:
         shadow_mem_addr.raw = value;
@@ -614,7 +692,6 @@ void Rsp::write_paddr32(uint32_t paddr, uint32_t value) {
 }
 
 void Rsp::dma_read() {
-    g_rsp_thread().wait_idle();
     uint32_t length = (dma.length + 1 + 7) & ~7u;
     uint32_t dram_address = shadow_dram_addr.address & RSP_DRAM_ADDR_MASK;
     uint32_t mem_address = shadow_mem_addr.address & RSP_MEM_ADDR_MASK;
@@ -650,7 +727,6 @@ void Rsp::dma_read() {
 }
 
 void Rsp::dma_write() {
-    g_rsp_thread().wait_idle();
     uint32_t length = (dma.length + 1 + 7) & ~7u;
     uint32_t dram_address = shadow_dram_addr.address & RSP_DRAM_ADDR_MASK;
     uint32_t mem_address = shadow_mem_addr.address & RSP_MEM_ADDR_MASK;
@@ -688,26 +764,23 @@ void Rsp::dma_write() {
 void Rsp::status_reg_write(uint32_t value) {
     sp_status_write_t write;
     write.raw = value;
+    const bool was_halted = status_reg.halt != 0;
 
-    if (write.clear_halt && !write.set_halt) {
-        const bool was_halted = status_reg.halt != 0;
+    if (write.clear_halt && !write.set_halt)
         status_reg.halt = 0;
-        if (was_halted) {
-            g_debugger().on_rsp_unhalt();
-            g_rsp_thread().kick_until_halt();
-        }
-    }
-    if (!write.clear_halt && write.set_halt)
+    if (!write.clear_halt && write.set_halt) {
+        N64::g_scheduler().cancel_named(N64System::NamedEventId::Sp);
         status_reg.halt = 1;
+    }
     if (write.clear_broke)
         status_reg.broke = false;
     if (write.clear_intr) {
         g_mi().get_reg_intr().sp = 0;
-        g_rsp_thread().note_sp_interrupt();
+        N64System::check_interrupt();
     }
     if (write.set_intr) {
         g_mi().get_reg_intr().sp = 1;
-        g_rsp_thread().note_sp_interrupt();
+        N64System::check_interrupt();
     }
     status_reg.single_step =
         write.clear_sstep ? 0 : (write.set_sstep ? 1 : status_reg.single_step);
@@ -739,6 +812,13 @@ void Rsp::status_reg_write(uint32_t value) {
     status_reg.signal_7 = write.clear_signal_7
                               ? 0
                               : (write.set_signal_7 ? 1 : status_reg.signal_7);
+
+    if (!status_reg.halt && was_halted) {
+        broken_ = false;
+        task_halted_ = false;
+        g_debugger().on_rsp_unhalt();
+        do_task();
+    }
 }
 
 Rsp Rsp::instance{};

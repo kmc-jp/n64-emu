@@ -4,10 +4,7 @@
 namespace N64 {
 namespace N64System {
 
-// After the CPU burns `cpu_cycles`, advance RSP (2/3 rate or kick worker)
-// and the scheduler. Safe between dynarec basic blocks.
-// cpu_cycles == 0 only flushes overdue scheduler events.
-void advance_after_cpu(int cpu_cycles, bool rsp_thread);
+void advance_after_cpu(int cpu_cycles);
 
 } // namespace N64System
 } // namespace N64

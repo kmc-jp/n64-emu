@@ -4,7 +4,6 @@
 #include "mmio/controller_input.h"
 #include "mmio/vi.h"
 #include "n64_system/n64_system.h"
-#include "rcp/rsp_thread.h"
 #include "ui/audio_sdl.h"
 #include "ui/input_sdl.h"
 #include "ui/sdl_platform.h"
@@ -94,7 +93,6 @@ AppCore::AppCore(N64System::Config &config_)
 
 AppCore::~AppCore() {
     Input::set_host_poll(nullptr);
-    N64::Rsp::g_rsp_thread().shutdown();
     input_shutdown();
     Audio::shutdown();
     if (window) {

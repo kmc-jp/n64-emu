@@ -9,7 +9,7 @@ class Cpu;
 
 // Call at the start of a half-line / Dynarec::run slice so idle warps stay
 // within the remaining guest-cycle budget.
-void idle_skip_begin_slice(int budget, bool rsp_thread);
+void idle_skip_begin_slice(int budget);
 
 // Consume guest cycles from the idle budget (normal instruction progress).
 void idle_skip_consume(int cycles);

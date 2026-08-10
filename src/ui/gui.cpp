@@ -382,28 +382,12 @@ void draw_emu_settings(GuiState &state) {
                 "Dynarec for the main CPU. Faster than the interpreter; "
                 "turn off for debugging.");
 
-        ImGui::TableNextRow();
-        ImGui::TableSetColumnIndex(0);
-        ImGui::AlignTextToFramePadding();
-        ImGui::TextUnformatted("Multi-threaded RSP:");
-        ImGui::TableSetColumnIndex(1);
-        bool rsp = cfg.rsp_thread;
-        if (ImGui::Checkbox("##rsp_thread", &rsp)) {
-            cfg.rsp_thread = rsp;
-            save_settings(state);
-        }
-        if (ImGui::IsItemHovered(ImGuiHoveredFlags_DelayNormal))
-            ImGui::SetTooltip(
-                "Run the RSP (audio/graphics helper CPU) on a background "
-                "thread.\n"
-                "Usually faster; turn off if you hit timing issues.");
-
         ImGui::EndTable();
     }
 
     if (running)
         ImGui::TextDisabled(
-            "CPU JIT / Multi-threaded RSP apply after Stop / next Open ROM.");
+            "CPU JIT applies after Stop / next Open ROM.");
 
     ImGui::End();
 }

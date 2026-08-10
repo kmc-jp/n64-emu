@@ -4,7 +4,7 @@
 #include "memory/memory_map.h"
 #include "mmio/mi.h"
 #include "rcp/rsp.h"
-#include "rcp/rsp_thread.h"
+#include "n64_system/interrupt.h"
 #include <mutex>
 #include "utils/byte_array.h"
 #include "utils/log.h"
@@ -231,8 +231,7 @@ void Dpc::process_list() {
             status.start_gclk = 0;
             status.cbuf_ready = 0;
             g_mi().get_reg_intr().dp = 1;
-            // May run on the RSP worker; defer COP0 IP2 update to wait_idle.
-            Rsp::g_rsp_thread().note_sp_interrupt();
+            N64System::check_interrupt();
         }
 
         buf_index += command_length;
