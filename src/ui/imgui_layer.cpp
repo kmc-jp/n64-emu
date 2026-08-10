@@ -53,6 +53,7 @@ ImFont *load_ui_font(ImGuiIO &io) {
 }
 
 void apply_ui_layout(ImGuiStyle &style) {
+    style.WindowPadding = ImVec2(16.0f, 16.0f);
     style.FramePadding = ImVec2(10.0f, 6.0f);
     style.ItemSpacing = ImVec2(12.0f, 8.0f);
     style.WindowBorderSize = 1.0f;
