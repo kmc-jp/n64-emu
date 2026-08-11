@@ -45,7 +45,8 @@ int main(int argc, char *argv[]) {
         Utils::set_log_file(config.log_filepath);
     Utils::set_log_level(config.log_level);
 
-    // Cart saves: <settings_dir>/save/<header image name>/save.sra
+    // Cart saves: <app_data_dir>/save/<header image name>/save.sra
+    // (same folder as settings.toml; see Ui::app_data_dir)
     N64::g_memory().set_data_dir(N64::Ui::settings_dir_path());
 
     N64::Ui::App app(config, ui_settings);

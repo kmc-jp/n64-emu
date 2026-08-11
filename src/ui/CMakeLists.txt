@@ -2,6 +2,7 @@
 add_library(ui STATIC)
 target_sources(ui PRIVATE
     app_core.cpp
+    app_paths.cpp
     audio_sdl.cpp
     config_cli.cpp
     input_sdl.cpp

@@ -4,6 +4,7 @@
 #include "mmio/controller_input.h"
 #include "mmio/vi.h"
 #include "n64_system/n64_system.h"
+#include "ui/app_paths.h"
 #include "ui/audio_sdl.h"
 #include "ui/input_sdl.h"
 #include "ui/sdl_platform.h"
@@ -13,7 +14,6 @@
 #include <SDL.h>
 #include <SDL_vulkan.h>
 #include <cstdlib>
-#include <filesystem>
 
 namespace N64 {
 namespace Ui {
@@ -24,17 +24,9 @@ constexpr int kWindowHeight = kWindowWidth * 3 / 4;
 
 Vulkan::WSI *g_wsi = nullptr;
 
-// Same root as GUI settings: .../kamo64/ (not the nested .../kamo64/kamo64/).
 void init_cart_save_data_dir() {
-    if (char *pref = SDL_GetPrefPath(kAppSlug, kAppSlug)) {
-        std::filesystem::path nested(pref);
-        SDL_free(pref);
-        const auto dir = nested.parent_path();
-        std::error_code ec;
-        std::filesystem::create_directories(dir, ec);
-        std::filesystem::remove(nested, ec);
-        N64::g_memory().set_data_dir(dir.string());
-    }
+    if (const std::string dir = app_data_dir(); !dir.empty())
+        N64::g_memory().set_data_dir(dir);
 }
 
 void on_field_present(N64::Mmio::VI::VI &vi) {
