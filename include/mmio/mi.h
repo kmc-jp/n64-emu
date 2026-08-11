@@ -1,4 +1,4 @@
-﻿#ifndef MI_H
+#ifndef MI_H
 #define MI_H
 
 #include "utils/pack.h"
@@ -13,8 +13,6 @@ const uint32_t PADDR_MI_VERSION = 0x04300004;
 const uint32_t PADDR_MI_INTERRUPT = 0x04300008;
 const uint32_t PADDR_MI_MASK = 0x0430000c;
 
-// https://github.com/Dillonb/n64/blob/6502f7d2f163c3f14da5bff8cd6d5ccc47143156/src/system/n64system.h#L64
-// TODO: big endian?
 union mi_intr_t {
     uint32_t raw;
     PACK(struct {
@@ -30,8 +28,6 @@ union mi_intr_t {
 
 static_assert(sizeof(mi_intr_t) == 4, "mi_intr_t size is not 4 bytes");
 
-// https://github.com/Dillonb/n64/blob/6502f7d2f163c3f14da5bff8cd6d5ccc47143156/src/system/n64system.h#L51
-// TODO: big endian?
 // FIXME: do not use bit field
 union mi_intr_mask_t {
     uint32_t raw;

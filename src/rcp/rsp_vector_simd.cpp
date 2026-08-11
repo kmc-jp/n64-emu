@@ -21,7 +21,6 @@ Vu16 mask_from_logical(eve::logical<Vu16> c) {
     return eve::if_else(c, Vu16(0xFFFF), Vu16(0));
 }
 
-// CEN64/parallel-rsp: accumulate u16 with carry-out as 0xFFFF mask.
 void acc_add_u16(Vu16 &dst, Vu16 src, Vu16 &carry_ffff) {
     Vu16 sum;
     carry_ffff = add_u16_carry_mask(dst, src, sum);
@@ -371,7 +370,7 @@ bool try_execute_simd(Rsp &rsp, uint32_t inst) {
         return true;
     }
 
-    case 0x25: { // VCH — CEN64 / parallel-rsp SSE algorithm
+    case 0x25: { // VCH
         const Vi16 zero(0);
         const auto sign = eve::is_ltz(eve::bit_xor(vs_i, vt_i));
         const Vi16 sign_m = eve::if_else(sign, Vi16(-1), Vi16(0));

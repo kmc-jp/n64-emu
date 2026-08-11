@@ -25,11 +25,7 @@ void SI::dma_from_pif_to_dram() {
     Utils::debug("PIF_ADDR: {:#010x}, DRAM_ADDR: {:#10x}", reg_pif_addr,
                  reg_dram_addr);
     dma_busy = true;
-    // FIXME: Is this unnecessary code?
     pif.control_write();
-    // FIXME: Should use offset `SI_PIF_ADDR + i`?
-    // Project64: just use i
-    // Kaizen: use SI_PIF_ADDR + i
     Rdp::on_rdram_write(reg_dram_addr, 64);
     for (int i = 0; i < 64; i++)
         Utils::write_to_byte_array8(g_memory().get_rdram(), reg_dram_addr + i,
@@ -47,9 +43,6 @@ void SI::dma_from_dram_to_pif() {
     Utils::debug("PIF_ADDR: {:#010x}, DRAM_ADDR: {:#10x}", reg_pif_addr,
                  reg_dram_addr);
     dma_busy = true;
-    // FIXME: Should use offset `SI_PIF_ADDR + i`?
-    // Project64: just use i
-    // Kaizen: use SI_PIF_ADDR + i
     Rdp::check_framebuffers(reg_dram_addr, 64);
     for (int i = 0; i < 64; i++) {
         // Utils::debug("i = {}", i);
@@ -89,7 +82,6 @@ uint32_t SI::read_paddr32(uint32_t paddr) const {
 }
 
 void SI::write_paddr32(uint32_t paddr, uint32_t value) {
-    // https://github.com/SimoneN64/Kaizen/blob/74dccb6ac6a679acbf41b497151e08af6302b0e9/src/backend/core/mmio/SI.cpp#L55
     switch (paddr) {
     case PADDR_SI_DRAM_ADDR: {
         reg_dram_addr = value & RDRAM_SIZE_MASK;
@@ -103,7 +95,6 @@ void SI::write_paddr32(uint32_t paddr, uint32_t value) {
         dma_from_dram_to_pif();
     } break;
     case PADDR_SI_STATUS: {
-        // https://github.com/project64/project64/blob/353ef5ed897cb72a8904603feddbdc649dff9eca/Source/Project64-core/N64System/MemoryHandler/SerialInterfaceHandler.cpp#L98
         g_mi().get_reg_intr().si = 0;
         reg_status &= ~SiStatusFlags::INTERRUPT;
         N64System::check_interrupt();

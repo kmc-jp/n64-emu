@@ -730,7 +730,6 @@ void draw_controller_settings(GuiState &state) {
 }
 
 void draw_folder_open_icon(ImDrawList *dl, ImVec2 center, float size) {
-    // Flat folder + green add badge (Dolphin-style empty state).
     const float w = size;
     const float h = size * 0.78f;
     const ImVec2 o(center.x - w * 0.5f, center.y - h * 0.55f);

@@ -7,7 +7,6 @@ namespace Utils {
 uint64_t read_from_byte_array64(std::span<const uint8_t> span,
                                 uint64_t offset) {
     assert(offset + 8 <= span.size());
-    // Match Dillonb: high word first in memory, each word host-endian.
     uint32_t hi = 0;
     uint32_t lo = 0;
     std::memcpy(&hi, span.data() + offset, sizeof(uint32_t));

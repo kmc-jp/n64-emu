@@ -6,8 +6,6 @@ namespace N64 {
 namespace Memory {
 
 void RI::reset() {
-    // https://github.com/Dillonb/n64/blob/6502f7d2f163c3f14da5bff8cd6d5ccc47143156/src/mem/n64mem.c#L10
-    // https://github.com/SimoneN64/Kaizen/blob/dffd36fc31731a0391a9b90f88ac2e5ed5d3f9ec/src/backend/core/mmio/RI.cpp#L9
     reg_mode = 0xE;
     reg_config = 040;
     reg_select = 0x14;

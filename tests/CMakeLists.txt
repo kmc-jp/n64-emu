@@ -1,7 +1,5 @@
-# Smoke testing
-# 時間かかる�Eで最適化が強いReleaseでは走らせるよぁE��する
+# CPU tests with dillonb-n64-tests
 
-# Dillonb's n64-tests (interpreter; --test implies --headless)
 add_test(NAME basic COMMAND kamo64-core --log-level=off --test "${CMAKE_SOURCE_DIR}/roms/dillonb-n64-tests/basic_simpleboot.z64")
 add_test(NAME addiu COMMAND kamo64-core --log-level=off --test "${CMAKE_SOURCE_DIR}/roms/dillonb-n64-tests/addiu_simpleboot.z64")
 add_test(NAME addu COMMAND kamo64-core --log-level=off --test "${CMAKE_SOURCE_DIR}/roms/dillonb-n64-tests/addu_simpleboot.z64")

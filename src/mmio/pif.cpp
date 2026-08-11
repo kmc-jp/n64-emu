@@ -12,13 +12,10 @@ namespace Mmio {
 
 using Memory::CicType;
 
-// https://github.com/SimoneN64/Kaizen/blob/dffd36fc31731a0391a9b90f88ac2e5ed5d3f9ec/src/backend/core/mmio/PIF.cpp#L338
 static void rom_hle() {
-    // https://github.com/SimoneN64/Kaizen/blob/dffd36fc31731a0391a9b90f88ac2e5ed5d3f9ec/src/backend/core/mmio/PIF.cpp#L379
     // FIXME: check PAL
     bool pal = false;
 
-    // https://github.com/SimoneN64/Kaizen/blob/dffd36fc31731a0391a9b90f88ac2e5ed5d3f9ec/src/backend/core/mmio/PIF.cpp#L606
     const uint32_t cic_seed = g_memory().rom.get_cic_seed();
     N64::Memory::write_paddr32(PHYS_PIF_RAM_BASE + 0x24, cic_seed);
 
@@ -281,23 +278,19 @@ static void rom_hle() {
 
     g_cpu().gpr.write(22, (cic_seed >> 8) & 0xFF);
 
-    // PCの初期化
+    // Initialize PC.
     g_cpu().set_pc64(0xA4000040);
 
-    // CPUのCOP0レジスタの初期化
-    // https://github.com/Dillonb/n64/blob/6502f7d2f163c3f14da5bff8cd6d5ccc47143156/src/mem/pif.c#L305
+    // Initialize CPU COP0 registers.
     g_cpu().cop0.reg.random = 0x0000001F;
     g_cpu().cop0.reg.status.raw = 0x34000000;
     g_cpu().cop0.reg.prid = 0x00000B00;
     g_cpu().cop0.reg.config = 0x0006E463;
 
-    // FIXME: correct?
     N64::Memory::write_paddr32(0x04300004, 0x01010101);
 
-    // ROMの最初0x1000バイトをSP DMEMにコピー
-    //   i.e. 0xB0000000 から 0xA4000000 に0x1000バイトをコピー
-    // ROM is host-endian; DMEM is big-endian (Dillonb pif boot).
-    // https://github.com/Dillonb/n64/blob/6502f7d2f163c3f14da5bff8cd6d5ccc47143156/src/mem/pif.c#L358
+    // Copy the first 0x1000 bytes of ROM into SP DMEM
+    //   i.e. copy 0x1000 bytes from 0xB0000000 to 0xA4000000.
     auto &dmem = g_rsp().get_sp_dmem();
     auto &rom = g_memory().rom.get_raw_data();
     for (uint32_t i = 0; i < 0x1000; i++) {
@@ -305,7 +298,7 @@ static void rom_hle() {
     }
 }
 
-// ROMのブートコード(PIF ROM)の副作用をエミュレートする
+// Emulate side effects of the ROM boot code (PIF ROM).
 void Pif::execute_rom_hle() {
 
     switch (g_memory().rom.get_cic()) {
@@ -333,7 +326,6 @@ void Pif::control_write() {
     // byte contains bit flags representings a command performed by PIF.
     // See: https://n64brew.dev/wiki/PIF-NUS
     uint8_t control = ram[63];
-    // https://github.com/project64/project64/blob/353ef5ed897cb72a8904603feddbdc649dff9eca/Source/Project64-core/N64System/MemoryHandler/PifRamHandler.cpp#L377
     if (control > 1) {
         switch (control) {
         case 0x08: // Terminate boot process.
@@ -348,8 +340,6 @@ void Pif::control_write() {
     }
 
     // Run Joy bus commands (64 bytes)
-    // https://github.com/SimoneN64/Kaizen/blob/74dccb6ac6a679acbf41b497151e08af6302b0e9/src/backend/core/mmio/PIF.cpp#L155
-    // https://github.com/project64/project64/blob/353ef5ed897cb72a8904603feddbdc649dff9eca/Source/Project64-core/N64System/MemoryHandler/PifRamHandler.cpp#L594
     int channel = 0;
 
     // For details of command,

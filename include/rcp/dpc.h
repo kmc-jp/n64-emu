@@ -54,7 +54,6 @@ class Dpc {
 
     void write_paddr32(uint32_t paddr, uint32_t value);
 
-    // Process display list; full Parallel-RDP wiring comes later.
     void run_command();
 
     dpc_status_t &get_status() { return status; }

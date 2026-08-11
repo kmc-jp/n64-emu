@@ -1,4 +1,4 @@
-﻿#ifndef BUS_H
+#ifndef BUS_H
 #define BUS_H
 
 #include <cstdint>
@@ -8,7 +8,6 @@ namespace Memory {
 
 // TODO: move to memory class?
 // Physical bus accessors. RDRAM/ROM/IMEM use host-endian word storage
-// (paraLLEl-RDP); SP DMEM stays big-endian.
 uint64_t read_paddr64(uint32_t paddr);
 uint32_t read_paddr32(uint32_t paddr);
 uint16_t read_paddr16(uint32_t paddr);

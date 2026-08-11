@@ -1,4 +1,4 @@
-﻿#include "cpu/cpu.h"
+#include "cpu/cpu.h"
 #include "cpu/cached_interp.h"
 #include "cpu/idle_skip.h"
 #include "debugger/debugger.h"
@@ -107,7 +107,7 @@ void Cpu::execute_instruction(instruction_t inst) {
 }
 
 void Cpu::branch_likely_addr64(Cpu &cpu, bool cond, uint64_t vaddr) {
-    // 分岐成立時のみ遅延スロットを実行する
+    // Execute the delay slot only when the branch is taken.
     cpu.delay_slot = true; // FIXME: correct?
     if (cond) {
         // Utils::trace("branch likely taken");
@@ -132,7 +132,7 @@ void Cpu::branch_addr64(Cpu &cpu, bool cond, uint64_t vaddr) {
 
 void Cpu::branch_likely_offset16(Cpu &cpu, bool cond, instruction_t inst) {
     int64_t offset = (int16_t)inst.i_type.imm; // sext
-    // 負数の左シフトはUBなので乗算で実装
+    // Left-shifting a negative value is UB; use multiply instead.
     offset *= 4;
     // Utils::trace("pc <= pc {:+#x}?", (int64_t)offset);
     branch_likely_addr64(cpu, cond, cpu.pc + offset);
@@ -140,7 +140,7 @@ void Cpu::branch_likely_offset16(Cpu &cpu, bool cond, instruction_t inst) {
 
 void Cpu::branch_offset16(Cpu &cpu, bool cond, instruction_t inst) {
     int64_t offset = (int16_t)inst.i_type.imm; // sext
-    // 負数の左シフトはUBなので乗算で実装
+    // Left-shifting a negative value is UB; use multiply instead.
     offset *= 4;
     // Utils::trace("pc <= pc {:+#x}?", (int64_t)offset);
     branch_addr64(cpu, cond, cpu.pc + offset);
@@ -148,7 +148,6 @@ void Cpu::branch_offset16(Cpu &cpu, bool cond, instruction_t inst) {
 
 void Cpu::link(Cpu &cpu, uint8_t reg) { cpu.gpr.write(reg, cpu.pc + 4); }
 
-// https://github.com/SimoneN64/Kaizen/blob/74dccb6ac6a679acbf41b497151e08af6302b0e9/src/backend/core/registers/Cop0.cpp#L253
 void Cpu::handle_exception(ExceptionCode exception_code,
                            uint8_t coprocessor_error, bool use_prev_pc) {
     bool old_exl = cop0.reg.status.exl;
@@ -157,7 +156,6 @@ void Cpu::handle_exception(ExceptionCode exception_code,
     if (cop0.reg.status.exl == 0) {
         if (prev_delay_slot) {
             cop0.reg.cause.branch_delay = 1;
-            // FIXME: Is just minus 4 fine?
             epc -= 4;
         } else {
             cop0.reg.cause.branch_delay = 0;

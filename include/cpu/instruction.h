@@ -7,8 +7,8 @@
 namespace N64 {
 namespace Cpu {
 
-// rawはbig endianなので、逆順(opが最後)になる.
-// 命令形式は以下のURLを参照
+// raw is big-endian, so fields are reversed (op is last).
+// See instruction formats:
 // https://hack64.net/docs/VR43XX.pdf
 // NOTE: reverse order when using big endian machine!
 union instruction_t {

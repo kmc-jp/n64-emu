@@ -7,7 +7,7 @@ namespace Mmu {
 
 std::optional<uint32_t> resolve_vaddr_slow(uint32_t vaddr,
                                            BusAccess bus_access) {
-    // FIXME: CPUモードによってアドレスが32bit長から64bit長になる
+    // FIXME: address width is 32-bit or 64-bit depending on CPU mode
     if ((KUSEG_BASE <= vaddr && vaddr <= KUSEG_END) ||
         (KSSEG_BASE <= vaddr && vaddr <= KSSEG_END) ||
         (KSEG3_BASE <= vaddr && vaddr <= KSEG3_END)) {

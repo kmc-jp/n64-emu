@@ -12,7 +12,6 @@ cmake --build build -j
 
 Pinned EVE: submodule `third_party/eve` ([jfalcou/eve](https://github.com/jfalcou/eve), BSL-1.0).
 
-ACC is stored as **H/M/L** three `VuReg` (16bit×8), matching CEN64 / parallel-rsp.
 
 ## Covered vs scalar fallback
 

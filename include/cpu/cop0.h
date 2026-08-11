@@ -122,7 +122,7 @@ constexpr std::array<std::string_view, 32> COP0_REG_NAMES = {
     UNUSED_COP0_REG_NAME,
 };
 
-// FIXME: bit fieldの順番があってるか確認
+// FIXME: verify bitfield member order
 union cop0_cause_t {
     uint32_t raw;
     PACK(struct {
@@ -164,7 +164,7 @@ union cop0_x_context_t {
 
 static_assert(sizeof(cop0_x_context_t) == 8, "cop0_x_context_t must be 64bit");
 
-// FIXME: bit fieldの順番があってるか確認
+// FIXME: verify bitfield member order
 union cop0_status_t {
     uint32_t raw;
     PACK(struct {

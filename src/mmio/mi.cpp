@@ -1,4 +1,4 @@
-﻿#include "mmio/mi.h"
+#include "mmio/mi.h"
 #include "n64_system/interrupt.h"
 #include "utils/log.h"
 #include <cstdint>
@@ -36,9 +36,6 @@ void MI::write_paddr32(uint32_t paddr, uint32_t value) {
         Utils::critical("Write to MI_VERSION, ignored.");
     } break;
     case PADDR_MI_MODE: {
-        // https://github.com/project64/project64/blob/353ef5ed897cb72a8904603feddbdc649dff9eca/Source/Project64-core/N64System/MemoryHandler/MIPSInterfaceHandler.cpp#L79
-        // https://github.com/Dillonb/n64/blob/6502f7d2f163c3f14da5bff8cd6d5ccc47143156/src/mem/n64bus.c#L190
-        // https://github.com/SimoneN64/Kaizen/blob/74dccb6ac6a679acbf41b497151e08af6302b0e9/src/backend/core/mmio/MI.cpp#L32
         reg_mode &= ~0x7f;
         reg_mode |= value & 0x7f;
 

@@ -1,4 +1,4 @@
-﻿#include "rcp/rsp.h"
+#include "rcp/rsp.h"
 #include "cpu/jit/invalidate_hook.h"
 #include "debugger/debugger.h"
 #include "memory/memory.h"
@@ -768,7 +768,6 @@ void Rsp::dma_read() {
         for (uint32_t j = 0; j < length; j++) {
             uint16_t addr = (mem_address + j) & 0xFFF;
             // IMEM matches RDRAM host-endian layout; DMEM is big-endian so
-            // convert with byte^3 (Dillonb rsp_dma_read).
             uint16_t index =
                 to_imem ? addr
                         : static_cast<uint16_t>(Utils::byte_address(addr));

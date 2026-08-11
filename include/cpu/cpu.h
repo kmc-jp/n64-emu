@@ -84,8 +84,7 @@ class Cpu {
                cop0.reg.status.exl == 0 && cop0.reg.status.erl == 0;
     }
 
-    // CPUの1ステップを実行する
-    // https://github.com/Dillonb/n64/blob/6502f7d2f163c3f14da5bff8cd6d5ccc47143156/src/cpu/r4300i.c#L758
+    // Execute one CPU step.
     void step();
 
     // JIT: delay-slot + PC advance without instruction fetch.
@@ -139,7 +138,6 @@ class Cpu {
     friend class FpuImpl;
 };
 
-// https://github.com/project64/project64/blob/353ef5ed897cb72a8904603feddbdc649dff9eca/Source/Project64-core/N64System/Mips/Register.cpp#L9
 constexpr std::array<std::string_view, 32> GPR_NAMES = {
     "R0", "AT", "V0", "V1", "A0", "A1", "A2", "A3", "T0", "T1", "T2",
     "T3", "T4", "T5", "T6", "T7", "S0", "S1", "S2", "S3", "S4", "S5",

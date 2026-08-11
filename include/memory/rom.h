@@ -1,4 +1,4 @@
-﻿#ifndef ROM_H
+#ifndef ROM_H
 #define ROM_H
 
 #include <cstdint>
@@ -9,7 +9,6 @@ namespace N64 {
 namespace Memory {
 
 // cartridge size
-// https://github.com/SimoneN64/Kaizen/blob/dffd36fc31731a0391a9b90f88ac2e5ed5d3f9ec/src/backend/MemoryRegions.hpp#L18
 constexpr uint32_t ROM_SIZE = 0xF000'0000;
 
 // https://www.romhacking.net/forum/index.php?topic=19524.0
@@ -25,7 +24,7 @@ struct rom_header_t {
     char unknown2[4];
     // 32 bit before here
     char image_name[20];
-    // FIXME: これ以降はあっているか不明
+    // FIXME: layout after this point is uncertain
     char unknown5[4];
     uint32_t manufacturer_id;
     uint16_t cartridge_id;

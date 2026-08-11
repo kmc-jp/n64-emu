@@ -40,7 +40,6 @@ void Dpc::reset() {
 }
 
 uint32_t Dpc::read_paddr32(uint32_t paddr) const {
-    // https://github.com/Dillonb/n64/blob/6502f7d2f163c3f14da5bff8cd6d5ccc47143156/src/rdp/rdp.c#L96
     switch (paddr) {
     case PADDR_DPC_START:
         return start;
@@ -66,7 +65,6 @@ uint32_t Dpc::read_paddr32(uint32_t paddr) const {
 void Dpc::write_paddr32(uint32_t paddr, uint32_t value) {
     // RSP worker may submit DPC while the main thread presents; serialize.
     std::lock_guard<std::recursive_mutex> lock(Rdp::mutex());
-    // https://github.com/Dillonb/n64/blob/6502f7d2f163c3f14da5bff8cd6d5ccc47143156/src/rdp/rdp.c#L65
     switch (paddr) {
     case PADDR_DPC_START:
         if (!status.start_valid) {
@@ -83,7 +81,7 @@ void Dpc::write_paddr32(uint32_t paddr, uint32_t value) {
             // Do NOT clear leftover here. The RDP command FIFO can wrap (new
             // START while a partial command is still pending from the previous
             // END). Discarding leftover desyncs the parser so FULL_SYNC is
-            // never seen again (Kirby 64 screen freeze).
+            // never seen again.
             current = start;
             status.start_valid = 0;
         }
@@ -105,7 +103,6 @@ void Dpc::write_paddr32(uint32_t paddr, uint32_t value) {
 }
 
 void Dpc::status_write(uint32_t value) {
-    // https://github.com/Dillonb/n64/blob/6502f7d2f163c3f14da5bff8cd6d5ccc47143156/src/rdp/rdp.c#L281
     const bool clear_xbus = value & 0x1;
     const bool set_xbus = value & 0x2;
     const bool clear_freeze = value & 0x4;
@@ -145,7 +142,6 @@ void Dpc::status_write(uint32_t value) {
 }
 
 void Dpc::run_command() {
-    // https://github.com/Dillonb/n64/blob/6502f7d2f163c3f14da5bff8cd6d5ccc47143156/src/rdp/rdp.c#L245
     if (status.freeze)
         return;
     status.pipe_busy = 1;
@@ -157,7 +153,6 @@ void Dpc::run_command() {
 }
 
 void Dpc::process_list() {
-    // https://github.com/Dillonb/n64/blob/6502f7d2f163c3f14da5bff8cd6d5ccc47143156/src/rdp/rdp.c#L148
     status.freeze = 1;
 
     const uint32_t cur = current & 0x00FFFFF8;

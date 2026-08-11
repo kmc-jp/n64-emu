@@ -8,12 +8,9 @@ namespace Mmio {
 namespace VI {
 
 namespace {
-// NTSC VR4300 clock / 60 fps. Matches Dillonb n64system.h CPU_HERTZ/target_fps.
-// https://github.com/Dillonb/n64/blob/6502f7d2f163c3f14da5bff8cd6d5ccc47143156/src/system/n64system.h#L15-L16
 constexpr uint64_t CPU_CYCLES_PER_FRAME_NTSC = 93750000ull / 60ull;
 
 void update_halfline_timing(VI &vi) {
-    // https://github.com/Dillonb/n64/blob/6502f7d2f163c3f14da5bff8cd6d5ccc47143156/src/interface/vi.c#L53-L57
     if (vi.num_half_lines <= 0) {
         vi.num_half_lines = 1;
     }
@@ -63,10 +60,6 @@ uint32_t VI::read_paddr32(uint32_t paddr) const {
         return reg_intr;
     case PADDR_VI_V_CURRENT: // 0x04400010
     {
-        // Project64: returns m_HalfLine
-        // Kaizen: returns current << 1
-        // n64: returns v_current
-        // FIXME: correct?
         Utils::trace("VI: CURRENT read value =  {:#x}", reg_current);
         return reg_current;
     } break;
@@ -106,7 +99,6 @@ void VI::write_paddr32(uint32_t paddr, uint32_t value) {
     switch (paddr) {
     case PADDR_VI_CTRL: {
         reg_status = value;
-        // TODO: onChanged function?
     } break;
     case PADDR_VI_ORIGIN: {
         uint32_t masked = value & 0xFFFFFF;
@@ -119,7 +111,6 @@ void VI::write_paddr32(uint32_t paddr, uint32_t value) {
     case PADDR_VI_WIDTH: {
         reg_width = value & 0x7ff;
         Utils::debug("VI: Width set to {:#x}", reg_width);
-        // TODO: onChanged function?
     } break;
     case PADDR_VI_INTR: // 0x0440000C
     {

@@ -1,4 +1,4 @@
-﻿#ifndef RSP_H
+#ifndef RSP_H
 #define RSP_H
 
 #include "utils/pack.h"
@@ -143,7 +143,6 @@ struct alignas(16) VuReg {
 };
 
 struct AccRegs {
-    // 48-bit accumulator as three 128-bit slices (CEN64 / parallel-rsp layout).
     VuReg h{};
     VuReg m{};
     VuReg l{};

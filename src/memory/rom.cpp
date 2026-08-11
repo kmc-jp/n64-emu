@@ -1,4 +1,4 @@
-﻿#include "memory/rom.h"
+#include "memory/rom.h"
 #include "utils/byte_array.h"
 #include "utils/log.h"
 #include <fstream>
@@ -26,7 +26,6 @@ constexpr std::array<uint32_t, CRC32_TABLE_SIZE> crc32_table() {
 }
 
 // https://rosettacode.org/wiki/CRC-32#C
-// https://github.com/Dillonb/n64/blob/e015f9dddf82d4d8c813ff3a16d7044965acde86/src/mem/n64rom.c#L60C1-L60C53
 uint32_t crc32(uint32_t crc, const uint8_t *buffer, const size_t length) {
     constexpr std::array<uint32_t, CRC32_TABLE_SIZE> table = crc32_table();
 
@@ -119,7 +118,6 @@ void Rom::load_file(const std::string &filepath) {
     Utils::debug("imageName\t= \"{}\"", std::string(header.image_name));
     Utils::debug("CIC\t= {}", static_cast<int>(cic));
 
-    // paraLLEl-RDP / host CPU expect host-endian word storage with byte^3.
     Utils::byteswap_to_host(
         std::span<uint8_t>(rom.data(), static_cast<size_t>(file_size)));
 }
@@ -158,7 +156,6 @@ CicType Rom::get_cic() const { return cic; }
 SaveType Rom::get_save_type() const { return save_type; }
 
 uint32_t Rom::get_cic_seed() const {
-    // https://github.com/Dillonb/n64/blob/6502f7d2f163c3f14da5bff8cd6d5ccc47143156/src/mem/pif.c#L27
     uint32_t CIC_SEEDS[] = {
         0x0,
         0x00043F3F, // CIC_NUS_6101

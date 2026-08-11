@@ -15,7 +15,6 @@ namespace PI {
 
 void PI::reset() {
     Utils::debug("Resetting PI");
-    // https://github.com/project64/project64/blob/353ef5ed897cb72a8904603feddbdc649dff9eca/Source/Project64-core/N64System/MemoryHandler/PeripheralInterfaceHandler.cpp#L177
     reg_dram_addr = 0;
     reg_cart_addr = 0;
     reg_rd_len = 0x7f;
@@ -69,7 +68,6 @@ uint32_t PI::read_paddr32(uint32_t paddr) const {
 void PI::write_paddr32(uint32_t paddr, uint32_t value) {
     switch (paddr) {
     case PADDR_DRAM_ADDR: {
-        // https://github.com/Dillonb/n64/blob/6502f7d2f163c3f14da5bff8cd6d5ccc47143156/src/interface/pi.c#L117
         reg_dram_addr = value;
     } break;
     case PADDR_CART_ADDR: {
@@ -94,7 +92,6 @@ void PI::write_paddr32(uint32_t paddr, uint32_t value) {
             N64System::check_interrupt();
         }
     } break;
-    // https://github.com/Dillonb/n64/blob/6502f7d2f163c3f14da5bff8cd6d5ccc47143156/src/interface/pi.c#L214
     case PADDR_BSD_DOM1_LAT:
         reg_bsd_dom1_lat = value & 0xFF;
         break;
@@ -184,7 +181,6 @@ void PI::dma_write() {
 }
 
 void PIScheduler::on_dma_write_completed() {
-    // https://github.com/project64/project64/blob/353ef5ed897cb72a8904603feddbdc649dff9eca/Source/Project64-core/N64System/Mips/SystemTiming.cpp#L210
     g_pi().reg_status &= ~PiStatusFlags::DMA_BUSY;
     g_pi().reg_status |= PiStatusFlags::INTERRUPT;
     g_mi().get_reg_intr().pi = 1;

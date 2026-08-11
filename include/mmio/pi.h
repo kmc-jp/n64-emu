@@ -50,7 +50,7 @@ void on_dma_read_completed();
 // Peripheral Interface
 // https://n64brew.dev/wiki/Peripheral_Interface
 class PI {
-    // DMA完了時の処理
+    // Handlers invoked when DMA completes.
     friend void PIScheduler::on_dma_write_completed();
     friend void PIScheduler::on_dma_read_completed();
 

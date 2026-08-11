@@ -38,7 +38,6 @@ struct Config {
 #endif
     // No SDL window / Vulkan present (for CPU tests and CI).
     bool headless{false};
-    // Parallel-RDP internal resolution multiplier (1, 2, 4, or 8).
     unsigned upscale{4};
     // Frame interpolation (duplicate VI fields -> intermediates).
     bool frame_interp{false};
