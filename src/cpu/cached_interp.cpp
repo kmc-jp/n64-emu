@@ -10,7 +10,6 @@
 #include "mmu/soft_tlb.h"
 #include "mmu/tlb.h"
 #include "n64_system/machine_advance.h"
-#include "n64_system/scheduler.h"
 #include "utils/log.h"
 #include <array>
 #include <cstdint>
@@ -30,8 +29,8 @@ constexpr uint32_t PAGE_SIZE = 1u << PAGE_SHIFT;
 constexpr uint32_t WORDS_PER_PAGE = PAGE_SIZE / 4;
 constexpr uint32_t RDRAM_PAGES = RDRAM_SIZE >> PAGE_SHIFT;
 // Flush RSP + scheduler after this many guest cycles of soft-chained work.
-// Match JIT: still far shorter than a half-line, and event deadlines flush
-// earlier so CPU↔RSP and PI/AI waits cannot starve.
+// Far shorter than a half-line. Do not also flush on event deadlines: that
+// hangs Kirby 64 ~6s in under --no-jit (idle-skip still hits wait-loop events).
 constexpr int kAdvanceEveryCycles = 1024;
 
 void op_cache_wrap(Cpu &cpu, instruction_t /*inst*/) {
@@ -508,7 +507,7 @@ int run(int budget) {
     idle_skip_begin_slice(budget);
 
     // Soft-chain like JIT: COUNT advances per instruction; RSP + scheduler
-    // are batched and flushed on the cycle budget or the next event deadline.
+    // are batched and flushed on the cycle budget.
     const auto flush_pending = [&]() {
         if (pending < 1)
             return;
@@ -517,19 +516,6 @@ int run(int budget) {
     };
 
     while (total < budget) {
-        uint64_t until = g_scheduler().cycles_until_next_event();
-        if (until != UINT64_MAX && until <= static_cast<uint64_t>(pending)) {
-            flush_pending();
-            until = g_scheduler().cycles_until_next_event();
-        }
-
-        if (until == 0) {
-            flush_pending();
-            N64System::advance_after_cpu(0);
-            // If a callback re-scheduled at +0, still execute one instruction
-            // below so we cannot spin forever on overdue events.
-        }
-
         // Always advance COUNT once per loop iteration so it stays aligned
         // with pending/scheduler even when step_one_core returns early (TLB).
         step_one_core(/*do_count=*/false);
